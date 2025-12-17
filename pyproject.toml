@@ -1,0 +1,37 @@
+[project]
+name = "15-arid-badger"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Zaid Khan", email = "brain@zaidkhan.me" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "pytest>=9.0.2",
+]
+
+[project.scripts]
+15-arid-badger = "arid_badger:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+sources = ["src"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/arid_badger"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-v -ra --strict-markers"
+markers = [
+    "asyncio: mark test as async",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+]
