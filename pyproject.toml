@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "loguru>=0.7.3",
     "pytest>=9.0.2",
 ]
 
