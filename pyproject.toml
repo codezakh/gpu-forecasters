@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "kernelbench",
+    "litellm>=1.81.5",
     "loguru>=0.7.3",
     "matplotlib>=3.10.8",
     "peft>=0.18.0",

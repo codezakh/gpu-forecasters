@@ -26,6 +26,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "kernelbench" },
+    { name = "litellm" },
     { name = "loguru" },
     { name = "matplotlib" },
     { name = "peft" },
@@ -39,6 +40,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "kernelbench", editable = "third_party/KernelBench" },
+    { name = "litellm", specifier = ">=1.81.5" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "peft", specifier = ">=0.18.0" },
