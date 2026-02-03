@@ -1,23 +1,8 @@
-"""
-Integration test for KernelBench greedy search pipeline.
-
-This test validates the entire pipeline:
-1. Loads a prompt and problem from the KernelBench dataset
-2. Uses MutationFunction to generate a mutated kernel via LLM
-3. Scores the kernel and asserts compilation + measurable runtime ratio
-
-This test requires:
-- CUDA-capable GPU
-- GEMINI_API_KEY environment variable set (for Gemini 3 Flash Preview)
-- Run with: pytest -m integration
-"""
-
 import math
 
 import pytest
 import torch
 from kernelbench.dataset import BaseDataset, Problem, construct_kernelbench_dataset
-from kernelbench.prompt_constructor_toml import get_prompt_for_backend
 
 from arid_badger.greedy_search.components import (
     MutationContext,
@@ -49,9 +34,9 @@ def test_kernelbench_greedy_search_pipeline():
     # Configuration matching demo_kernelbench_apis.py defaults
     level: int = 1
     problem_id: int = 1
-    backend: str = "cuda"
-    precision: str = "fp32"
-    prompt_option: str = "one_shot"
+    # backend: str = "cuda"
+    # precision: str = "fp32"
+    # prompt_option: str = "one_shot"
 
     # 1. Load KernelBench data (level 1, problem 1)
     dataset: BaseDataset = construct_kernelbench_dataset(
@@ -61,35 +46,16 @@ def test_kernelbench_greedy_search_pipeline():
     problem: Problem = dataset.get_problem_by_id(problem_id)
     starter_kernel_code: str = problem.code
 
-    # 2. Build default prompt (same as demo_kernelbench_apis.py)
-    prompt = get_prompt_for_backend(
-        ref_arch_src=starter_kernel_code,
-        backend=backend,
-        option=prompt_option,
-        precision=precision,
-        include_hardware=False,
-        gpu_name=None,
-    )
-
     # 3. Create mutation context
     # We're mutating from the starter kernel (no previous mutation)
     # So we set previous_kernel_code to the starter, but no previous_kernel_ulid
     context = MutationContext(
         previous_kernel_code=starter_kernel_code,
         previous_kernel_ulid=None,  # Starter kernel doesn't have a ulid
-        prompt=prompt,
-        ref_arch_src=starter_kernel_code,
-        backend=backend,
-        precision=precision,
     )
 
     # 4. Create MutationFunction with Gemini 3 Flash Preview (faster for tests)
-    mutation_fn = MutationFunction(
-        model="gemini/gemini-3-flash-preview",
-        backend=backend,
-        option=prompt_option,
-        precision=precision,
-    )
+    mutation_fn = MutationFunction()
 
     # 5. Generate mutated kernel
     mutated_kernel: MutatedKernel = mutation_fn(context)
@@ -106,8 +72,8 @@ def test_kernelbench_greedy_search_pipeline():
     scoring_result: KernelScoringResult = score_kernel(
         mutated_kernel_code=mutated_kernel.kernel_code,
         reference_kernel_code=starter_kernel_code,
-        backend=backend,
-        precision=precision,
+        backend=context.backend,
+        precision=context.precision,
         num_correct_trials=1,  # Reduced for speed
         num_perf_trials=5,  # Reduced from 100 to 5 for faster test execution
     )

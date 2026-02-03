@@ -5,52 +5,45 @@ from kernelbench.prompt_constructor_toml import get_prompt_for_backend
 from kernelbench.utils import extract_first_code
 from litellm import completion
 from ulid import ULID
+from pydantic import BaseModel, Field, computed_field
+from typing import Literal
+import attrs
 
 
-@dataclass
-class MutationContext:
+class MutationContext(BaseModel):
     """Context for mutating a kernel."""
 
-    previous_kernel_code: Optional[str] = None
-    previous_kernel_ulid: Optional[str] = None
-    prompt: str = ""
-    ref_arch_src: str = ""
-    backend: str = "cuda"
-    precision: str = "fp32"
+    previous_kernel_code: Optional[str] = Field(default=None)
+    previous_kernel_ulid: Optional[ULID] = Field(default=None)
+    model_slug: str = Field(default="gemini/gemini-3-flash-preview")
+    ref_arch_src: str = Field(default="")
+    backend: Literal["cuda", "triton"] = Field(default="cuda")
+    prompt_option: Literal["zero_shot", "one_shot", "few_shot"] = Field(
+        default="one_shot"
+    )
+    precision: Literal["fp32", "fp16", "bf16"] = Field(default="fp32")
+
+    @computed_field
+    @property
+    def prompt(self) -> str:
+        return get_prompt_for_backend(
+            ref_arch_src=self.ref_arch_src,
+            backend=self.backend,
+            option=self.prompt_option,
+            precision=self.precision,
+        )
 
 
-@dataclass
-class MutatedKernel:
+class MutatedKernel(BaseModel):
     """Result of a kernel mutation."""
 
     kernel_code: str
-    ulid: str
-    ancestor_ulid: Optional[str] = None
+    ulid: ULID = Field(default_factory=ULID)
+    ancestor_ulid: Optional[ULID] = Field(default=None)
 
 
 class MutationFunction:
     """Generates mutated kernels using an LLM."""
-
-    def __init__(
-        self,
-        model: str = "gemini/gemini-3-flash-preview",
-        backend: str = "cuda",
-        option: str = "one_shot",
-        precision: str = "fp32",
-    ):
-        """
-        Initialize the mutation function.
-
-        Args:
-            model: LiteLLM model identifier
-            backend: Kernel backend ("cuda", "triton", etc.)
-            option: Prompt option ("zero_shot", "one_shot", "few_shot")
-            precision: Precision string ("fp32", "fp16", "bf16")
-        """
-        self.model = model
-        self.backend = backend
-        self.option = option
-        self.precision = precision
 
     def __call__(self, context: MutationContext) -> MutatedKernel:
         """
@@ -62,25 +55,10 @@ class MutationFunction:
         Returns:
             MutatedKernel with code, ulid, and ancestor_ulid
         """
-        # Build prompt using KernelBench's default prompt constructor
-        prompt = get_prompt_for_backend(
-            ref_arch_src=context.ref_arch_src,
-            backend=self.backend,
-            option=self.option,
-            precision=self.precision,
-        )
-
-        # Print prompt for debugging (as specified in requirements)
-        print("=" * 80)
-        print("MUTATION PROMPT:")
-        print("=" * 80)
-        print(prompt)
-        print("=" * 80)
-
         # Call LLM using LiteLLM
         response = completion(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
+            model=context.model_slug,
+            messages=[{"role": "user", "content": context.prompt}],
             timeout=20.0,
         )
 
@@ -98,12 +76,8 @@ class MutationFunction:
                 f"Could not extract code from LLM response. Response: {content[:500]}"
             )
 
-        # Generate ULID for this mutation
-        ulid = str(ULID())
-
         # Create MutatedKernel with ancestor reference
         return MutatedKernel(
             kernel_code=kernel_code,
-            ulid=ulid,
             ancestor_ulid=context.previous_kernel_ulid,
         )
