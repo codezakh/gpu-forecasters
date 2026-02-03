@@ -1,5 +1,4 @@
 from typing import Optional
-from dataclasses import dataclass
 
 from kernelbench.prompt_constructor_toml import get_prompt_for_backend
 from kernelbench.utils import extract_first_code
@@ -7,16 +6,17 @@ from litellm import completion
 from ulid import ULID
 from pydantic import BaseModel, Field, computed_field
 from typing import Literal
-import attrs
 
 
 class MutationContext(BaseModel):
     """Context for mutating a kernel."""
 
+    # Reference architecture that KernelBench expects the generated code to preserve.
+    # This should typically be the starter/reference kernel code for the current problem.
+    reference_kernel_code: str = Field(min_length=1)
     previous_kernel_code: Optional[str] = Field(default=None)
     previous_kernel_ulid: Optional[ULID] = Field(default=None)
     model_slug: str = Field(default="gemini/gemini-3-flash-preview")
-    ref_arch_src: str = Field(default="")
     backend: Literal["cuda", "triton"] = Field(default="cuda")
     prompt_option: Literal["zero_shot", "one_shot", "few_shot"] = Field(
         default="one_shot"
@@ -27,7 +27,7 @@ class MutationContext(BaseModel):
     @property
     def prompt(self) -> str:
         return get_prompt_for_backend(
-            ref_arch_src=self.ref_arch_src,
+            ref_arch_src=self.reference_kernel_code,
             backend=self.backend,
             option=self.prompt_option,
             precision=self.precision,

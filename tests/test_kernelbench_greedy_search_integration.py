@@ -50,6 +50,7 @@ def test_kernelbench_greedy_search_pipeline():
     # We're mutating from the starter kernel (no previous mutation)
     # So we set previous_kernel_code to the starter, but no previous_kernel_ulid
     context = MutationContext(
+        reference_kernel_code=starter_kernel_code,
         previous_kernel_code=starter_kernel_code,
         previous_kernel_ulid=None,  # Starter kernel doesn't have a ulid
     )

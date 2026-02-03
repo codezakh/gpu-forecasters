@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "ipdb>=0.13.13",
     "kernelbench",
     "litellm>=1.81.5",
     "loguru>=0.7.3",
