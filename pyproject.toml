@@ -36,9 +36,12 @@ packages = ["src/arid_badger"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
-addopts = "-v -ra --strict-markers"
+addopts = '-v -ra --strict-markers -m "not integration"'
 markers = [
     "asyncio: mark test as async",
+    "cuda: requires CUDA-capable GPU",
+    "integration: integration test requiring external services",
+    "slow: self-explanatory"
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",
