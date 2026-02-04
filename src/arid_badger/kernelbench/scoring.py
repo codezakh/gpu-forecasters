@@ -5,6 +5,8 @@ from kernelbench.eval import (
     eval_kernel_against_ref,
     get_torch_dtype_from_string,
 )
+from pathlib import Path
+from typing import Optional
 
 
 def score_kernel(
@@ -14,6 +16,7 @@ def score_kernel(
     precision: str = "fp32",
     num_correct_trials: int = 5,
     num_perf_trials: int = 100,
+    build_dir: Optional[Path] = None,
 ) -> KernelScoringResult:
     """
     Score a mutated kernel against a reference kernel.
@@ -39,7 +42,7 @@ def score_kernel(
     torch_precision: torch.dtype = get_torch_dtype_from_string(precision)
 
     # Evaluate kernel using KernelBench's evaluation function
-    exec_result: KernelExecResult = eval_kernel_against_ref(
+    exec_result = eval_kernel_against_ref(
         original_model_src=reference_kernel_code,
         custom_model_src=mutated_kernel_code,
         measure_performance=True,
@@ -49,7 +52,14 @@ def score_kernel(
         precision=torch_precision,
         timing_method="cuda_event",
         verbose=False,
+        build_dir=str(build_dir) if build_dir is not None else None,
     )
+    if exec_result is None:
+        # KernelBench returns None on transient lock/cache errors during concurrent compilation.
+        # Callers that run parallel compilation should retry.
+        raise RuntimeError(
+            "KernelBench evaluation returned None (likely compile cache lock error); retry scoring."
+        )
 
     # Calculate speedup (same logic as demo_kernelbench_apis.py)
     if not exec_result.correctness:
