@@ -100,7 +100,7 @@ def test_basic_search_single_depth_two_mutations(
     search = GreedySearch(config=config)
 
     # Run search
-    result = search.search()
+    result = search.run()
 
     # Verify best kernel is the one with highest speedup (mutation1 with "fast")
     assert len(result.rounds) == 1
@@ -155,7 +155,7 @@ def test_search_multiple_depth_levels(
     )
     search = GreedySearch(config=config)
 
-    result = search.search()
+    result = search.run()
 
     # Verify search history contains all evaluated kernels
     # Starter + 2 mutations at depth 0 + 2 mutations at depth 1 = 5 total
@@ -213,7 +213,7 @@ def test_search_best_kernel_improves_over_rounds(
     )
     search = GreedySearch(config=config)
 
-    result = search.search()
+    result = search.run()
 
     # Verify overall best is mutation3 (highest speedup across all rounds)
     assert len(result.rounds) == 2
@@ -259,7 +259,7 @@ def test_search_no_valid_mutations_continues_with_same_parent(
     )
     search = GreedySearch(config=config)
 
-    result = search.search()
+    result = search.run()
 
     # Best kernel should be the starter (since no valid mutations found)
     assert result.best_candidate().code == starter_kernel_code
@@ -300,7 +300,7 @@ def test_search_all_mutations_invalid(
     )
     search = GreedySearch(config=config)
 
-    result = search.search()
+    result = search.run()
 
     # Best kernel should be starter
     assert len(result.rounds) == 1
@@ -346,7 +346,7 @@ def test_search_history_completeness(
     )
     search = GreedySearch(config=config)
 
-    result = search.search()
+    result = search.run()
 
     # Verify starter is evaluated
     assert any(c.code == starter_kernel_code for c in result.evaluated_candidates())
@@ -385,7 +385,7 @@ def test_search_best_kernel_selection_logic(
     )
     search = GreedySearch(config=config)
 
-    result = search.search()
+    result = search.run()
 
     # Best should be mutation3 with highest speedup (3.0)
     assert len(result.rounds) == 1
@@ -423,7 +423,7 @@ def test_search_mutation_function_exception_handling(
     )
     search = GreedySearch(config=config)
 
-    result = search.search()
+    result = search.run()
 
     # Should still complete successfully with the one valid mutation
     assert len(result.rounds) == 1
@@ -473,7 +473,7 @@ def test_search_scoring_function_exception_handling(
     )
     search = GreedySearch(config=config)
 
-    result = search.search()
+    result = search.run()
 
     # Should still complete successfully with the one valid scored mutation
     # Evaluated candidates should contain starter + 1 successfully scored mutation
@@ -523,7 +523,7 @@ def test_search_checkpoint_resume_between_rounds(
         mutation_function=mock_mutation_full,
         scoring_function=mock_scoring_function,
     )
-    full = GreedySearch(config=config_full).search()
+    full = GreedySearch(config=config_full).run()
 
     # Partial run to depth 1.
     config_part = GreedySearchConfig(
@@ -534,7 +534,7 @@ def test_search_checkpoint_resume_between_rounds(
         mutation_function=mock_mutation_part,
         scoring_function=mock_scoring_function,
     )
-    partial = GreedySearch(config=config_part).search()
+    partial = GreedySearch(config=config_part).run()
 
     # Resume to depth 3 with the same mutation mock (continuing side effects).
     config_resume = GreedySearchConfig(

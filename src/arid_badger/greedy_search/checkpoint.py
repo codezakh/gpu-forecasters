@@ -35,6 +35,50 @@ class GreedySearchCheckpoint(BaseModel):
 
     trace: SearchTrace = Field(default_factory=SearchTrace)
 
+    def validate_invariants(self) -> None:
+        """Validate internal consistency of the checkpoint.
+
+        This is not a guarantee the checkpoint is uncorrupted, but it catches
+        common inconsistencies early and produces a clearer error than a later
+        KeyError inside the search loop.
+        """
+
+        if self.cursor.next_depth < 0:
+            raise ValueError(
+                f"Invalid checkpoint: cursor.next_depth < 0 ({self.cursor.next_depth})"
+            )
+
+        if self.cursor.next_depth != len(self.trace.rounds):
+            raise ValueError(
+                "Invalid checkpoint: cursor.next_depth does not match trace length "
+                f"(next_depth={self.cursor.next_depth}, rounds={len(self.trace.rounds)})"
+            )
+
+        if not self.candidates.has(self.cursor.parent_ulid):
+            raise ValueError(
+                "Invalid checkpoint: cursor.parent_ulid not found in candidates "
+                f"({self.cursor.parent_ulid})"
+            )
+
+        if not self.candidates.has(self.best_ulid):
+            raise ValueError(
+                "Invalid checkpoint: best_ulid not found in candidates "
+                f"({self.best_ulid})"
+            )
+
+        best_candidate = self.candidates.get(self.best_ulid)
+        if best_candidate.evaluation is None:
+            raise ValueError(
+                "Invalid checkpoint: best candidate has no evaluation "
+                f"({self.best_ulid})"
+            )
+
+        if best_candidate.evaluation != self.best_evaluation:
+            raise ValueError(
+                "Invalid checkpoint: best_evaluation does not match best candidate evaluation "
+                f"({self.best_ulid})"
+            )
+
     @computed_field
     @property
     def rounds(self) -> List[RoundTrace]:

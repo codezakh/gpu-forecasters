@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import traceback
-from typing import Callable, List, Literal, Tuple
+from typing import Callable, List, Literal, Optional, Tuple
 
 from .components import MutationContext, MutationFunction
 from arid_badger.kernelbench.core import KernelScoringResult
@@ -55,13 +55,37 @@ class GreedySearch:
         """
         self.config = config
 
+    def _create_initial_checkpoint(self) -> GreedySearchCheckpoint:
+        """Create the initial checkpoint for a fresh run (includes starter scoring)."""
+        starter_raw_score = self.config.scoring_function(
+            self.config.starter_kernel_code, self.config.reference_kernel_code
+        )
+        starter_evaluation = self._score_to_evaluation(starter_raw_score)
+
+        starter_candidate = KernelCandidate(
+            code=self.config.starter_kernel_code,
+            parent_ulid=None,
+            evaluation=starter_evaluation,
+        )
+        candidates = CandidateGraph().add(starter_candidate)
+
+        checkpoint = GreedySearchCheckpoint(
+            cursor=SearchCursor(next_depth=0, parent_ulid=starter_candidate.ulid),
+            candidates=candidates,
+            best_ulid=starter_candidate.ulid,
+            best_evaluation=starter_evaluation,
+            trace=SearchTrace(rounds=[]),
+        )
+        checkpoint.validate_invariants()
+        return checkpoint
+
     def _score_to_evaluation(self, score: KernelScoringResult) -> Evaluation:
         exec_result = score.exec_result
         metrics = EvaluationMetrics(
-            compiled=getattr(exec_result, "compiled", None),
-            correctness=getattr(exec_result, "correctness", None),
-            runtime=getattr(exec_result, "runtime", None),
-            ref_runtime=getattr(exec_result, "ref_runtime", None),
+            compiled=exec_result.compiled,
+            correctness=exec_result.correctness,
+            runtime=exec_result.runtime,
+            ref_runtime=exec_result.ref_runtime,
         )
 
         if score.is_valid:
@@ -176,35 +200,15 @@ class GreedySearch:
             num_valid=len(valid),
         )
 
-    def search(self) -> GreedySearchCheckpoint:
+    def _run_from_checkpoint(
+        self, checkpoint: GreedySearchCheckpoint
+    ) -> GreedySearchCheckpoint:
+        """Advance a run from the given checkpoint to config.max_depth.
+
+        Mutates and returns the same checkpoint object (in-place).
         """
-        Perform greedy search for optimized kernels.
+        checkpoint.validate_invariants()
 
-        Returns:
-            GreedySearchCheckpoint sufficient to resume search.
-        """
-        # Score the starter kernel to establish baseline
-        starter_raw_score = self.config.scoring_function(
-            self.config.starter_kernel_code, self.config.reference_kernel_code
-        )
-        starter_evaluation = self._score_to_evaluation(starter_raw_score)
-
-        starter_candidate = KernelCandidate(
-            code=self.config.starter_kernel_code,
-            parent_ulid=None,
-            evaluation=starter_evaluation,
-        )
-        candidates = CandidateGraph().add(starter_candidate)
-
-        checkpoint = GreedySearchCheckpoint(
-            cursor=SearchCursor(next_depth=0, parent_ulid=starter_candidate.ulid),
-            candidates=candidates,
-            best_ulid=starter_candidate.ulid,
-            best_evaluation=starter_evaluation,
-            trace=SearchTrace(rounds=[]),
-        )
-
-        # Iterate through depth levels (always bounded by max_depth)
         for depth in range(checkpoint.cursor.next_depth, self.config.max_depth):
             current_parent_ulid = checkpoint.cursor.parent_ulid
             parent = checkpoint.candidates.get(current_parent_ulid)
@@ -257,42 +261,18 @@ class GreedySearch:
 
         return checkpoint
 
+    def run(
+        self, *, checkpoint: Optional[GreedySearchCheckpoint] = None
+    ) -> GreedySearchCheckpoint:
+        """Run greedy search either from scratch or from an existing checkpoint."""
+        if checkpoint is None:
+            checkpoint = self._create_initial_checkpoint()
+        return self._run_from_checkpoint(checkpoint)
+
+    def search(self) -> GreedySearchCheckpoint:
+        """Perform greedy search for optimized kernels (fresh run)."""
+        return self.run()
+
     def resume(self, checkpoint: GreedySearchCheckpoint) -> GreedySearchCheckpoint:
         """Resume a search from a checkpoint (between rounds)."""
-        # Continue from checkpoint.cursor.next_depth up to config.max_depth.
-        resumed = checkpoint
-        # Re-run the same loop by temporarily seeding self.search-style local variables.
-        # (Keeps the public API small; search() remains the entrypoint for fresh runs.)
-        for depth in range(resumed.cursor.next_depth, self.config.max_depth):
-            current_parent_ulid = resumed.cursor.parent_ulid
-            parent = resumed.candidates.get(current_parent_ulid)
-
-            mutation_attempts, generated_candidates = self._attempt_generate_mutations(
-                parent=parent
-            )
-
-            resumed.register_generated_candidates(generated_candidates)
-
-            scoring_attempts, scored_candidates = self._attempt_score_mutations(
-                generated_candidates
-            )
-            resumed.register_scored_candidates(scored_candidates)
-
-            outcome = self._select_round_outcome(scored_candidates)
-            selected_parent_ulid = resumed.select_parent_ulid(outcome)
-            resumed.update_best_from_outcome(outcome)
-
-            round_trace = RoundTrace(
-                depth=depth,
-                parent_ulid=current_parent_ulid,
-                mutation_attempts=mutation_attempts,
-                scoring_attempts=scoring_attempts,
-                outcome=outcome,
-                selected_parent_ulid=selected_parent_ulid,
-            )
-            resumed.append_round_trace(round_trace)
-            resumed.advance_cursor(
-                next_depth=depth + 1, parent_ulid=selected_parent_ulid
-            )
-
-        return resumed
+        return self.run(checkpoint=checkpoint)
