@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import traceback
-from typing import Callable, List, Literal, Optional, Tuple
+from collections import Counter
+from typing import Callable, Dict, List, Literal, Optional, Tuple
 
 from arid_badger.typing_utils import Option, is_ok
 from .components import MutationContext, MutationFunction
@@ -30,6 +31,108 @@ from .trace import (
 from .domain import InvalidEvaluation, ValidEvaluation
 
 
+def _summarize_attempt_failures(
+    *,
+    mutation_attempts: List[MutationAttempt],
+    scoring_attempts: List[ScoringAttempt],
+) -> Dict[str, int]:
+    mutation_failures = sum(
+        1 for attempt in mutation_attempts if isinstance(attempt, MutationFailure)
+    )
+    scoring_failures = sum(
+        1 for attempt in scoring_attempts if isinstance(attempt, ScoringFailure)
+    )
+    return {
+        "mutation_failures": mutation_failures,
+        "scoring_failures": scoring_failures,
+    }
+
+
+def _summarize_invalid_reasons(
+    scored_candidates: List[Tuple[KernelCandidate, Evaluation]],
+) -> Dict[str, int]:
+    reasons = Counter()
+    for _, evaluation in scored_candidates:
+        if isinstance(evaluation, InvalidEvaluation):
+            reasons[evaluation.reason] += 1
+    return dict(reasons)
+
+
+def _log_run_start(
+    *, config: "GreedySearchConfig", checkpoint: GreedySearchCheckpoint
+) -> None:
+    best_kind = checkpoint.best_evaluation.kind
+    best_speedup: Optional[float] = None
+    if isinstance(checkpoint.best_evaluation, ValidEvaluation):
+        best_speedup = checkpoint.best_evaluation.speedup
+
+    logger.info(
+        "GreedySearch start max_depth={max_depth} next_depth={next_depth} "
+        "parent_ulid={parent_ulid} best_kind={best_kind} best_speedup={best_speedup}",
+        max_depth=config.max_depth,
+        next_depth=checkpoint.cursor.next_depth,
+        parent_ulid=str(checkpoint.cursor.parent_ulid),
+        best_kind=best_kind,
+        best_speedup=best_speedup,
+    )
+
+
+def _log_round_outcome_and_policy(
+    *,
+    depth: int,
+    current_parent: KernelCandidate,
+    selected_parent: KernelCandidate,
+    outcome: RoundOutcome,
+    incumbent_best: Evaluation,
+    best_updated: bool,
+    mutation_attempts: List[MutationAttempt],
+    scoring_attempts: List[ScoringAttempt],
+    scored_candidates: List[Tuple[KernelCandidate, Evaluation]],
+) -> None:
+    failure_summary = _summarize_attempt_failures(
+        mutation_attempts=mutation_attempts, scoring_attempts=scoring_attempts
+    )
+    invalid_reasons = _summarize_invalid_reasons(scored_candidates)
+    parent_changed = current_parent.ulid != selected_parent.ulid
+
+    winner_ulid: Optional[str] = None
+    winner_speedup: Optional[float] = None
+    if isinstance(outcome, RoundWinnerSelected):
+        winner_ulid = str(outcome.winner_ulid)
+        winner_speedup = outcome.winner_speedup
+
+    incumbent_kind = incumbent_best.kind
+    incumbent_speedup: Optional[float] = None
+    if isinstance(incumbent_best, ValidEvaluation):
+        incumbent_speedup = incumbent_best.speedup
+
+    logger.info(
+        "GreedySearch round depth={depth} parent_ulid={parent_ulid} "
+        "outcome={outcome} selected_parent_ulid={selected_parent_ulid} "
+        "parent_changed={parent_changed} best_updated={best_updated} "
+        "num_scored={num_scored} num_valid={num_valid} "
+        "winner_ulid={winner_ulid} winner_speedup={winner_speedup} "
+        "incumbent_kind={incumbent_kind} incumbent_speedup={incumbent_speedup} "
+        "mutation_failures={mutation_failures} scoring_failures={scoring_failures} "
+        "invalid_reasons={invalid_reasons}",
+        depth=depth,
+        parent_ulid=str(current_parent.ulid),
+        outcome=outcome.kind,
+        selected_parent_ulid=str(selected_parent.ulid),
+        parent_changed=parent_changed,
+        best_updated=best_updated,
+        num_scored=outcome.num_scored,
+        num_valid=outcome.num_valid,
+        winner_ulid=winner_ulid,
+        winner_speedup=winner_speedup,
+        incumbent_kind=incumbent_kind,
+        incumbent_speedup=incumbent_speedup,
+        mutation_failures=failure_summary["mutation_failures"],
+        scoring_failures=failure_summary["scoring_failures"],
+        invalid_reasons=invalid_reasons,
+    )
+
+
 def _select_next_parent(
     *,
     current_parent: KernelCandidate,
@@ -42,7 +145,20 @@ def _select_next_parent(
     resolve that to an entity here so the search loop can operate on candidates.
     """
     if isinstance(outcome, RoundWinnerSelected):
-        return candidates.get(outcome.winner_ulid)
+        selected = candidates.get(outcome.winner_ulid)
+        logger.info(
+            "GreedySearch decision next_parent=winner "
+            "current_parent_ulid={current_parent_ulid} winner_ulid={winner_ulid}",
+            current_parent_ulid=str(current_parent.ulid),
+            winner_ulid=str(outcome.winner_ulid),
+        )
+        return selected
+    logger.info(
+        "GreedySearch decision next_parent=incumbent "
+        "current_parent_ulid={current_parent_ulid} outcome={outcome}",
+        current_parent_ulid=str(current_parent.ulid),
+        outcome=outcome.kind,
+    )
     return current_parent
 
 
@@ -60,18 +176,43 @@ def _select_best_update_from_outcome(
     - If both are valid, higher speedup wins (ties do not replace incumbent).
     """
     if not isinstance(outcome, RoundWinnerSelected):
+        logger.info(
+            "GreedySearch decision best_update=skip reason=no_winner outcome={outcome}",
+            outcome=outcome.kind,
+        )
         return Option.err("no_update")
 
     winner = candidates.get(outcome.winner_ulid)
 
     # Any valid winner beats a currently-invalid incumbent.
     if isinstance(incumbent_best, InvalidEvaluation):
+        logger.info(
+            "GreedySearch decision best_update=winner reason=incumbent_invalid "
+            "winner_ulid={winner_ulid}",
+            winner_ulid=str(outcome.winner_ulid),
+        )
         return Option.ok(winner)
 
     # If both are valid, prefer higher speedup.
     if isinstance(incumbent_best, ValidEvaluation):
         if outcome.winner_speedup > incumbent_best.speedup:
+            logger.info(
+                "GreedySearch decision best_update=winner reason=speedup_improved "
+                "winner_ulid={winner_ulid} winner_speedup={winner_speedup} "
+                "incumbent_speedup={incumbent_speedup}",
+                winner_ulid=str(outcome.winner_ulid),
+                winner_speedup=outcome.winner_speedup,
+                incumbent_speedup=incumbent_best.speedup,
+            )
             return Option.ok(winner)
+        logger.info(
+            "GreedySearch decision best_update=skip reason=no_improvement "
+            "winner_ulid={winner_ulid} winner_speedup={winner_speedup} "
+            "incumbent_speedup={incumbent_speedup}",
+            winner_ulid=str(outcome.winner_ulid),
+            winner_speedup=outcome.winner_speedup,
+            incumbent_speedup=incumbent_best.speedup,
+        )
 
     return Option.err("no_update")
 
@@ -182,6 +323,13 @@ class GreedySearch:
                 )
                 generated.append(candidate)
             except Exception as e:
+                logger.warning(
+                    "GreedySearch mutation_failed attempt_idx={attempt_idx} "
+                    "parent_ulid={parent_ulid} error={error}",
+                    attempt_idx=attempt_idx,
+                    parent_ulid=str(parent.ulid),
+                    error=repr(e),
+                )
                 attempts.append(
                     MutationFailure(
                         attempt_idx=attempt_idx,
@@ -212,6 +360,12 @@ class GreedySearch:
                 )
                 scored.append(pair)
             except Exception as e:
+                logger.warning(
+                    "GreedySearch scoring_failed candidate_ulid={candidate_ulid} "
+                    "error={error}",
+                    candidate_ulid=str(candidate.ulid),
+                    error=repr(e),
+                )
                 attempts.append(
                     ScoringFailure(
                         candidate_ulid=candidate.ulid,
@@ -229,6 +383,9 @@ class GreedySearch:
         self, scored_candidates: List[Tuple[KernelCandidate, Evaluation]]
     ) -> RoundOutcome:
         if not scored_candidates:
+            logger.info(
+                "GreedySearch decision round_outcome=no_evaluations num_scored=0"
+            )
             return RoundNoEvaluations()
 
         valid: List[Tuple[KernelCandidate, ValidEvaluation]] = []
@@ -237,9 +394,25 @@ class GreedySearch:
                 valid.append((candidate, evaluation))
 
         if not valid:
+            invalid_reasons = _summarize_invalid_reasons(scored_candidates)
+            logger.info(
+                "GreedySearch decision round_outcome=all_evaluations_invalid "
+                "num_scored={num_scored} invalid_reasons={invalid_reasons}",
+                num_scored=len(scored_candidates),
+                invalid_reasons=invalid_reasons,
+            )
             return RoundAllEvaluationsInvalid(num_scored=len(scored_candidates))
 
         best_candidate, best_evaluation = max(valid, key=lambda ce: ce[1].speedup)
+        logger.info(
+            "GreedySearch decision round_outcome=winner_selected "
+            "winner_ulid={winner_ulid} winner_speedup={winner_speedup} "
+            "num_scored={num_scored} num_valid={num_valid}",
+            winner_ulid=str(best_candidate.ulid),
+            winner_speedup=best_evaluation.speedup,
+            num_scored=len(scored_candidates),
+            num_valid=len(valid),
+        )
         return RoundWinnerSelected(
             winner_ulid=best_candidate.ulid,
             winner_evaluation=best_evaluation,
@@ -278,11 +451,13 @@ class GreedySearch:
                 outcome=outcome,
                 candidates=checkpoint.candidates,
             )
+            incumbent_best = checkpoint.best_evaluation
             best_update_ulid = _select_best_update_from_outcome(
-                incumbent_best=checkpoint.best_evaluation,
+                incumbent_best=incumbent_best,
                 outcome=outcome,
                 candidates=checkpoint.candidates,
             )
+            best_updated = is_ok(best_update_ulid)
             if is_ok(best_update_ulid):
                 checkpoint.set_best_candidate(candidate=best_update_ulid.unwrap())
 
@@ -296,19 +471,16 @@ class GreedySearch:
             )
             checkpoint.append_round_trace(round_trace)
 
-            logger.info(
-                "GreedySearch depth={depth} parent_ulid={parent_ulid} "
-                "mut_attempts={mut_attempts} mut_ok={mut_ok} "
-                "score_attempts={score_attempts} scored={scored} valid={valid} "
-                "round_outcome={round_outcome}",
+            _log_round_outcome_and_policy(
                 depth=depth,
-                parent_ulid=str(current_parent.ulid),
-                mut_attempts=len(mutation_attempts),
-                mut_ok=len(generated_candidates),
-                score_attempts=len(scoring_attempts),
-                scored=len(scored_candidates),
-                valid=outcome.num_valid,
-                round_outcome=outcome.kind,
+                current_parent=current_parent,
+                selected_parent=selected_parent,
+                outcome=outcome,
+                incumbent_best=incumbent_best,
+                best_updated=best_updated,
+                mutation_attempts=mutation_attempts,
+                scoring_attempts=scoring_attempts,
+                scored_candidates=scored_candidates,
             )
 
             checkpoint.advance_parent(next_depth=depth + 1, parent=selected_parent)
@@ -321,6 +493,7 @@ class GreedySearch:
         """Run greedy search either from scratch or from an existing checkpoint."""
         if checkpoint is None:
             checkpoint = self._create_initial_checkpoint()
+        _log_run_start(config=self.config, checkpoint=checkpoint)
         return self._run_from_checkpoint(checkpoint)
 
     def search(self) -> GreedySearchCheckpoint:
