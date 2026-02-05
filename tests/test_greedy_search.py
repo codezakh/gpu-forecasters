@@ -6,6 +6,11 @@ from arid_badger.greedy_search.components import (
     MutationFunction,
     MutatedKernel,
 )
+from arid_badger.greedy_search.outcomes import (
+    MutationFailure,
+    ScoringFailure,
+    ValidEvaluation,
+)
 from arid_badger.greedy_search.search import (
     GreedySearch,
     GreedySearchConfig,
@@ -102,10 +107,11 @@ def test_basic_search_single_depth_two_mutations(
 
     # Verify best kernel is the one with highest speedup (mutation1 with "fast")
     assert len(result.rounds) == 1
-    assert len(result.search_history) == 3  # starter + 2 scored mutations
+    assert len(result.evaluated_candidates()) == 3  # starter + 2 scored mutations
     assert result.rounds[0].round_best.kind == "found"
-    assert "fast" in result.best_kernel.kernel_code
-    assert result.best_score.speedup == 3.0
+    assert "fast" in result.best_candidate().code
+    assert isinstance(result.best_evaluation, ValidEvaluation)
+    assert result.best_evaluation.speedup == 3.0
 
 
 def test_search_multiple_depth_levels(
@@ -157,14 +163,15 @@ def test_search_multiple_depth_levels(
     # Verify search history contains all evaluated kernels
     # Starter + 2 mutations at depth 0 + 2 mutations at depth 1 = 5 total
     assert len(result.rounds) == 2
-    assert len(result.search_history) == 5
+    assert len(result.evaluated_candidates()) == 5
 
     # Verify best kernel is one of the fast mutations
-    assert result.best_score.speedup == 3.0
-    assert result.best_score.is_valid
+    assert isinstance(result.best_evaluation, ValidEvaluation)
+    assert result.best_evaluation.speedup == 3.0
     assert result.rounds[0].round_best.kind == "found"
     assert result.rounds[1].round_best.kind == "found"
-    assert "fast" in result.rounds[1].parent_kernel_code
+    round1_parent = result.candidates.get(result.rounds[1].parent_ulid)
+    assert "fast" in round1_parent.code
 
 
 def test_search_best_kernel_improves_over_rounds(
@@ -213,8 +220,9 @@ def test_search_best_kernel_improves_over_rounds(
 
     # Verify overall best is mutation3 (highest speedup across all rounds)
     assert len(result.rounds) == 2
-    assert result.best_score.speedup == 3.0
-    assert "fast" in result.best_kernel.kernel_code
+    assert isinstance(result.best_evaluation, ValidEvaluation)
+    assert result.best_evaluation.speedup == 3.0
+    assert "fast" in result.best_candidate().code
 
 
 def test_search_no_valid_mutations_continues_with_same_parent(
@@ -234,7 +242,15 @@ def test_search_no_valid_mutations_continues_with_same_parent(
         ancestor_ulid=None,
     )
 
-    mock_mutation_function.side_effect = [mutation1, mutation2] * 3
+    # Use distinct objects per call so candidates have distinct ULIDs.
+    mock_mutation_function.side_effect = [
+        mutation1,
+        mutation2,
+        MutatedKernel(kernel_code=mutation1.kernel_code, ancestor_ulid=None),
+        MutatedKernel(kernel_code=mutation2.kernel_code, ancestor_ulid=None),
+        MutatedKernel(kernel_code=mutation1.kernel_code, ancestor_ulid=None),
+        MutatedKernel(kernel_code=mutation2.kernel_code, ancestor_ulid=None),
+    ]
 
     config = GreedySearchConfig(
         max_depth=3,
@@ -249,11 +265,14 @@ def test_search_no_valid_mutations_continues_with_same_parent(
     result = search.search()
 
     # Best kernel should be the starter (since no valid mutations found)
-    assert result.best_kernel.kernel_code == starter_kernel_code
+    assert result.best_candidate().code == starter_kernel_code
     assert len(result.rounds) == 3
     assert all(r.round_best.kind == "all_invalid" for r in result.rounds)
-    assert all(r.next_parent_code == starter_kernel_code for r in result.rounds)
-    assert len(result.search_history) == 7  # starter + (2 invalid scored) * 3 rounds
+    starter_ulid = result.rounds[0].parent_ulid
+    assert all(r.selected_parent_ulid == starter_ulid for r in result.rounds)
+    assert (
+        len(result.evaluated_candidates()) == 7
+    )  # starter + (2 invalid scored) * 3 rounds
 
 
 def test_search_all_mutations_invalid(
@@ -289,9 +308,9 @@ def test_search_all_mutations_invalid(
     # Best kernel should be starter
     assert len(result.rounds) == 1
     assert result.rounds[0].round_best.kind == "all_invalid"
-    assert result.best_kernel.kernel_code == starter_kernel_code
-    # All mutations should be in history
-    assert len(result.search_history) == 3
+    assert result.best_candidate().code == starter_kernel_code
+    # All mutations should be evaluated (even if invalid)
+    assert len(result.evaluated_candidates()) == 3
 
 
 def test_search_history_completeness(
@@ -332,8 +351,8 @@ def test_search_history_completeness(
 
     result = search.search()
 
-    # Verify starter is in history
-    assert any(k.kernel_code == starter_kernel_code for k, _ in result.search_history)
+    # Verify starter is evaluated
+    assert any(c.code == starter_kernel_code for c in result.evaluated_candidates())
 
 
 def test_search_best_kernel_selection_logic(
@@ -374,8 +393,9 @@ def test_search_best_kernel_selection_logic(
     # Best should be mutation3 with highest speedup (3.0)
     assert len(result.rounds) == 1
     assert result.rounds[0].round_best.kind == "found"
-    assert result.best_score.speedup == 3.0
-    assert "fast" in result.best_kernel.kernel_code
+    assert isinstance(result.best_evaluation, ValidEvaluation)
+    assert result.best_evaluation.speedup == 3.0
+    assert "fast" in result.best_candidate().code
 
 
 def test_search_mutation_function_exception_handling(
@@ -410,8 +430,8 @@ def test_search_mutation_function_exception_handling(
 
     # Should still complete successfully with the one valid mutation
     assert len(result.rounds) == 1
-    assert result.rounds[0].mutation_attempts[0].result.is_err()
-    assert len(result.search_history) == 2  # starter + 1 valid mutation
+    assert isinstance(result.rounds[0].mutation_attempts[0], MutationFailure)
+    assert len(result.evaluated_candidates()) == 2  # starter + 1 scored mutation
 
 
 def test_search_scoring_function_exception_handling(
@@ -459,7 +479,92 @@ def test_search_scoring_function_exception_handling(
     result = search.search()
 
     # Should still complete successfully with the one valid scored mutation
-    # History should contain starter + 1 successfully scored mutation
+    # Evaluated candidates should contain starter + 1 successfully scored mutation
     assert len(result.rounds) == 1
-    assert result.rounds[0].scoring_attempts[0].result.is_err()
-    assert len(result.search_history) == 2
+    assert isinstance(result.rounds[0].scoring_attempts[0], ScoringFailure)
+    assert len(result.evaluated_candidates()) == 2
+
+
+def test_search_checkpoint_resume_between_rounds(
+    starter_kernel_code, reference_kernel_code, mock_scoring_function
+):
+    """Checkpoint after 1 round, then resume to full depth."""
+    # Make 6 mutations total (3 rounds * 2 mutations).
+    mutations = [
+        MutatedKernel(
+            kernel_code="def kernel(x): return x * 2  # fast", ancestor_ulid=None
+        ),
+        MutatedKernel(
+            kernel_code="def kernel(x): return x * 2  # slow", ancestor_ulid=None
+        ),
+        MutatedKernel(
+            kernel_code="def kernel(x): return x * 3  # fast", ancestor_ulid=None
+        ),
+        MutatedKernel(
+            kernel_code="def kernel(x): return x * 4  # slow", ancestor_ulid=None
+        ),
+        MutatedKernel(
+            kernel_code="def kernel(x): return x * 5  # fast", ancestor_ulid=None
+        ),
+        MutatedKernel(
+            kernel_code="def kernel(x): return x * 6  # slow", ancestor_ulid=None
+        ),
+    ]
+
+    mock_mutation_full = MagicMock(spec=MutationFunction)
+    mock_mutation_full.side_effect = list(mutations)
+
+    mock_mutation_part = MagicMock(spec=MutationFunction)
+    mock_mutation_part.side_effect = list(mutations)
+
+    # Full run to depth 3.
+    config_full = GreedySearchConfig(
+        max_depth=3,
+        num_mutations=2,
+        starter_kernel_code=starter_kernel_code,
+        reference_kernel_code=reference_kernel_code,
+        mutation_function=mock_mutation_full,
+        scoring_function=mock_scoring_function,
+    )
+    full = GreedySearch(config=config_full).search()
+
+    # Partial run to depth 1.
+    config_part = GreedySearchConfig(
+        max_depth=1,
+        num_mutations=2,
+        starter_kernel_code=starter_kernel_code,
+        reference_kernel_code=reference_kernel_code,
+        mutation_function=mock_mutation_part,
+        scoring_function=mock_scoring_function,
+    )
+    partial = GreedySearch(config=config_part).search()
+
+    # Resume to depth 3 with the same mutation mock (continuing side effects).
+    config_resume = GreedySearchConfig(
+        max_depth=3,
+        num_mutations=2,
+        starter_kernel_code=starter_kernel_code,
+        reference_kernel_code=reference_kernel_code,
+        mutation_function=mock_mutation_part,
+        scoring_function=mock_scoring_function,
+    )
+    resumed = GreedySearch(config=config_resume).resume(partial)
+
+    assert len(full.rounds) == 3
+    assert len(resumed.rounds) == 3
+
+    assert isinstance(full.best_evaluation, ValidEvaluation)
+    assert isinstance(resumed.best_evaluation, ValidEvaluation)
+    assert full.best_evaluation.speedup == resumed.best_evaluation.speedup
+    assert full.best_candidate().code == resumed.best_candidate().code
+
+    # Compare selected parent codes per round (ULIDs differ across runs due to fresh starter ULID).
+    for i in range(3):
+        full_selected_code = full.candidates.get(
+            full.rounds[i].selected_parent_ulid
+        ).code
+        resumed_selected_code = resumed.candidates.get(
+            resumed.rounds[i].selected_parent_ulid
+        ).code
+        assert full.rounds[i].round_best.kind == resumed.rounds[i].round_best.kind
+        assert full_selected_code == resumed_selected_code

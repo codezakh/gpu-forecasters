@@ -1,27 +1,37 @@
 from __future__ import annotations
 
 import traceback
-from typing import Callable, List, Literal, Optional, Tuple
+from typing import Callable, List, Literal, Tuple
 
-from ulid import ULID
-
-from .components import MutationContext, MutationFunction, MutatedKernel
+from .components import MutationContext, MutationFunction
 from arid_badger.kernelbench.core import KernelScoringResult
-from arid_badger.typing_utils import Option
 import attrs
 from loguru import logger
 
 from .outcomes import (
     AllInvalidRoundBest,
-    GreedySearchResult,
+    CandidateGraph,
+    Evaluation,
+    EvaluationMetrics,
     FoundRoundBest,
-    MutationAttemptTrace,
+    GreedySearchCheckpoint,
+    GreedySearchResult,
+    InvalidEvaluation,
+    KernelCandidate,
+    MutationAttempt,
+    MutationFailure,
     MutationError,
+    MutationSuccess,
     NoScoredRoundBest,
     RoundBest,
-    RoundReport,
-    ScoringAttemptTrace,
+    RoundTrace,
+    ScoringAttempt,
     ScoringError,
+    ScoringFailure,
+    ScoringSuccess,
+    SearchCursor,
+    SearchTrace,
+    ValidEvaluation,
 )
 
 
@@ -41,18 +51,6 @@ class GreedySearchConfig:
     model_slug: str = "gemini/gemini-3-flash-preview"
 
 
-@attrs.define
-class GreedySearchState:
-    """State of the greedy search during execution."""
-
-    current_best_kernel_code: str
-    current_best_kernel_ulid: Optional[ULID]
-    best_kernel: MutatedKernel
-    best_score: KernelScoringResult
-    search_history: List[Tuple[MutatedKernel, KernelScoringResult]]
-    rounds: List[RoundReport]
-
-
 class GreedySearch:
     def __init__(self, config: GreedySearchConfig):
         """
@@ -63,40 +61,69 @@ class GreedySearch:
         """
         self.config = config
 
+    def _score_to_evaluation(self, score: KernelScoringResult) -> Evaluation:
+        exec_result = score.exec_result
+        metrics = EvaluationMetrics(
+            compiled=getattr(exec_result, "compiled", None),
+            correctness=getattr(exec_result, "correctness", None),
+            runtime=getattr(exec_result, "runtime", None),
+            ref_runtime=getattr(exec_result, "ref_runtime", None),
+        )
+
+        if score.is_valid:
+            return ValidEvaluation(speedup=score.speedup, metrics=metrics)
+
+        reason: str = "unknown"
+        if metrics.compiled is False:
+            reason = "compile_failed"
+        elif metrics.correctness is False:
+            reason = "incorrect"
+        elif (
+            metrics.runtime is not None
+            and metrics.ref_runtime is not None
+            and (metrics.runtime <= 0 or metrics.ref_runtime <= 0)
+        ):
+            reason = "nonpositive_runtime"
+        return InvalidEvaluation(reason=reason, metrics=metrics)
+
     def _attempt_generate_mutations(
-        self, *, parent_kernel_code: str, parent_kernel_ulid: Optional[ULID]
-    ) -> Tuple[List[MutationAttemptTrace], List[MutatedKernel]]:
+        self, *, parent: KernelCandidate
+    ) -> Tuple[List[MutationAttempt], List[KernelCandidate]]:
         mutation_context = MutationContext(
             reference_kernel_code=self.config.reference_kernel_code,
-            previous_kernel_code=parent_kernel_code,
-            previous_kernel_ulid=parent_kernel_ulid,
+            previous_kernel_code=parent.code,
+            previous_kernel_ulid=parent.ulid,
             backend=self.config.backend,
             precision=self.config.precision,
             prompt_option=self.config.prompt_option,
             model_slug=self.config.model_slug,
         )
 
-        attempts: List[MutationAttemptTrace] = []
-        generated: List[MutatedKernel] = []
+        attempts: List[MutationAttempt] = []
+        generated: List[KernelCandidate] = []
         for attempt_idx in range(self.config.num_mutations):
             try:
                 mutated = self.config.mutation_function(mutation_context)
+                candidate = KernelCandidate(
+                    ulid=mutated.ulid,
+                    code=mutated.kernel_code,
+                    parent_ulid=mutated.ancestor_ulid,
+                    evaluation=None,
+                )
                 attempts.append(
-                    MutationAttemptTrace(
-                        attempt_idx=attempt_idx, result=Option.ok(mutated)
+                    MutationSuccess(
+                        attempt_idx=attempt_idx, candidate_ulid=candidate.ulid
                     )
                 )
-                generated.append(mutated)
+                generated.append(candidate)
             except Exception as e:
                 attempts.append(
-                    MutationAttemptTrace(
+                    MutationFailure(
                         attempt_idx=attempt_idx,
-                        result=Option.err(
-                            MutationError(
-                                message="Mutation function raised an exception",
-                                exception_repr=repr(e),
-                                traceback=traceback.format_exc(),
-                            )
+                        error=MutationError(
+                            message="Mutation function raised an exception",
+                            exception_repr=repr(e),
+                            traceback=traceback.format_exc(),
                         ),
                     )
                 )
@@ -104,34 +131,29 @@ class GreedySearch:
         return attempts, generated
 
     def _attempt_score_mutations(
-        self, mutations: List[MutatedKernel]
-    ) -> Tuple[
-        List[ScoringAttemptTrace], List[Tuple[MutatedKernel, KernelScoringResult]]
-    ]:
-        attempts: List[ScoringAttemptTrace] = []
-        scored: List[Tuple[MutatedKernel, KernelScoringResult]] = []
-        for mutation in mutations:
+        self, candidates: List[KernelCandidate]
+    ) -> Tuple[List[ScoringAttempt], List[Tuple[KernelCandidate, Evaluation]]]:
+        attempts: List[ScoringAttempt] = []
+        scored: List[Tuple[KernelCandidate, Evaluation]] = []
+        for candidate in candidates:
             try:
-                score = self.config.scoring_function(
-                    mutation.kernel_code, self.config.reference_kernel_code
+                raw_score = self.config.scoring_function(
+                    candidate.code, self.config.reference_kernel_code
                 )
-                pair = (mutation, score)
+                evaluation = self._score_to_evaluation(raw_score)
+                pair = (candidate, evaluation)
                 attempts.append(
-                    ScoringAttemptTrace(
-                        mutation_ulid=mutation.ulid, result=Option.ok(pair)
-                    )
+                    ScoringSuccess(candidate_ulid=candidate.ulid, evaluation=evaluation)
                 )
                 scored.append(pair)
             except Exception as e:
                 attempts.append(
-                    ScoringAttemptTrace(
-                        mutation_ulid=mutation.ulid,
-                        result=Option.err(
-                            ScoringError(
-                                message="Scoring function raised an exception",
-                                exception_repr=repr(e),
-                                traceback=traceback.format_exc(),
-                            )
+                    ScoringFailure(
+                        candidate_ulid=candidate.ulid,
+                        error=ScoringError(
+                            message="Scoring function raised an exception",
+                            exception_repr=repr(e),
+                            traceback=traceback.format_exc(),
                         ),
                     )
                 )
@@ -139,20 +161,23 @@ class GreedySearch:
         return attempts, scored
 
     def _select_round_best(
-        self, scored_mutations: List[Tuple[MutatedKernel, KernelScoringResult]]
+        self, scored_candidates: List[Tuple[KernelCandidate, Evaluation]]
     ) -> RoundBest:
-        if not scored_mutations:
+        if not scored_candidates:
             return NoScoredRoundBest()
 
-        valid = [(m, s) for (m, s) in scored_mutations if s.is_valid]
+        valid: List[Tuple[KernelCandidate, ValidEvaluation]] = []
+        for candidate, evaluation in scored_candidates:
+            if isinstance(evaluation, ValidEvaluation):
+                valid.append((candidate, evaluation))
         if not valid:
-            return AllInvalidRoundBest(num_scored=len(scored_mutations))
+            return AllInvalidRoundBest(num_scored=len(scored_candidates))
 
-        best_mutation, best_score = max(valid, key=lambda ms: ms[1].speedup)
+        best_candidate, best_evaluation = max(valid, key=lambda ce: ce[1].speedup)
         return FoundRoundBest(
-            best_mutation=best_mutation,
-            best_score=best_score,
-            num_scored=len(scored_mutations),
+            best_candidate_ulid=best_candidate.ulid,
+            best_evaluation=best_evaluation,
+            num_scored=len(scored_candidates),
             num_valid=len(valid),
         )
 
@@ -161,100 +186,184 @@ class GreedySearch:
         Perform greedy search for optimized kernels.
 
         Returns:
-            GreedySearchResult with best kernel, best score, and full search history
+            GreedySearchCheckpoint (alias GreedySearchResult) sufficient to resume search.
         """
         # Score the starter kernel to establish baseline
-        starter_score = self.config.scoring_function(
+        starter_raw_score = self.config.scoring_function(
             self.config.starter_kernel_code, self.config.reference_kernel_code
         )
-        # Create a MutatedKernel for the starter (no ancestor)
-        starter_mutated = MutatedKernel(
-            kernel_code=self.config.starter_kernel_code,
-            ancestor_ulid=None,
-        )
+        starter_evaluation = self._score_to_evaluation(starter_raw_score)
 
-        # Initialize search state
-        state = GreedySearchState(
-            current_best_kernel_code=self.config.starter_kernel_code,
-            current_best_kernel_ulid=None,
-            best_kernel=starter_mutated,
-            best_score=starter_score,
-            search_history=[(starter_mutated, starter_score)],
-            rounds=[],
+        starter_candidate = KernelCandidate(
+            code=self.config.starter_kernel_code,
+            parent_ulid=None,
+            evaluation=starter_evaluation,
+        )
+        candidates = CandidateGraph().add(starter_candidate)
+
+        checkpoint = GreedySearchCheckpoint(
+            cursor=SearchCursor(next_depth=0, parent_ulid=starter_candidate.ulid),
+            candidates=candidates,
+            best_ulid=starter_candidate.ulid,
+            best_evaluation=starter_evaluation,
+            trace=SearchTrace(rounds=[]),
         )
 
         # Iterate through depth levels (always bounded by max_depth)
-        for depth in range(self.config.max_depth):
-            mutation_attempts, mutations = self._attempt_generate_mutations(
-                parent_kernel_code=state.current_best_kernel_code,
-                parent_kernel_ulid=state.current_best_kernel_ulid,
-            )
-            scoring_attempts, scored_mutations = self._attempt_score_mutations(
-                mutations
+        for depth in range(checkpoint.cursor.next_depth, self.config.max_depth):
+            parent = checkpoint.candidates.get(checkpoint.cursor.parent_ulid)
+
+            mutation_attempts, generated_candidates = self._attempt_generate_mutations(
+                parent=parent
             )
 
-            round_best = self._select_round_best(scored_mutations)
+            # Add generated candidates to the graph immediately so we can reference them by ULID.
+            candidates_graph = checkpoint.candidates
+            for c in generated_candidates:
+                candidates_graph = candidates_graph.add(c)
 
-            global_best_updated = False
-            # Parent update policy:
-            # - If a valid best-of-round exists: mutate it next round (KernelBench spec)
-            # - Otherwise: keep the same parent and continue (explicit policy)
+            scoring_attempts, scored_candidates = self._attempt_score_mutations(
+                generated_candidates
+            )
+            for candidate, evaluation in scored_candidates:
+                candidates_graph = candidates_graph.with_evaluation(
+                    ulid=candidate.ulid, evaluation=evaluation
+                )
+
+            round_best = self._select_round_best(scored_candidates)
+
+            selected_parent_ulid = checkpoint.cursor.parent_ulid
             match round_best:
                 case FoundRoundBest() as found:
-                    if found.best_speedup > state.best_score.speedup:
-                        state.best_kernel = found.best_mutation
-                        state.best_score = found.best_score
-                        global_best_updated = True
+                    selected_parent_ulid = found.best_candidate_ulid
 
-                    next_parent_code = found.best_mutation.kernel_code
-                    next_parent_ulid = found.best_mutation.ulid
+                    # Update global best (only meaningful if new best is valid).
+                    if isinstance(checkpoint.best_evaluation, InvalidEvaluation):
+                        checkpoint = checkpoint.model_copy(
+                            update={
+                                "best_ulid": found.best_candidate_ulid,
+                                "best_evaluation": found.best_evaluation,
+                            }
+                        )
+                    elif isinstance(checkpoint.best_evaluation, ValidEvaluation):
+                        if found.best_speedup > checkpoint.best_evaluation.speedup:
+                            checkpoint = checkpoint.model_copy(
+                                update={
+                                    "best_ulid": found.best_candidate_ulid,
+                                    "best_evaluation": found.best_evaluation,
+                                }
+                            )
                 case NoScoredRoundBest() | AllInvalidRoundBest():
-                    next_parent_code = state.current_best_kernel_code
-                    next_parent_ulid = state.current_best_kernel_ulid
+                    pass
 
-            # Always record round report + history (full trace)
-            state.rounds.append(
-                RoundReport(
-                    depth=depth,
-                    parent_kernel_ulid=state.current_best_kernel_ulid,
-                    parent_kernel_code=state.current_best_kernel_code,
-                    mutation_attempts=mutation_attempts,
-                    scoring_attempts=scoring_attempts,
-                    scored_mutations=scored_mutations,
-                    round_best=round_best,
-                    global_best_updated=global_best_updated,
-                    next_parent_ulid=next_parent_ulid,
-                    next_parent_code=next_parent_code,
-                )
+            round_trace = RoundTrace(
+                depth=depth,
+                parent_ulid=checkpoint.cursor.parent_ulid,
+                mutation_attempts=mutation_attempts,
+                scoring_attempts=scoring_attempts,
+                round_best=round_best,
+                selected_parent_ulid=selected_parent_ulid,
             )
-            state.search_history.extend(scored_mutations)
+            trace = checkpoint.trace.model_copy(
+                update={"rounds": [*checkpoint.trace.rounds, round_trace]}
+            )
 
             logger.info(
                 "GreedySearch depth={depth} parent_ulid={parent_ulid} "
                 "mut_attempts={mut_attempts} mut_ok={mut_ok} "
                 "score_attempts={score_attempts} scored={scored} valid={valid} "
-                "round_best={round_best} global_best_updated={global_best_updated}",
+                "round_best={round_best}",
                 depth=depth,
-                parent_ulid=(
-                    str(state.current_best_kernel_ulid)
-                    if state.current_best_kernel_ulid is not None
-                    else None
-                ),
+                parent_ulid=str(checkpoint.cursor.parent_ulid),
                 mut_attempts=len(mutation_attempts),
-                mut_ok=len(mutations),
+                mut_ok=len(generated_candidates),
                 score_attempts=len(scoring_attempts),
-                scored=len(scored_mutations),
+                scored=len(scored_candidates),
                 valid=round_best.num_valid,
                 round_best=round_best.kind,
-                global_best_updated=global_best_updated,
             )
 
-            state.current_best_kernel_code = next_parent_code
-            state.current_best_kernel_ulid = next_parent_ulid
+            checkpoint = checkpoint.model_copy(
+                update={
+                    "cursor": SearchCursor(
+                        next_depth=depth + 1, parent_ulid=selected_parent_ulid
+                    ),
+                    "candidates": candidates_graph,
+                    "trace": trace,
+                }
+            )
 
-        return GreedySearchResult(
-            best_kernel=state.best_kernel,
-            best_score=state.best_score,
-            rounds=state.rounds,
-            search_history=state.search_history,
-        )
+        return checkpoint
+
+    def resume(self, checkpoint: GreedySearchCheckpoint) -> GreedySearchResult:
+        """Resume a search from a checkpoint (between rounds)."""
+        # Continue from checkpoint.cursor.next_depth up to config.max_depth.
+        resumed = checkpoint
+        # Re-run the same loop by temporarily seeding self.search-style local variables.
+        # (Keeps the public API small; search() remains the entrypoint for fresh runs.)
+        for depth in range(resumed.cursor.next_depth, self.config.max_depth):
+            parent = resumed.candidates.get(resumed.cursor.parent_ulid)
+
+            mutation_attempts, generated_candidates = self._attempt_generate_mutations(
+                parent=parent
+            )
+
+            candidates_graph = resumed.candidates
+            for c in generated_candidates:
+                candidates_graph = candidates_graph.add(c)
+
+            scoring_attempts, scored_candidates = self._attempt_score_mutations(
+                generated_candidates
+            )
+            for candidate, evaluation in scored_candidates:
+                candidates_graph = candidates_graph.with_evaluation(
+                    ulid=candidate.ulid, evaluation=evaluation
+                )
+
+            round_best = self._select_round_best(scored_candidates)
+
+            selected_parent_ulid = resumed.cursor.parent_ulid
+            match round_best:
+                case FoundRoundBest() as found:
+                    selected_parent_ulid = found.best_candidate_ulid
+                    if isinstance(resumed.best_evaluation, InvalidEvaluation):
+                        resumed = resumed.model_copy(
+                            update={
+                                "best_ulid": found.best_candidate_ulid,
+                                "best_evaluation": found.best_evaluation,
+                            }
+                        )
+                    elif isinstance(resumed.best_evaluation, ValidEvaluation):
+                        if found.best_speedup > resumed.best_evaluation.speedup:
+                            resumed = resumed.model_copy(
+                                update={
+                                    "best_ulid": found.best_candidate_ulid,
+                                    "best_evaluation": found.best_evaluation,
+                                }
+                            )
+                case NoScoredRoundBest() | AllInvalidRoundBest():
+                    pass
+
+            round_trace = RoundTrace(
+                depth=depth,
+                parent_ulid=resumed.cursor.parent_ulid,
+                mutation_attempts=mutation_attempts,
+                scoring_attempts=scoring_attempts,
+                round_best=round_best,
+                selected_parent_ulid=selected_parent_ulid,
+            )
+            trace = resumed.trace.model_copy(
+                update={"rounds": [*resumed.trace.rounds, round_trace]}
+            )
+
+            resumed = resumed.model_copy(
+                update={
+                    "cursor": SearchCursor(
+                        next_depth=depth + 1, parent_ulid=selected_parent_ulid
+                    ),
+                    "candidates": candidates_graph,
+                    "trace": trace,
+                }
+            )
+
+        return resumed
