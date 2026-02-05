@@ -6,11 +6,8 @@ from arid_badger.greedy_search.components import (
     MutationFunction,
     MutatedKernel,
 )
-from arid_badger.greedy_search.outcomes import (
-    MutationFailure,
-    ScoringFailure,
-    ValidEvaluation,
-)
+from arid_badger.greedy_search.domain import ValidEvaluation
+from arid_badger.greedy_search.trace import MutationFailure, ScoringFailure
 from arid_badger.greedy_search.search import (
     GreedySearch,
     GreedySearchConfig,
@@ -108,7 +105,7 @@ def test_basic_search_single_depth_two_mutations(
     # Verify best kernel is the one with highest speedup (mutation1 with "fast")
     assert len(result.rounds) == 1
     assert len(result.evaluated_candidates()) == 3  # starter + 2 scored mutations
-    assert result.rounds[0].round_best.kind == "found"
+    assert result.rounds[0].outcome.kind == "winner_selected"
     assert "fast" in result.best_candidate().code
     assert isinstance(result.best_evaluation, ValidEvaluation)
     assert result.best_evaluation.speedup == 3.0
@@ -168,8 +165,8 @@ def test_search_multiple_depth_levels(
     # Verify best kernel is one of the fast mutations
     assert isinstance(result.best_evaluation, ValidEvaluation)
     assert result.best_evaluation.speedup == 3.0
-    assert result.rounds[0].round_best.kind == "found"
-    assert result.rounds[1].round_best.kind == "found"
+    assert result.rounds[0].outcome.kind == "winner_selected"
+    assert result.rounds[1].outcome.kind == "winner_selected"
     round1_parent = result.candidates.get(result.rounds[1].parent_ulid)
     assert "fast" in round1_parent.code
 
@@ -267,7 +264,7 @@ def test_search_no_valid_mutations_continues_with_same_parent(
     # Best kernel should be the starter (since no valid mutations found)
     assert result.best_candidate().code == starter_kernel_code
     assert len(result.rounds) == 3
-    assert all(r.round_best.kind == "all_invalid" for r in result.rounds)
+    assert all(r.outcome.kind == "all_evaluations_invalid" for r in result.rounds)
     starter_ulid = result.rounds[0].parent_ulid
     assert all(r.selected_parent_ulid == starter_ulid for r in result.rounds)
     assert (
@@ -307,7 +304,7 @@ def test_search_all_mutations_invalid(
 
     # Best kernel should be starter
     assert len(result.rounds) == 1
-    assert result.rounds[0].round_best.kind == "all_invalid"
+    assert result.rounds[0].outcome.kind == "all_evaluations_invalid"
     assert result.best_candidate().code == starter_kernel_code
     # All mutations should be evaluated (even if invalid)
     assert len(result.evaluated_candidates()) == 3
@@ -392,7 +389,7 @@ def test_search_best_kernel_selection_logic(
 
     # Best should be mutation3 with highest speedup (3.0)
     assert len(result.rounds) == 1
-    assert result.rounds[0].round_best.kind == "found"
+    assert result.rounds[0].outcome.kind == "winner_selected"
     assert isinstance(result.best_evaluation, ValidEvaluation)
     assert result.best_evaluation.speedup == 3.0
     assert "fast" in result.best_candidate().code
@@ -566,5 +563,5 @@ def test_search_checkpoint_resume_between_rounds(
         resumed_selected_code = resumed.candidates.get(
             resumed.rounds[i].selected_parent_ulid
         ).code
-        assert full.rounds[i].round_best.kind == resumed.rounds[i].round_best.kind
+        assert full.rounds[i].outcome.kind == resumed.rounds[i].outcome.kind
         assert full_selected_code == resumed_selected_code

@@ -8,31 +8,25 @@ from arid_badger.kernelbench.core import KernelScoringResult
 import attrs
 from loguru import logger
 
-from .outcomes import (
-    AllInvalidRoundBest,
-    CandidateGraph,
-    Evaluation,
-    EvaluationMetrics,
-    FoundRoundBest,
-    GreedySearchCheckpoint,
-    GreedySearchResult,
-    InvalidEvaluation,
-    KernelCandidate,
+from .checkpoint import GreedySearchCheckpoint, SearchCursor
+from .domain import CandidateGraph, Evaluation, EvaluationMetrics, KernelCandidate
+from .trace import (
     MutationAttempt,
     MutationFailure,
     MutationError,
     MutationSuccess,
-    NoScoredRoundBest,
-    RoundBest,
+    RoundAllEvaluationsInvalid,
+    RoundNoEvaluations,
+    RoundOutcome,
     RoundTrace,
+    RoundWinnerSelected,
     ScoringAttempt,
     ScoringError,
     ScoringFailure,
     ScoringSuccess,
-    SearchCursor,
     SearchTrace,
-    ValidEvaluation,
 )
+from .domain import InvalidEvaluation, ValidEvaluation
 
 
 @attrs.define
@@ -160,33 +154,34 @@ class GreedySearch:
 
         return attempts, scored
 
-    def _select_round_best(
+    def _select_round_outcome(
         self, scored_candidates: List[Tuple[KernelCandidate, Evaluation]]
-    ) -> RoundBest:
+    ) -> RoundOutcome:
         if not scored_candidates:
-            return NoScoredRoundBest()
+            return RoundNoEvaluations()
 
         valid: List[Tuple[KernelCandidate, ValidEvaluation]] = []
         for candidate, evaluation in scored_candidates:
             if isinstance(evaluation, ValidEvaluation):
                 valid.append((candidate, evaluation))
+
         if not valid:
-            return AllInvalidRoundBest(num_scored=len(scored_candidates))
+            return RoundAllEvaluationsInvalid(num_scored=len(scored_candidates))
 
         best_candidate, best_evaluation = max(valid, key=lambda ce: ce[1].speedup)
-        return FoundRoundBest(
-            best_candidate_ulid=best_candidate.ulid,
-            best_evaluation=best_evaluation,
+        return RoundWinnerSelected(
+            winner_ulid=best_candidate.ulid,
+            winner_evaluation=best_evaluation,
             num_scored=len(scored_candidates),
             num_valid=len(valid),
         )
 
-    def search(self) -> GreedySearchResult:
+    def search(self) -> GreedySearchCheckpoint:
         """
         Perform greedy search for optimized kernels.
 
         Returns:
-            GreedySearchCheckpoint (alias GreedySearchResult) sufficient to resume search.
+            GreedySearchCheckpoint sufficient to resume search.
         """
         # Score the starter kernel to establish baseline
         starter_raw_score = self.config.scoring_function(
@@ -230,38 +225,35 @@ class GreedySearch:
                     ulid=candidate.ulid, evaluation=evaluation
                 )
 
-            round_best = self._select_round_best(scored_candidates)
+            outcome = self._select_round_outcome(scored_candidates)
 
             selected_parent_ulid = checkpoint.cursor.parent_ulid
-            match round_best:
-                case FoundRoundBest() as found:
-                    selected_parent_ulid = found.best_candidate_ulid
+            if isinstance(outcome, RoundWinnerSelected):
+                selected_parent_ulid = outcome.winner_ulid
 
-                    # Update global best (only meaningful if new best is valid).
-                    if isinstance(checkpoint.best_evaluation, InvalidEvaluation):
+                # Update global best (only meaningful if new best is valid).
+                if isinstance(checkpoint.best_evaluation, InvalidEvaluation):
+                    checkpoint = checkpoint.model_copy(
+                        update={
+                            "best_ulid": outcome.winner_ulid,
+                            "best_evaluation": outcome.winner_evaluation,
+                        }
+                    )
+                elif isinstance(checkpoint.best_evaluation, ValidEvaluation):
+                    if outcome.winner_speedup > checkpoint.best_evaluation.speedup:
                         checkpoint = checkpoint.model_copy(
                             update={
-                                "best_ulid": found.best_candidate_ulid,
-                                "best_evaluation": found.best_evaluation,
+                                "best_ulid": outcome.winner_ulid,
+                                "best_evaluation": outcome.winner_evaluation,
                             }
                         )
-                    elif isinstance(checkpoint.best_evaluation, ValidEvaluation):
-                        if found.best_speedup > checkpoint.best_evaluation.speedup:
-                            checkpoint = checkpoint.model_copy(
-                                update={
-                                    "best_ulid": found.best_candidate_ulid,
-                                    "best_evaluation": found.best_evaluation,
-                                }
-                            )
-                case NoScoredRoundBest() | AllInvalidRoundBest():
-                    pass
 
             round_trace = RoundTrace(
                 depth=depth,
                 parent_ulid=checkpoint.cursor.parent_ulid,
                 mutation_attempts=mutation_attempts,
                 scoring_attempts=scoring_attempts,
-                round_best=round_best,
+                outcome=outcome,
                 selected_parent_ulid=selected_parent_ulid,
             )
             trace = checkpoint.trace.model_copy(
@@ -272,15 +264,15 @@ class GreedySearch:
                 "GreedySearch depth={depth} parent_ulid={parent_ulid} "
                 "mut_attempts={mut_attempts} mut_ok={mut_ok} "
                 "score_attempts={score_attempts} scored={scored} valid={valid} "
-                "round_best={round_best}",
+                "round_outcome={round_outcome}",
                 depth=depth,
                 parent_ulid=str(checkpoint.cursor.parent_ulid),
                 mut_attempts=len(mutation_attempts),
                 mut_ok=len(generated_candidates),
                 score_attempts=len(scoring_attempts),
                 scored=len(scored_candidates),
-                valid=round_best.num_valid,
-                round_best=round_best.kind,
+                valid=outcome.num_valid,
+                round_outcome=outcome.kind,
             )
 
             checkpoint = checkpoint.model_copy(
@@ -295,7 +287,7 @@ class GreedySearch:
 
         return checkpoint
 
-    def resume(self, checkpoint: GreedySearchCheckpoint) -> GreedySearchResult:
+    def resume(self, checkpoint: GreedySearchCheckpoint) -> GreedySearchCheckpoint:
         """Resume a search from a checkpoint (between rounds)."""
         # Continue from checkpoint.cursor.next_depth up to config.max_depth.
         resumed = checkpoint
@@ -320,36 +312,33 @@ class GreedySearch:
                     ulid=candidate.ulid, evaluation=evaluation
                 )
 
-            round_best = self._select_round_best(scored_candidates)
+            outcome = self._select_round_outcome(scored_candidates)
 
             selected_parent_ulid = resumed.cursor.parent_ulid
-            match round_best:
-                case FoundRoundBest() as found:
-                    selected_parent_ulid = found.best_candidate_ulid
-                    if isinstance(resumed.best_evaluation, InvalidEvaluation):
+            if isinstance(outcome, RoundWinnerSelected):
+                selected_parent_ulid = outcome.winner_ulid
+                if isinstance(resumed.best_evaluation, InvalidEvaluation):
+                    resumed = resumed.model_copy(
+                        update={
+                            "best_ulid": outcome.winner_ulid,
+                            "best_evaluation": outcome.winner_evaluation,
+                        }
+                    )
+                elif isinstance(resumed.best_evaluation, ValidEvaluation):
+                    if outcome.winner_speedup > resumed.best_evaluation.speedup:
                         resumed = resumed.model_copy(
                             update={
-                                "best_ulid": found.best_candidate_ulid,
-                                "best_evaluation": found.best_evaluation,
+                                "best_ulid": outcome.winner_ulid,
+                                "best_evaluation": outcome.winner_evaluation,
                             }
                         )
-                    elif isinstance(resumed.best_evaluation, ValidEvaluation):
-                        if found.best_speedup > resumed.best_evaluation.speedup:
-                            resumed = resumed.model_copy(
-                                update={
-                                    "best_ulid": found.best_candidate_ulid,
-                                    "best_evaluation": found.best_evaluation,
-                                }
-                            )
-                case NoScoredRoundBest() | AllInvalidRoundBest():
-                    pass
 
             round_trace = RoundTrace(
                 depth=depth,
                 parent_ulid=resumed.cursor.parent_ulid,
                 mutation_attempts=mutation_attempts,
                 scoring_attempts=scoring_attempts,
-                round_best=round_best,
+                outcome=outcome,
                 selected_parent_ulid=selected_parent_ulid,
             )
             trace = resumed.trace.model_copy(
