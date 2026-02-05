@@ -3,6 +3,7 @@ from typing import Optional
 from kernelbench.prompt_constructor_toml import get_prompt_for_backend
 from kernelbench.utils import extract_first_code
 from litellm import completion
+from loguru import logger
 from ulid import ULID
 from pydantic import BaseModel, Field, computed_field
 from typing import Literal
@@ -55,6 +56,15 @@ class MutationFunction:
         Returns:
             MutatedKernel with code, ulid, and ancestor_ulid
         """
+        logger.info(
+            "Mutation request sent to LLM (model={model}, prompt_option={option}).",
+            model=context.model_slug,
+            option=context.prompt_option,
+        )
+        logger.debug(
+            "Mutation prompt length={length} chars.",
+            length=len(context.prompt),
+        )
         # Call LLM using LiteLLM
         response = completion(
             model=context.model_slug,
@@ -66,18 +76,28 @@ class MutationFunction:
         content = response.choices[0].message.content  # type: ignore[attr-defined]
         if content is None:
             raise ValueError("LLM returned empty content")
+        logger.info(
+            "Mutation response received from LLM (chars={length}).",
+            length=len(content),
+        )
 
         # Parse code from response using KernelBench's extract_first_code utility
         # The prompt asks for Python code, so we look for python code blocks
         kernel_code = extract_first_code(content, code_language_types=["python"])
 
         if not kernel_code:
+            logger.debug("LLM response preview:\n{preview}", preview=content[:500])
             raise ValueError(
                 f"Could not extract code from LLM response. Response: {content[:500]}"
             )
 
         # Create MutatedKernel with ancestor reference
-        return MutatedKernel(
+        mutated = MutatedKernel(
             kernel_code=kernel_code,
             ancestor_ulid=context.previous_kernel_ulid,
         )
+        logger.success(
+            "Mutation produced kernel code (chars={length}).",
+            length=len(kernel_code),
+        )
+        return mutated

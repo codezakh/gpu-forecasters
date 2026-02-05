@@ -31,6 +31,13 @@ from .trace import (
 from .domain import InvalidEvaluation, ValidEvaluation
 
 
+def _short_ulid(ulid: Optional[object]) -> str:
+    if ulid is None:
+        return "none"
+    text = str(ulid)
+    return text[:6]
+
+
 def _summarize_attempt_failures(
     *,
     mutation_attempts: List[MutationAttempt],
@@ -67,7 +74,13 @@ def _log_run_start(
         best_speedup = checkpoint.best_evaluation.speedup
 
     logger.info(
-        "GreedySearch start max_depth={max_depth} next_depth={next_depth} "
+        "Starting greedy search at depth {next_depth}/{max_depth} (parent={parent_short})",
+        next_depth=checkpoint.cursor.next_depth,
+        max_depth=config.max_depth,
+        parent_short=_short_ulid(checkpoint.cursor.parent_ulid),
+    )
+    logger.debug(
+        "GreedySearch start details max_depth={max_depth} next_depth={next_depth} "
         "parent_ulid={parent_ulid} best_kind={best_kind} best_speedup={best_speedup}",
         max_depth=config.max_depth,
         next_depth=checkpoint.cursor.next_depth,
@@ -106,7 +119,40 @@ def _log_round_outcome_and_policy(
     if isinstance(incumbent_best, ValidEvaluation):
         incumbent_speedup = incumbent_best.speedup
 
-    logger.info(
+    if isinstance(outcome, RoundWinnerSelected):
+        logger.success(
+            "Round {depth} finished: winner selected (winner={winner_short}, speedup={winner_speedup:.4f}x)",
+            depth=depth,
+            winner_short=_short_ulid(outcome.winner_ulid),
+            winner_speedup=outcome.winner_speedup,
+        )
+    else:
+        logger.warning(
+            "Round {depth} finished: no winner (outcome={outcome})",
+            depth=depth,
+            outcome=outcome.kind,
+        )
+    if parent_changed:
+        logger.info(
+            "Round {depth} event: parent updated for next round.",
+            depth=depth,
+        )
+    else:
+        logger.info(
+            "Round {depth} event: parent retained for next round.",
+            depth=depth,
+        )
+    if best_updated:
+        logger.success(
+            "Round {depth} event: best-so-far updated.",
+            depth=depth,
+        )
+    else:
+        logger.info(
+            "Round {depth} event: best-so-far unchanged.",
+            depth=depth,
+        )
+    logger.debug(
         "GreedySearch round depth={depth} parent_ulid={parent_ulid} "
         "outcome={outcome} selected_parent_ulid={selected_parent_ulid} "
         "parent_changed={parent_changed} best_updated={best_updated} "
@@ -147,15 +193,21 @@ def _select_next_parent(
     if isinstance(outcome, RoundWinnerSelected):
         selected = candidates.get(outcome.winner_ulid)
         logger.info(
-            "GreedySearch decision next_parent=winner "
-            "current_parent_ulid={current_parent_ulid} winner_ulid={winner_ulid}",
+            "Next parent: use round winner (winner={winner_short}, previous_parent={parent_short})",
+            winner_short=_short_ulid(outcome.winner_ulid),
+            parent_short=_short_ulid(current_parent.ulid),
+        )
+        logger.debug(
+            "GreedySearch next_parent details current_parent_ulid={current_parent_ulid} winner_ulid={winner_ulid}",
             current_parent_ulid=str(current_parent.ulid),
             winner_ulid=str(outcome.winner_ulid),
         )
         return selected
     logger.info(
-        "GreedySearch decision next_parent=incumbent "
-        "current_parent_ulid={current_parent_ulid} outcome={outcome}",
+        "Next parent: keep current parent (no winner this round).",
+    )
+    logger.debug(
+        "GreedySearch next_parent details current_parent_ulid={current_parent_ulid} outcome={outcome}",
         current_parent_ulid=str(current_parent.ulid),
         outcome=outcome.kind,
     )
@@ -177,7 +229,10 @@ def _select_best_update_from_outcome(
     """
     if not isinstance(outcome, RoundWinnerSelected):
         logger.info(
-            "GreedySearch decision best_update=skip reason=no_winner outcome={outcome}",
+            "Best-so-far unchanged: no winner this round.",
+        )
+        logger.debug(
+            "GreedySearch best_update details outcome={outcome}",
             outcome=outcome.kind,
         )
         return Option.err("no_update")
@@ -186,9 +241,12 @@ def _select_best_update_from_outcome(
 
     # Any valid winner beats a currently-invalid incumbent.
     if isinstance(incumbent_best, InvalidEvaluation):
-        logger.info(
-            "GreedySearch decision best_update=winner reason=incumbent_invalid "
-            "winner_ulid={winner_ulid}",
+        logger.success(
+            "Best-so-far updated: previous best invalid, winner becomes new best (winner={winner_short}).",
+            winner_short=_short_ulid(outcome.winner_ulid),
+        )
+        logger.debug(
+            "GreedySearch best_update details reason=incumbent_invalid winner_ulid={winner_ulid}",
             winner_ulid=str(outcome.winner_ulid),
         )
         return Option.ok(winner)
@@ -196,8 +254,14 @@ def _select_best_update_from_outcome(
     # If both are valid, prefer higher speedup.
     if isinstance(incumbent_best, ValidEvaluation):
         if outcome.winner_speedup > incumbent_best.speedup:
-            logger.info(
-                "GreedySearch decision best_update=winner reason=speedup_improved "
+            logger.success(
+                "Best-so-far updated: winner speedup improved "
+                "(winner={winner_short}, speedup={winner_speedup:.4f}x).",
+                winner_short=_short_ulid(outcome.winner_ulid),
+                winner_speedup=outcome.winner_speedup,
+            )
+            logger.debug(
+                "GreedySearch best_update details reason=speedup_improved "
                 "winner_ulid={winner_ulid} winner_speedup={winner_speedup} "
                 "incumbent_speedup={incumbent_speedup}",
                 winner_ulid=str(outcome.winner_ulid),
@@ -206,7 +270,13 @@ def _select_best_update_from_outcome(
             )
             return Option.ok(winner)
         logger.info(
-            "GreedySearch decision best_update=skip reason=no_improvement "
+            "Best-so-far unchanged: winner did not improve speedup "
+            "(winner={winner_short}, speedup={winner_speedup:.4f}x).",
+            winner_short=_short_ulid(outcome.winner_ulid),
+            winner_speedup=outcome.winner_speedup,
+        )
+        logger.debug(
+            "GreedySearch best_update details reason=no_improvement "
             "winner_ulid={winner_ulid} winner_speedup={winner_speedup} "
             "incumbent_speedup={incumbent_speedup}",
             winner_ulid=str(outcome.winner_ulid),
@@ -307,6 +377,11 @@ class GreedySearch:
 
         attempts: List[MutationAttempt] = []
         generated: List[KernelCandidate] = []
+        logger.info(
+            "Generating {num_mutations} candidate(s) from parent {parent_short}",
+            num_mutations=self.config.num_mutations,
+            parent_short=_short_ulid(parent.ulid),
+        )
         for attempt_idx in range(self.config.num_mutations):
             try:
                 mutated = self.config.mutation_function(mutation_context)
@@ -321,14 +396,23 @@ class GreedySearch:
                         attempt_idx=attempt_idx, candidate_ulid=candidate.ulid
                     )
                 )
+                logger.success(
+                    "Generated candidate {attempt_idx} ulid={candidate_short}",
+                    attempt_idx=attempt_idx,
+                    candidate_short=_short_ulid(candidate.ulid),
+                )
                 generated.append(candidate)
             except Exception as e:
-                logger.warning(
+                logger.error(
                     "GreedySearch mutation_failed attempt_idx={attempt_idx} "
                     "parent_ulid={parent_ulid} error={error}",
                     attempt_idx=attempt_idx,
                     parent_ulid=str(parent.ulid),
                     error=repr(e),
+                )
+                logger.debug(
+                    "Mutation failure traceback:\n{traceback}",
+                    traceback=traceback.format_exc(),
                 )
                 attempts.append(
                     MutationFailure(
@@ -348,8 +432,14 @@ class GreedySearch:
     ) -> Tuple[List[ScoringAttempt], List[Tuple[KernelCandidate, Evaluation]]]:
         attempts: List[ScoringAttempt] = []
         scored: List[Tuple[KernelCandidate, Evaluation]] = []
-        for candidate in candidates:
+        for idx, candidate in enumerate(candidates, start=1):
             try:
+                logger.info(
+                    "Scoring candidate {idx}/{total} (compiling + benchmarking) ulid={candidate_short}",
+                    idx=idx,
+                    total=len(candidates),
+                    candidate_short=_short_ulid(candidate.ulid),
+                )
                 raw_score = self.config.scoring_function(
                     candidate.code, self.config.reference_kernel_code
                 )
@@ -359,12 +449,28 @@ class GreedySearch:
                     ScoringSuccess(candidate_ulid=candidate.ulid, evaluation=evaluation)
                 )
                 scored.append(pair)
+                if isinstance(evaluation, ValidEvaluation):
+                    logger.success(
+                        "Scored candidate ulid={candidate_short} speedup={speedup:.4f}x",
+                        candidate_short=_short_ulid(candidate.ulid),
+                        speedup=evaluation.speedup,
+                    )
+                else:
+                    logger.warning(
+                        "Scored candidate ulid={candidate_short} invalid_reason={reason}",
+                        candidate_short=_short_ulid(candidate.ulid),
+                        reason=evaluation.reason,
+                    )
             except Exception as e:
-                logger.warning(
+                logger.error(
                     "GreedySearch scoring_failed candidate_ulid={candidate_ulid} "
                     "error={error}",
                     candidate_ulid=str(candidate.ulid),
                     error=repr(e),
+                )
+                logger.debug(
+                    "Scoring failure traceback:\n{traceback}",
+                    traceback=traceback.format_exc(),
                 )
                 attempts.append(
                     ScoringFailure(
@@ -383,7 +489,8 @@ class GreedySearch:
         self, scored_candidates: List[Tuple[KernelCandidate, Evaluation]]
     ) -> RoundOutcome:
         if not scored_candidates:
-            logger.info(
+            logger.warning("Round event: no candidates were scored.")
+            logger.debug(
                 "GreedySearch decision round_outcome=no_evaluations num_scored=0"
             )
             return RoundNoEvaluations()
@@ -395,7 +502,11 @@ class GreedySearch:
 
         if not valid:
             invalid_reasons = _summarize_invalid_reasons(scored_candidates)
-            logger.info(
+            logger.warning(
+                "Round event: all candidates invalid (num_scored={num_scored}).",
+                num_scored=len(scored_candidates),
+            )
+            logger.debug(
                 "GreedySearch decision round_outcome=all_evaluations_invalid "
                 "num_scored={num_scored} invalid_reasons={invalid_reasons}",
                 num_scored=len(scored_candidates),
@@ -404,7 +515,12 @@ class GreedySearch:
             return RoundAllEvaluationsInvalid(num_scored=len(scored_candidates))
 
         best_candidate, best_evaluation = max(valid, key=lambda ce: ce[1].speedup)
-        logger.info(
+        logger.success(
+            "Round event: winner selected (winner={winner_short}, speedup={winner_speedup:.4f}x).",
+            winner_short=_short_ulid(best_candidate.ulid),
+            winner_speedup=best_evaluation.speedup,
+        )
+        logger.debug(
             "GreedySearch decision round_outcome=winner_selected "
             "winner_ulid={winner_ulid} winner_speedup={winner_speedup} "
             "num_scored={num_scored} num_valid={num_valid}",
@@ -420,17 +536,28 @@ class GreedySearch:
             num_valid=len(valid),
         )
 
-    def _run_from_checkpoint(
-        self, checkpoint: GreedySearchCheckpoint
+    def is_complete(self, checkpoint: GreedySearchCheckpoint) -> bool:
+        """Return True if the search has finished all planned rounds."""
+        return checkpoint.cursor.next_depth >= self.config.max_depth
+
+    def _run_from_checkpoint_until(
+        self, checkpoint: GreedySearchCheckpoint, *, stop_depth_exclusive: int
     ) -> GreedySearchCheckpoint:
-        """Advance a run from the given checkpoint to config.max_depth.
+        """Advance a run from the given checkpoint up to stop_depth_exclusive.
 
         Mutates and returns the same checkpoint object (in-place).
         """
         checkpoint.validate_invariants()
+        if stop_depth_exclusive <= checkpoint.cursor.next_depth:
+            return checkpoint
 
-        for depth in range(checkpoint.cursor.next_depth, self.config.max_depth):
+        for depth in range(checkpoint.cursor.next_depth, stop_depth_exclusive):
             current_parent = checkpoint.current_parent()
+            logger.info(
+                "Round {depth} starting (parent {parent_short})",
+                depth=depth,
+                parent_short=_short_ulid(current_parent.ulid),
+            )
 
             mutation_attempts, generated_candidates = self._attempt_generate_mutations(
                 parent=current_parent
@@ -494,7 +621,9 @@ class GreedySearch:
         if checkpoint is None:
             checkpoint = self._create_initial_checkpoint()
         _log_run_start(config=self.config, checkpoint=checkpoint)
-        return self._run_from_checkpoint(checkpoint)
+        return self._run_from_checkpoint_until(
+            checkpoint, stop_depth_exclusive=self.config.max_depth
+        )
 
     def search(self) -> GreedySearchCheckpoint:
         """Perform greedy search for optimized kernels (fresh run)."""
@@ -503,3 +632,10 @@ class GreedySearch:
     def resume(self, checkpoint: GreedySearchCheckpoint) -> GreedySearchCheckpoint:
         """Resume a search from a checkpoint (between rounds)."""
         return self.run(checkpoint=checkpoint)
+
+    def step(self, checkpoint: GreedySearchCheckpoint) -> GreedySearchCheckpoint:
+        """Advance a search by at most one round (no-op if complete)."""
+        next_stop = min(checkpoint.cursor.next_depth + 1, self.config.max_depth)
+        return self._run_from_checkpoint_until(
+            checkpoint, stop_depth_exclusive=next_stop
+        )

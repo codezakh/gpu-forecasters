@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import List, Sequence, Tuple
 
+from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 from ulid import ULID
 
@@ -98,6 +99,10 @@ class GreedySearchCheckpoint(BaseModel):
         self, generated: Sequence[KernelCandidate]
     ) -> None:
         """Add newly generated candidates to the graph (unscored)."""
+        logger.debug(
+            "Checkpoint update: registering {count} generated candidate(s).",
+            count=len(generated),
+        )
         graph = self.candidates
         for candidate in generated:
             graph = graph.add(candidate)
@@ -107,6 +112,10 @@ class GreedySearchCheckpoint(BaseModel):
         self, scored: Sequence[Tuple[KernelCandidate, Evaluation]]
     ) -> None:
         """Attach evaluations for candidates that were successfully scored."""
+        logger.debug(
+            "Checkpoint update: registering {count} scored candidate(s).",
+            count=len(scored),
+        )
         graph = self.candidates
         for candidate, evaluation in scored:
             graph = graph.with_evaluation(ulid=candidate.ulid, evaluation=evaluation)
@@ -146,10 +155,19 @@ class GreedySearchCheckpoint(BaseModel):
         self.trace = self.trace.model_copy(
             update={"rounds": [*self.trace.rounds, round_trace]}
         )
+        logger.debug(
+            "Checkpoint update: appended round trace (rounds={rounds}).",
+            rounds=len(self.trace.rounds),
+        )
 
     def advance_cursor(self, *, next_depth: int, parent_ulid: ULID) -> None:
         """Advance cursor to the next round."""
         self.cursor = SearchCursor(next_depth=next_depth, parent_ulid=parent_ulid)
+        logger.debug(
+            "Checkpoint update: advanced cursor to depth {next_depth} (parent_ulid={parent_ulid}).",
+            next_depth=next_depth,
+            parent_ulid=parent_ulid,
+        )
 
     def advance_parent(self, *, next_depth: int, parent: KernelCandidate) -> None:
         """Advance cursor using a parent candidate entity (hides ULID plumbing)."""
