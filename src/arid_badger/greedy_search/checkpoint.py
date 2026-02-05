@@ -85,6 +85,10 @@ class GreedySearchCheckpoint(BaseModel):
     def best_candidate(self) -> KernelCandidate:
         return self.candidates.get(self.best_ulid)
 
+    def current_parent(self) -> KernelCandidate:
+        """Return the current parent candidate for the next mutation round."""
+        return self.candidates.get(self.cursor.parent_ulid)
+
     def evaluated_candidates(self) -> List[KernelCandidate]:
         return [
             c for c in self.candidates.candidates.values() if c.evaluation is not None
@@ -122,6 +126,21 @@ class GreedySearchCheckpoint(BaseModel):
         self.best_ulid = ulid
         self.best_evaluation = candidate.evaluation
 
+    def set_best_candidate(self, *, candidate: KernelCandidate) -> None:
+        """Update best candidate pointer and cached evaluation from an entity."""
+        if not self.candidates.has(candidate.ulid):
+            raise ValueError(
+                "Cannot set best candidate: candidate not found in candidates "
+                f"({candidate.ulid})"
+            )
+        if candidate.evaluation is None:
+            raise ValueError(
+                "Cannot set best candidate: candidate has no evaluation "
+                f"({candidate.ulid})"
+            )
+        self.best_ulid = candidate.ulid
+        self.best_evaluation = candidate.evaluation
+
     def append_round_trace(self, round_trace: RoundTrace) -> None:
         """Append a completed round to the search trace."""
         self.trace = self.trace.model_copy(
@@ -131,3 +150,7 @@ class GreedySearchCheckpoint(BaseModel):
     def advance_cursor(self, *, next_depth: int, parent_ulid: ULID) -> None:
         """Advance cursor to the next round."""
         self.cursor = SearchCursor(next_depth=next_depth, parent_ulid=parent_ulid)
+
+    def advance_parent(self, *, next_depth: int, parent: KernelCandidate) -> None:
+        """Advance cursor using a parent candidate entity (hides ULID plumbing)."""
+        self.advance_cursor(next_depth=next_depth, parent_ulid=parent.ulid)

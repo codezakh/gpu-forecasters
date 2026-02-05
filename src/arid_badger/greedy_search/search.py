@@ -8,7 +8,6 @@ from .components import MutationContext, MutationFunction
 from arid_badger.kernelbench.core import KernelScoringResult
 import attrs
 from loguru import logger
-from ulid import ULID
 
 from .checkpoint import GreedySearchCheckpoint, SearchCursor
 from .domain import CandidateGraph, Evaluation, EvaluationMetrics, KernelCandidate
@@ -31,18 +30,28 @@ from .trace import (
 from .domain import InvalidEvaluation, ValidEvaluation
 
 
-def _select_next_parent_ulid(
-    *, current_parent_ulid: ULID, outcome: RoundOutcome
-) -> ULID:
-    """Greedy policy: follow the round winner if available; otherwise keep parent."""
+def _select_next_parent(
+    *,
+    current_parent: KernelCandidate,
+    outcome: RoundOutcome,
+    candidates: CandidateGraph,
+) -> KernelCandidate:
+    """Greedy policy: follow the round winner if available; otherwise keep parent.
+
+    Note: The outcome is ULID-referential for trace/checkpoint stability; we
+    resolve that to an entity here so the search loop can operate on candidates.
+    """
     if isinstance(outcome, RoundWinnerSelected):
-        return outcome.winner_ulid
-    return current_parent_ulid
+        return candidates.get(outcome.winner_ulid)
+    return current_parent
 
 
 def _select_best_update_from_outcome(
-    *, incumbent_best: Evaluation, outcome: RoundOutcome
-) -> Option[ULID, Literal["no_update"]]:
+    *,
+    incumbent_best: Evaluation,
+    outcome: RoundOutcome,
+    candidates: CandidateGraph,
+) -> Option[KernelCandidate, Literal["no_update"]]:
     """Greedy policy: update best-so-far if this round produced a strictly better valid winner.
 
     "Best so far" is not necessarily "best valid" — it's the best candidate we've *seen* so far.
@@ -53,14 +62,16 @@ def _select_best_update_from_outcome(
     if not isinstance(outcome, RoundWinnerSelected):
         return Option.err("no_update")
 
+    winner = candidates.get(outcome.winner_ulid)
+
     # Any valid winner beats a currently-invalid incumbent.
     if isinstance(incumbent_best, InvalidEvaluation):
-        return Option.ok(outcome.winner_ulid)
+        return Option.ok(winner)
 
     # If both are valid, prefer higher speedup.
     if isinstance(incumbent_best, ValidEvaluation):
         if outcome.winner_speedup > incumbent_best.speedup:
-            return Option.ok(outcome.winner_ulid)
+            return Option.ok(winner)
 
     return Option.err("no_update")
 
@@ -246,11 +257,10 @@ class GreedySearch:
         checkpoint.validate_invariants()
 
         for depth in range(checkpoint.cursor.next_depth, self.config.max_depth):
-            current_parent_ulid = checkpoint.cursor.parent_ulid
-            parent = checkpoint.candidates.get(current_parent_ulid)
+            current_parent = checkpoint.current_parent()
 
             mutation_attempts, generated_candidates = self._attempt_generate_mutations(
-                parent=parent
+                parent=current_parent
             )
 
             # Add generated candidates to the graph immediately so we can reference them by ULID.
@@ -263,22 +273,26 @@ class GreedySearch:
 
             outcome = self._select_round_outcome(scored_candidates)
 
-            selected_parent_ulid = _select_next_parent_ulid(
-                current_parent_ulid=current_parent_ulid, outcome=outcome
+            selected_parent = _select_next_parent(
+                current_parent=current_parent,
+                outcome=outcome,
+                candidates=checkpoint.candidates,
             )
             best_update_ulid = _select_best_update_from_outcome(
-                incumbent_best=checkpoint.best_evaluation, outcome=outcome
+                incumbent_best=checkpoint.best_evaluation,
+                outcome=outcome,
+                candidates=checkpoint.candidates,
             )
             if is_ok(best_update_ulid):
-                checkpoint.set_best(ulid=best_update_ulid.unwrap())
+                checkpoint.set_best_candidate(candidate=best_update_ulid.unwrap())
 
             round_trace = RoundTrace(
                 depth=depth,
-                parent_ulid=current_parent_ulid,
+                parent_ulid=current_parent.ulid,
                 mutation_attempts=mutation_attempts,
                 scoring_attempts=scoring_attempts,
                 outcome=outcome,
-                selected_parent_ulid=selected_parent_ulid,
+                selected_parent_ulid=selected_parent.ulid,
             )
             checkpoint.append_round_trace(round_trace)
 
@@ -288,7 +302,7 @@ class GreedySearch:
                 "score_attempts={score_attempts} scored={scored} valid={valid} "
                 "round_outcome={round_outcome}",
                 depth=depth,
-                parent_ulid=str(current_parent_ulid),
+                parent_ulid=str(current_parent.ulid),
                 mut_attempts=len(mutation_attempts),
                 mut_ok=len(generated_candidates),
                 score_attempts=len(scoring_attempts),
@@ -297,9 +311,7 @@ class GreedySearch:
                 round_outcome=outcome.kind,
             )
 
-            checkpoint.advance_cursor(
-                next_depth=depth + 1, parent_ulid=selected_parent_ulid
-            )
+            checkpoint.advance_parent(next_depth=depth + 1, parent=selected_parent)
 
         return checkpoint
 
