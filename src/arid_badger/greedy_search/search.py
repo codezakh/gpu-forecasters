@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import traceback
-from typing import Callable, List, Literal, Optional, Tuple
+from typing import Callable, List, Literal, Optional, Tuple, cast
 
 from .components import MutationContext, MutationFunction
 from arid_badger.kernelbench.core import KernelScoringResult
 import attrs
 from loguru import logger
+from ulid import ULID
 
 from .checkpoint import GreedySearchCheckpoint, SearchCursor
 from .domain import CandidateGraph, Evaluation, EvaluationMetrics, KernelCandidate
@@ -27,6 +28,43 @@ from .trace import (
     SearchTrace,
 )
 from .domain import InvalidEvaluation, ValidEvaluation
+
+
+def _select_next_parent_ulid(
+    *, current_parent_ulid: ULID, outcome: RoundOutcome
+) -> ULID:
+    """Greedy policy: follow the round winner if available; otherwise keep parent."""
+    if outcome.kind == "winner_selected":
+        winner = cast(RoundWinnerSelected, outcome)
+        return winner.winner_ulid
+    return current_parent_ulid
+
+
+def _maybe_update_best_so_far_from_outcome(
+    *, checkpoint: GreedySearchCheckpoint, outcome: RoundOutcome
+) -> None:
+    """Update the checkpoint's *best-so-far* candidate if the round produced a better winner.
+
+    Note: "best so far" is not necessarily "best valid" — it is the best candidate we've
+    *seen* so far. In particular, the starter/baseline evaluation can be invalid (e.g.,
+    compile failure), and entire runs can produce zero valid candidates.
+    """
+    if outcome.kind != "winner_selected":
+        return
+
+    winner = cast(RoundWinnerSelected, outcome)
+
+    # Any valid winner beats a currently-invalid incumbent.
+    if isinstance(checkpoint.best_evaluation, InvalidEvaluation):
+        checkpoint.best_ulid = winner.winner_ulid
+        checkpoint.best_evaluation = winner.winner_evaluation
+        return
+
+    # If both are valid, prefer higher speedup.
+    if isinstance(checkpoint.best_evaluation, ValidEvaluation):
+        if winner.winner_speedup > checkpoint.best_evaluation.speedup:
+            checkpoint.best_ulid = winner.winner_ulid
+            checkpoint.best_evaluation = winner.winner_evaluation
 
 
 @attrs.define
@@ -227,8 +265,12 @@ class GreedySearch:
 
             outcome = self._select_round_outcome(scored_candidates)
 
-            selected_parent_ulid = checkpoint.select_parent_ulid(outcome)
-            checkpoint.update_best_from_outcome(outcome)
+            selected_parent_ulid = _select_next_parent_ulid(
+                current_parent_ulid=current_parent_ulid, outcome=outcome
+            )
+            _maybe_update_best_so_far_from_outcome(
+                checkpoint=checkpoint, outcome=outcome
+            )
 
             round_trace = RoundTrace(
                 depth=depth,
