@@ -206,59 +206,35 @@ class GreedySearch:
 
         # Iterate through depth levels (always bounded by max_depth)
         for depth in range(checkpoint.cursor.next_depth, self.config.max_depth):
-            parent = checkpoint.candidates.get(checkpoint.cursor.parent_ulid)
+            current_parent_ulid = checkpoint.cursor.parent_ulid
+            parent = checkpoint.candidates.get(current_parent_ulid)
 
             mutation_attempts, generated_candidates = self._attempt_generate_mutations(
                 parent=parent
             )
 
             # Add generated candidates to the graph immediately so we can reference them by ULID.
-            candidates_graph = checkpoint.candidates
-            for c in generated_candidates:
-                candidates_graph = candidates_graph.add(c)
+            checkpoint.register_generated_candidates(generated_candidates)
 
             scoring_attempts, scored_candidates = self._attempt_score_mutations(
                 generated_candidates
             )
-            for candidate, evaluation in scored_candidates:
-                candidates_graph = candidates_graph.with_evaluation(
-                    ulid=candidate.ulid, evaluation=evaluation
-                )
+            checkpoint.register_scored_candidates(scored_candidates)
 
             outcome = self._select_round_outcome(scored_candidates)
 
-            selected_parent_ulid = checkpoint.cursor.parent_ulid
-            if isinstance(outcome, RoundWinnerSelected):
-                selected_parent_ulid = outcome.winner_ulid
-
-                # Update global best (only meaningful if new best is valid).
-                if isinstance(checkpoint.best_evaluation, InvalidEvaluation):
-                    checkpoint = checkpoint.model_copy(
-                        update={
-                            "best_ulid": outcome.winner_ulid,
-                            "best_evaluation": outcome.winner_evaluation,
-                        }
-                    )
-                elif isinstance(checkpoint.best_evaluation, ValidEvaluation):
-                    if outcome.winner_speedup > checkpoint.best_evaluation.speedup:
-                        checkpoint = checkpoint.model_copy(
-                            update={
-                                "best_ulid": outcome.winner_ulid,
-                                "best_evaluation": outcome.winner_evaluation,
-                            }
-                        )
+            selected_parent_ulid = checkpoint.select_parent_ulid(outcome)
+            checkpoint.update_best_from_outcome(outcome)
 
             round_trace = RoundTrace(
                 depth=depth,
-                parent_ulid=checkpoint.cursor.parent_ulid,
+                parent_ulid=current_parent_ulid,
                 mutation_attempts=mutation_attempts,
                 scoring_attempts=scoring_attempts,
                 outcome=outcome,
                 selected_parent_ulid=selected_parent_ulid,
             )
-            trace = checkpoint.trace.model_copy(
-                update={"rounds": [*checkpoint.trace.rounds, round_trace]}
-            )
+            checkpoint.append_round_trace(round_trace)
 
             logger.info(
                 "GreedySearch depth={depth} parent_ulid={parent_ulid} "
@@ -266,7 +242,7 @@ class GreedySearch:
                 "score_attempts={score_attempts} scored={scored} valid={valid} "
                 "round_outcome={round_outcome}",
                 depth=depth,
-                parent_ulid=str(checkpoint.cursor.parent_ulid),
+                parent_ulid=str(current_parent_ulid),
                 mut_attempts=len(mutation_attempts),
                 mut_ok=len(generated_candidates),
                 score_attempts=len(scoring_attempts),
@@ -275,14 +251,8 @@ class GreedySearch:
                 round_outcome=outcome.kind,
             )
 
-            checkpoint = checkpoint.model_copy(
-                update={
-                    "cursor": SearchCursor(
-                        next_depth=depth + 1, parent_ulid=selected_parent_ulid
-                    ),
-                    "candidates": candidates_graph,
-                    "trace": trace,
-                }
+            checkpoint.advance_cursor(
+                next_depth=depth + 1, parent_ulid=selected_parent_ulid
             )
 
         return checkpoint
@@ -294,65 +264,35 @@ class GreedySearch:
         # Re-run the same loop by temporarily seeding self.search-style local variables.
         # (Keeps the public API small; search() remains the entrypoint for fresh runs.)
         for depth in range(resumed.cursor.next_depth, self.config.max_depth):
-            parent = resumed.candidates.get(resumed.cursor.parent_ulid)
+            current_parent_ulid = resumed.cursor.parent_ulid
+            parent = resumed.candidates.get(current_parent_ulid)
 
             mutation_attempts, generated_candidates = self._attempt_generate_mutations(
                 parent=parent
             )
 
-            candidates_graph = resumed.candidates
-            for c in generated_candidates:
-                candidates_graph = candidates_graph.add(c)
+            resumed.register_generated_candidates(generated_candidates)
 
             scoring_attempts, scored_candidates = self._attempt_score_mutations(
                 generated_candidates
             )
-            for candidate, evaluation in scored_candidates:
-                candidates_graph = candidates_graph.with_evaluation(
-                    ulid=candidate.ulid, evaluation=evaluation
-                )
+            resumed.register_scored_candidates(scored_candidates)
 
             outcome = self._select_round_outcome(scored_candidates)
-
-            selected_parent_ulid = resumed.cursor.parent_ulid
-            if isinstance(outcome, RoundWinnerSelected):
-                selected_parent_ulid = outcome.winner_ulid
-                if isinstance(resumed.best_evaluation, InvalidEvaluation):
-                    resumed = resumed.model_copy(
-                        update={
-                            "best_ulid": outcome.winner_ulid,
-                            "best_evaluation": outcome.winner_evaluation,
-                        }
-                    )
-                elif isinstance(resumed.best_evaluation, ValidEvaluation):
-                    if outcome.winner_speedup > resumed.best_evaluation.speedup:
-                        resumed = resumed.model_copy(
-                            update={
-                                "best_ulid": outcome.winner_ulid,
-                                "best_evaluation": outcome.winner_evaluation,
-                            }
-                        )
+            selected_parent_ulid = resumed.select_parent_ulid(outcome)
+            resumed.update_best_from_outcome(outcome)
 
             round_trace = RoundTrace(
                 depth=depth,
-                parent_ulid=resumed.cursor.parent_ulid,
+                parent_ulid=current_parent_ulid,
                 mutation_attempts=mutation_attempts,
                 scoring_attempts=scoring_attempts,
                 outcome=outcome,
                 selected_parent_ulid=selected_parent_ulid,
             )
-            trace = resumed.trace.model_copy(
-                update={"rounds": [*resumed.trace.rounds, round_trace]}
-            )
-
-            resumed = resumed.model_copy(
-                update={
-                    "cursor": SearchCursor(
-                        next_depth=depth + 1, parent_ulid=selected_parent_ulid
-                    ),
-                    "candidates": candidates_graph,
-                    "trace": trace,
-                }
+            resumed.append_round_trace(round_trace)
+            resumed.advance_cursor(
+                next_depth=depth + 1, parent_ulid=selected_parent_ulid
             )
 
         return resumed

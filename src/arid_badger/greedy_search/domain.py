@@ -63,21 +63,25 @@ class KernelCandidate(BaseModel):
 
 
 class CandidateGraph(BaseModel):
-    """Graph of candidates keyed by identity (stored as string keys for JSON)."""
+    """Graph of candidates keyed by identity (ULID).
+
+    Note: Although JSON object keys must be strings, Pydantic can serialize ULID
+    keys appropriately; we should keep ULIDs as ULIDs internally.
+    """
 
     model_config = ConfigDict(frozen=True)
 
-    candidates: Dict[str, KernelCandidate] = Field(default_factory=dict)
+    candidates: Dict[ULID, KernelCandidate] = Field(default_factory=dict)
 
     def get(self, ulid: ULID) -> KernelCandidate:
-        return self.candidates[str(ulid)]
+        return self.candidates[ulid]
 
     def has(self, ulid: ULID) -> bool:
-        return str(ulid) in self.candidates
+        return ulid in self.candidates
 
     def add(self, candidate: KernelCandidate) -> "CandidateGraph":
         updated = dict(self.candidates)
-        updated[str(candidate.ulid)] = candidate
+        updated[candidate.ulid] = candidate
         return self.model_copy(update={"candidates": updated})
 
     def with_evaluation(
@@ -86,5 +90,5 @@ class CandidateGraph(BaseModel):
         existing = self.get(ulid)
         updated_candidate = existing.model_copy(update={"evaluation": evaluation})
         updated = dict(self.candidates)
-        updated[str(ulid)] = updated_candidate
+        updated[ulid] = updated_candidate
         return self.model_copy(update={"candidates": updated})
