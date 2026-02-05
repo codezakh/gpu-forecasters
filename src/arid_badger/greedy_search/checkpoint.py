@@ -90,7 +90,9 @@ class GreedySearchCheckpoint(BaseModel):
             c for c in self.candidates.candidates.values() if c.evaluation is not None
         ]
 
-    def register_generated_candidates(self, generated: Sequence[KernelCandidate]) -> None:
+    def register_generated_candidates(
+        self, generated: Sequence[KernelCandidate]
+    ) -> None:
         """Add newly generated candidates to the graph (unscored)."""
         graph = self.candidates
         for candidate in generated:
@@ -105,6 +107,20 @@ class GreedySearchCheckpoint(BaseModel):
         for candidate, evaluation in scored:
             graph = graph.with_evaluation(ulid=candidate.ulid, evaluation=evaluation)
         self.candidates = graph
+
+    def set_best(self, *, ulid: ULID) -> None:
+        """Update best candidate pointer and cached evaluation (state update only)."""
+        if not self.candidates.has(ulid):
+            raise ValueError(
+                "Cannot set best candidate: ULID not found in candidates " f"({ulid})"
+            )
+        candidate = self.candidates.get(ulid)
+        if candidate.evaluation is None:
+            raise ValueError(
+                "Cannot set best candidate: candidate has no evaluation " f"({ulid})"
+            )
+        self.best_ulid = ulid
+        self.best_evaluation = candidate.evaluation
 
     def append_round_trace(self, round_trace: RoundTrace) -> None:
         """Append a completed round to the search trace."""

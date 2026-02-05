@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import traceback
-from typing import Callable, List, Literal, Optional, Tuple, cast
+from typing import Callable, List, Literal, Optional, Tuple
 
+from arid_badger.typing_utils import Option, is_ok
 from .components import MutationContext, MutationFunction
 from arid_badger.kernelbench.core import KernelScoringResult
 import attrs
@@ -34,37 +35,34 @@ def _select_next_parent_ulid(
     *, current_parent_ulid: ULID, outcome: RoundOutcome
 ) -> ULID:
     """Greedy policy: follow the round winner if available; otherwise keep parent."""
-    if outcome.kind == "winner_selected":
-        winner = cast(RoundWinnerSelected, outcome)
-        return winner.winner_ulid
+    if isinstance(outcome, RoundWinnerSelected):
+        return outcome.winner_ulid
     return current_parent_ulid
 
 
-def _maybe_update_best_so_far_from_outcome(
-    *, checkpoint: GreedySearchCheckpoint, outcome: RoundOutcome
-) -> None:
-    """Update the checkpoint's *best-so-far* candidate if the round produced a better winner.
+def _select_best_update_from_outcome(
+    *, incumbent_best: Evaluation, outcome: RoundOutcome
+) -> Option[ULID, Literal["no_update"]]:
+    """Greedy policy: update best-so-far if this round produced a strictly better valid winner.
 
-    Note: "best so far" is not necessarily "best valid" — it is the best candidate we've
-    *seen* so far. In particular, the starter/baseline evaluation can be invalid (e.g.,
-    compile failure), and entire runs can produce zero valid candidates.
+    "Best so far" is not necessarily "best valid" — it's the best candidate we've *seen* so far.
+    Concretely:
+    - Any valid winner beats a currently-invalid incumbent.
+    - If both are valid, higher speedup wins (ties do not replace incumbent).
     """
-    if outcome.kind != "winner_selected":
-        return
-
-    winner = cast(RoundWinnerSelected, outcome)
+    if not isinstance(outcome, RoundWinnerSelected):
+        return Option.err("no_update")
 
     # Any valid winner beats a currently-invalid incumbent.
-    if isinstance(checkpoint.best_evaluation, InvalidEvaluation):
-        checkpoint.best_ulid = winner.winner_ulid
-        checkpoint.best_evaluation = winner.winner_evaluation
-        return
+    if isinstance(incumbent_best, InvalidEvaluation):
+        return Option.ok(outcome.winner_ulid)
 
     # If both are valid, prefer higher speedup.
-    if isinstance(checkpoint.best_evaluation, ValidEvaluation):
-        if winner.winner_speedup > checkpoint.best_evaluation.speedup:
-            checkpoint.best_ulid = winner.winner_ulid
-            checkpoint.best_evaluation = winner.winner_evaluation
+    if isinstance(incumbent_best, ValidEvaluation):
+        if outcome.winner_speedup > incumbent_best.speedup:
+            return Option.ok(outcome.winner_ulid)
+
+    return Option.err("no_update")
 
 
 @attrs.define
@@ -268,9 +266,11 @@ class GreedySearch:
             selected_parent_ulid = _select_next_parent_ulid(
                 current_parent_ulid=current_parent_ulid, outcome=outcome
             )
-            _maybe_update_best_so_far_from_outcome(
-                checkpoint=checkpoint, outcome=outcome
+            best_update_ulid = _select_best_update_from_outcome(
+                incumbent_best=checkpoint.best_evaluation, outcome=outcome
             )
+            if is_ok(best_update_ulid):
+                checkpoint.set_best(ulid=best_update_ulid.unwrap())
 
             round_trace = RoundTrace(
                 depth=depth,

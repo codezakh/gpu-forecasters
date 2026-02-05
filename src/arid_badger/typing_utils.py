@@ -126,14 +126,6 @@ class Err(Option[T, E]):
     def is_err(self, /) -> bool:
         return True
 
-
-def is_ok(option: Option[T, E], /) -> TypeGuard[Ok[T, E]]:
-    return isinstance(option, Ok)
-
-
-def is_err(option: Option[T, E], /) -> TypeGuard[Err[T, E]]:
-    return isinstance(option, Err)
-
     def unwrap(self) -> NoReturn:
         raise ValueError(f"Called unwrap on an Err value: {self._error}")
 
@@ -151,6 +143,14 @@ def is_err(option: Option[T, E], /) -> TypeGuard[Err[T, E]]:
 
     def unwrap_err(self) -> E:
         return self._error
+
+
+def is_ok(option: Option[T, E], /) -> TypeGuard[Ok[T, E]]:
+    return isinstance(option, Ok)
+
+
+def is_err(option: Option[T, E], /) -> TypeGuard[Err[T, E]]:
+    return isinstance(option, Err)
 
 
 class Result(Ok[T, Any]):
