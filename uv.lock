@@ -33,6 +33,7 @@ dependencies = [
     { name = "peft" },
     { name = "pytest" },
     { name = "python-ulid" },
+    { name = "textualize" },
     { name = "torch", version = "2.9.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
     { name = "torch", version = "2.9.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'linux'" },
     { name = "transformers" },
@@ -49,6 +50,7 @@ requires-dist = [
     { name = "peft", specifier = ">=0.18.0" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "python-ulid", specifier = ">=3.1.0" },
+    { name = "textualize", specifier = ">=0.1" },
     { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.5.1" },
     { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.5.1", index = "https://download.pytorch.org/whl/cu128" },
     { name = "transformers", specifier = ">=4.57.3" },
@@ -3318,6 +3320,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/ec/fe/802052aecb21e3797
 wheels = [
     { url = "https://files.pythonhosted.org/packages/40/44/4a5f08c96eb108af5cb50b41f76142f0afa346dfa99d5296fe7202a11854/tabulate-0.9.0-py3-none-any.whl", hash = "sha256:024ca478df22e9340661486f85298cff5f6dcdba14f3813e8830015b9ed1948f", size = 35252, upload-time = "2022-10-06T17:21:44.262Z" },
 ]
+
+[[package]]
+name = "textualize"
+version = "0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/93/84/3b4224f192c676d869ecb3210ded3ab9f28bd8c98493d7d3730504b91302/textualize-0.1.tar.gz", hash = "sha256:cb06c655af7fa9b42e86c8ab4d6203493777179f8e3fe7cbf1cb703c0bffd2c2", size = 3748, upload-time = "2015-08-13T12:08:11.319Z" }
 
 [[package]]
 name = "tiktoken"
