@@ -1,3 +1,6 @@
 [submodule "third_party/KernelBench"]
 	path = third_party/KernelBench
 	url = git@github.com:codezakh/KernelBench.git
+[submodule "third_party/caesar"]
+	path = third_party/caesar
+	url = git@github.com:ScalingIntelligence/caesar.git
