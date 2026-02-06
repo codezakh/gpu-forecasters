@@ -6,6 +6,7 @@ from kernelbench.prompt_constructor_toml import get_prompt_for_backend
 from kernelbench.utils import extract_first_code
 from litellm import completion
 from loguru import logger
+import time
 
 from arid_badger.typing_utils import implements
 from .domain import MutationContext, MutationFunction, MutatedKernel
@@ -42,18 +43,23 @@ class KernelBenchPromptMutationFunction:
             "Mutation prompt length={length} chars.",
             length=len(prompt),
         )
+        start_time_s = time.perf_counter()
         response = completion(
             model=self._model_slug,
             messages=[{"role": "user", "content": prompt}],
             timeout=20.0,
         )
+        elapsed_s = time.perf_counter() - start_time_s
 
-        content = response.choices[0].message.content
+        content = response.choices[  # pyright: ignore[reportAttributeAccessIssue]
+            0
+        ].message.content  # pyright: ignore[reportAttributeAccessIssue]
         if content is None:
             raise ValueError("LLM returned empty content")
         logger.info(
-            "Mutation response received from LLM (chars={length}).",
+            "Mutation response received from LLM (chars={length}, elapsed_s={elapsed_s:.2f}).",
             length=len(content),
+            elapsed_s=elapsed_s,
         )
 
         kernel_code = extract_first_code(content, code_language_types=["python"])

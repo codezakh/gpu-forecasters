@@ -42,31 +42,18 @@ def score_kernel(
     torch_precision: torch.dtype = get_torch_dtype_from_string(precision)
 
     # Evaluate kernel using KernelBench's evaluation function
-    if build_dir is None:
-        exec_result = eval_kernel_against_ref(
-            original_model_src=reference_kernel_code,
-            custom_model_src=mutated_kernel_code,
-            measure_performance=True,
-            num_correct_trials=num_correct_trials,
-            num_perf_trials=num_perf_trials,
-            backend=backend,
-            precision=torch_precision,
-            timing_method="cuda_event",
-            verbose=False,
-        )
-    else:
-        exec_result = eval_kernel_against_ref(
-            original_model_src=reference_kernel_code,
-            custom_model_src=mutated_kernel_code,
-            measure_performance=True,
-            num_correct_trials=num_correct_trials,
-            num_perf_trials=num_perf_trials,
-            backend=backend,
-            precision=torch_precision,
-            timing_method="cuda_event",
-            verbose=False,
-            build_dir=build_dir,
-        )
+    exec_result = eval_kernel_against_ref(
+        original_model_src=reference_kernel_code,
+        custom_model_src=mutated_kernel_code,
+        measure_performance=True,
+        num_correct_trials=num_correct_trials,
+        num_perf_trials=num_perf_trials,
+        backend=backend,
+        precision=torch_precision,
+        timing_method="cuda_event",
+        verbose=False,
+        build_dir=str(build_dir) if build_dir is not None else None,
+    )
     if exec_result is None:
         # KernelBench returns None on transient lock/cache errors during concurrent compilation.
         # Callers that run parallel compilation should retry.
