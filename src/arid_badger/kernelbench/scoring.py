@@ -1,10 +1,7 @@
 import torch
 from arid_badger.kernelbench.core import KernelScoringResult
-from kernelbench.eval import (
-    KernelExecResult,
-    eval_kernel_against_ref,
-    get_torch_dtype_from_string,
-)
+from arid_badger.kernelbench.eval_logged import eval_kernel_against_ref_logged
+from kernelbench.eval import get_torch_dtype_from_string
 from pathlib import Path
 from typing import Optional
 
@@ -41,8 +38,11 @@ def score_kernel(
     # Convert precision string to torch dtype
     torch_precision: torch.dtype = get_torch_dtype_from_string(precision)
 
+    if build_dir is None:
+        build_dir = Path("/tmp/arid_badger_torch_extensions")
+
     # Evaluate kernel using KernelBench's evaluation function
-    exec_result = eval_kernel_against_ref(
+    exec_result = eval_kernel_against_ref_logged(
         original_model_src=reference_kernel_code,
         custom_model_src=mutated_kernel_code,
         measure_performance=True,
