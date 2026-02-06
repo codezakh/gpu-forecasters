@@ -11,7 +11,13 @@ import attrs
 from loguru import logger
 
 from .checkpoint import GreedySearchCheckpoint, SearchCursor
-from .domain import CandidateGraph, Evaluation, EvaluationMetrics, KernelCandidate
+from .domain import (
+    CandidateGraph,
+    Evaluation,
+    EvaluationMetrics,
+    KernelCandidate,
+    execution_feedback_from_exec_result,
+)
 from .trace import (
     MutationAttempt,
     MutationFailure,
@@ -345,9 +351,16 @@ class GreedySearch:
             runtime=exec_result.runtime,
             ref_runtime=exec_result.ref_runtime,
         )
+        execution_feedback = execution_feedback_from_exec_result(
+            exec_result=exec_result, speedup=score.speedup, is_valid=score.is_valid
+        )
 
         if score.is_valid:
-            return ValidEvaluation(speedup=score.speedup, metrics=metrics)
+            return ValidEvaluation(
+                speedup=score.speedup,
+                metrics=metrics,
+                execution_feedback=execution_feedback,
+            )
 
         reason: str = "unknown"
         if metrics.compiled is False:
@@ -360,7 +373,11 @@ class GreedySearch:
             and (metrics.runtime <= 0 or metrics.ref_runtime <= 0)
         ):
             reason = "nonpositive_runtime"
-        return InvalidEvaluation(reason=reason, metrics=metrics)
+        return InvalidEvaluation(
+            reason=reason,
+            metrics=metrics,
+            execution_feedback=execution_feedback,
+        )
 
     def _attempt_generate_mutations(
         self, *, parent: KernelCandidate
@@ -369,6 +386,7 @@ class GreedySearch:
             reference_kernel_code=self.config.reference_kernel_code,
             previous_kernel_code=parent.code,
             previous_kernel_ulid=parent.ulid,
+            previous_evaluation=parent.evaluation,
             backend=self.config.backend,
             precision=self.config.precision,
             prompt_option=self.config.prompt_option,

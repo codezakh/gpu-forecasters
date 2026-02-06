@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, Mock
 import pytest
 
 from arid_badger.greedy_search.components import (
+    MutationContext,
     MutationFunction,
     MutatedKernel,
 )
@@ -34,6 +35,7 @@ def mock_scoring_function():
         exec_result.correctness = True
         exec_result.runtime = 100.0
         exec_result.ref_runtime = 200.0
+        exec_result.metadata = {}
 
         # Determine speedup based on kernel code (for testing different scenarios)
         # If code contains "fast", give it high speedup
@@ -565,3 +567,115 @@ def test_search_checkpoint_resume_between_rounds(
         ).code
         assert full.rounds[i].outcome.kind == resumed.rounds[i].outcome.kind
         assert full_selected_code == resumed_selected_code
+
+
+def test_greedy_search_passes_parent_evaluation_into_mutation_context() -> None:
+    contexts: list[MutationContext] = []
+    mutation_codes = [
+        "ok_candidate",
+        "compile_fail_candidate",
+        "ok_candidate_round2",
+        "compile_fail_round2",
+    ]
+
+    def mutation_function(context: MutationContext) -> MutatedKernel:
+        contexts.append(context)
+        code = mutation_codes[len(contexts) - 1]
+        return MutatedKernel(
+            kernel_code=code,
+            ancestor_ulid=context.previous_kernel_ulid,
+        )
+
+    def scoring_function(
+        mutated_code: str, _reference_code: str
+    ) -> KernelScoringResult:
+        exec_result = KernelExecResult(
+            compiled=True,
+            correctness=True,
+            runtime=10.0,
+            ref_runtime=20.0,
+            metadata={},
+        )
+        if "compile_fail" in mutated_code:
+            exec_result.compiled = False
+            exec_result.correctness = False
+            exec_result.metadata = {
+                "compilation_error_name": "CompilerError",
+                "compilation_error": "Failed to compile",
+            }
+            return KernelScoringResult(
+                exec_result=exec_result, speedup=0.0, is_valid=False
+            )
+        if "ok_candidate" in mutated_code:
+            return KernelScoringResult(
+                exec_result=exec_result, speedup=3.0, is_valid=True
+            )
+        return KernelScoringResult(exec_result=exec_result, speedup=2.0, is_valid=True)
+
+    config = GreedySearchConfig(
+        max_depth=2,
+        num_mutations=2,
+        starter_kernel_code="starter_ok",
+        reference_kernel_code="reference_ok",
+        mutation_function=mutation_function,
+        scoring_function=scoring_function,
+    )
+    search = GreedySearch(config=config)
+    result = search.run()
+
+    assert len(contexts) == 4
+    assert contexts[0].previous_evaluation is not None
+    assert contexts[0].previous_evaluation.execution_feedback.kind == "success"
+    assert contexts[2].previous_evaluation is not None
+    assert contexts[2].previous_evaluation.execution_feedback.kind == "success"
+    assert result.best_candidate().code.startswith("ok_candidate")
+
+
+def test_greedy_search_feedback_driven_mutator_uses_compile_failed_feedback() -> None:
+    def mutation_function(context: MutationContext) -> MutatedKernel:
+        assert context.previous_evaluation is not None
+        feedback_kind = context.previous_evaluation.execution_feedback.kind
+        if feedback_kind == "compile_failed":
+            code = "ok_candidate"
+        else:
+            code = "compile_fail_candidate"
+        return MutatedKernel(
+            kernel_code=code,
+            ancestor_ulid=context.previous_kernel_ulid,
+        )
+
+    def scoring_function(
+        mutated_code: str, _reference_code: str
+    ) -> KernelScoringResult:
+        exec_result = KernelExecResult(
+            compiled=True,
+            correctness=True,
+            runtime=10.0,
+            ref_runtime=20.0,
+            metadata={},
+        )
+        if "compile_fail" in mutated_code:
+            exec_result.compiled = False
+            exec_result.correctness = False
+            exec_result.metadata = {
+                "compilation_error_name": "CompilerError",
+                "compilation_error": "Failed to compile",
+            }
+            return KernelScoringResult(
+                exec_result=exec_result, speedup=0.0, is_valid=False
+            )
+        return KernelScoringResult(exec_result=exec_result, speedup=2.0, is_valid=True)
+
+    config = GreedySearchConfig(
+        max_depth=1,
+        num_mutations=1,
+        starter_kernel_code="starter_compile_fail",
+        reference_kernel_code="reference_ok",
+        mutation_function=mutation_function,
+        scoring_function=scoring_function,
+    )
+    search = GreedySearch(config=config)
+    result = search.run()
+
+    assert result.rounds[0].outcome.kind == "winner_selected"
+    assert result.best_candidate().code == "ok_candidate"

@@ -7,6 +7,7 @@ from loguru import logger
 from ulid import ULID
 from pydantic import BaseModel, Field, computed_field
 from typing import Literal
+from .domain import Evaluation
 
 
 class MutationContext(BaseModel):
@@ -17,6 +18,7 @@ class MutationContext(BaseModel):
     reference_kernel_code: str = Field(min_length=1)
     previous_kernel_code: Optional[str] = Field(default=None)
     previous_kernel_ulid: Optional[ULID] = Field(default=None)
+    previous_evaluation: Optional[Evaluation] = Field(default=None)
     model_slug: str = Field(default="gemini/gemini-3-flash-preview")
     backend: Literal["cuda", "triton"] = Field(default="cuda")
     prompt_option: Literal["zero_shot", "one_shot", "few_shot"] = Field(
