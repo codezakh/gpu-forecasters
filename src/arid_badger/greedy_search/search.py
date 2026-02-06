@@ -5,7 +5,6 @@ from collections import Counter
 from typing import Callable, Dict, List, Literal, Optional, Tuple
 
 from arid_badger.typing_utils import Option, is_ok
-from .components import MutationContext, MutationFunction
 from arid_badger.kernelbench.core import KernelScoringResult
 import attrs
 from loguru import logger
@@ -16,6 +15,8 @@ from .domain import (
     Evaluation,
     EvaluationMetrics,
     KernelCandidate,
+    MutationContext,
+    MutationFunction,
     execution_feedback_from_exec_result,
 )
 from .trace import (
@@ -305,8 +306,6 @@ class GreedySearchConfig:
     scoring_function: Callable[[str, str], KernelScoringResult]
     backend: Literal["cuda", "triton"] = "cuda"
     precision: Literal["fp32", "fp16", "bf16"] = "fp32"
-    prompt_option: Literal["zero_shot", "one_shot", "few_shot"] = "one_shot"
-    model_slug: str = "gemini/gemini-3-flash-preview"
 
 
 class GreedySearch:
@@ -389,8 +388,6 @@ class GreedySearch:
             previous_evaluation=parent.evaluation,
             backend=self.config.backend,
             precision=self.config.precision,
-            prompt_option=self.config.prompt_option,
-            model_slug=self.config.model_slug,
         )
 
         attempts: List[MutationAttempt] = []

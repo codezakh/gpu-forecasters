@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Dict, Iterable, Literal, Optional, Union
+from typing import Annotated, Dict, Iterable, Literal, Optional, Protocol, Union
 
 from kernelbench.eval import KernelExecResult
 from pydantic import BaseModel, ConfigDict, Field
@@ -16,6 +16,34 @@ class EvaluationMetrics(BaseModel):
     correctness: Optional[bool] = None
     runtime: Optional[float] = None
     ref_runtime: Optional[float] = None
+
+
+class MutationContext(BaseModel):
+    """Context for mutating a kernel."""
+
+    model_config = ConfigDict(frozen=True)
+
+    # Reference architecture that KernelBench expects the generated code to preserve.
+    reference_kernel_code: str = Field(min_length=1)
+    previous_kernel_code: str = Field(min_length=1)
+    previous_kernel_ulid: Optional[ULID] = None
+    previous_evaluation: Optional["Evaluation"] = None
+    backend: Literal["cuda", "triton"] = "cuda"
+    precision: Literal["fp32", "fp16", "bf16"] = "fp32"
+
+
+class MutatedKernel(BaseModel):
+    """Result of a kernel mutation."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kernel_code: str = Field(min_length=1)
+    ulid: ULID = Field(default_factory=ULID)
+    ancestor_ulid: Optional[ULID] = None
+
+
+class MutationFunction(Protocol):
+    def __call__(self, context: MutationContext) -> MutatedKernel: ...
 
 
 class CompileFailedFeedback(BaseModel):

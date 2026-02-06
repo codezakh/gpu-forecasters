@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from arid_badger.greedy_search.components import (
+from arid_badger.greedy_search.domain import (
     MutationContext,
     MutationFunction,
     MutatedKernel,

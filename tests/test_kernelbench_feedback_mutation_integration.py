@@ -4,8 +4,13 @@ import pytest
 import torch
 from kernelbench.dataset import BaseDataset, Problem, construct_kernelbench_dataset
 
-from arid_badger.greedy_search.components import MutationContext, MutationFunction
-from arid_badger.greedy_search.feedback_mutation import FeedbackMutationFunction
+from arid_badger.greedy_search.domain import MutationContext
+from arid_badger.greedy_search.feedback_mutation import (
+    KernelBenchExecutionFeedbackMutationFunction,
+)
+from arid_badger.greedy_search.kernelbench_prompt_mutation import (
+    KernelBenchPromptMutationFunction,
+)
 from arid_badger.greedy_search.search import GreedySearch, GreedySearchConfig
 from arid_badger.kernelbench.scoring import score_kernel
 
@@ -38,7 +43,7 @@ def test_feedback_mutation_success_path_runs_end_to_end() -> None:
         num_mutations=1,
         starter_kernel_code=starter_kernel_code,
         reference_kernel_code=starter_kernel_code,
-        mutation_function=MutationFunction(),
+        mutation_function=KernelBenchPromptMutationFunction(),
         scoring_function=score_kernel,
     )
     evaluation = GreedySearch(config=config)._score_to_evaluation(scoring_result)
@@ -49,7 +54,7 @@ def test_feedback_mutation_success_path_runs_end_to_end() -> None:
         previous_kernel_ulid=None,
         previous_evaluation=evaluation,
     )
-    mutated = FeedbackMutationFunction()(context)
+    mutated = KernelBenchExecutionFeedbackMutationFunction()(context)
 
     scoring_result = score_kernel(
         mutated_kernel_code=mutated.kernel_code,
@@ -96,7 +101,7 @@ def test_feedback_mutation_compile_failed_path_runs_end_to_end() -> None:
         num_mutations=1,
         starter_kernel_code=starter_kernel_code,
         reference_kernel_code=starter_kernel_code,
-        mutation_function=MutationFunction(),
+        mutation_function=KernelBenchPromptMutationFunction(),
         scoring_function=score_kernel,
     )
     evaluation = GreedySearch(config=config)._score_to_evaluation(scoring_result)
@@ -107,7 +112,7 @@ def test_feedback_mutation_compile_failed_path_runs_end_to_end() -> None:
         previous_kernel_ulid=None,
         previous_evaluation=evaluation,
     )
-    mutated = FeedbackMutationFunction()(context)
+    mutated = KernelBenchExecutionFeedbackMutationFunction()(context)
 
     scoring_result = score_kernel(
         mutated_kernel_code=mutated.kernel_code,

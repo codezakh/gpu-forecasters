@@ -4,10 +4,9 @@ import pytest
 import torch
 from kernelbench.dataset import BaseDataset, Problem, construct_kernelbench_dataset
 
-from arid_badger.greedy_search.components import (
-    MutationContext,
-    MutationFunction,
-    MutatedKernel,
+from arid_badger.greedy_search.domain import MutationContext, MutatedKernel
+from arid_badger.greedy_search.kernelbench_prompt_mutation import (
+    KernelBenchPromptMutationFunction,
 )
 from arid_badger.kernelbench.core import KernelScoringResult
 from arid_badger.kernelbench.scoring import score_kernel
@@ -56,7 +55,7 @@ def test_kernelbench_greedy_search_pipeline():
     )
 
     # 4. Create MutationFunction with Gemini 3 Flash Preview (faster for tests)
-    mutation_fn = MutationFunction()
+    mutation_fn = KernelBenchPromptMutationFunction()
 
     # 5. Generate mutated kernel
     mutated_kernel: MutatedKernel = mutation_fn(context)

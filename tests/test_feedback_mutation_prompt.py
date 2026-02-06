@@ -3,14 +3,14 @@ from types import SimpleNamespace
 import pytest
 from ulid import ULID
 
-from arid_badger.greedy_search.components import MutationContext
+from arid_badger.greedy_search.domain import MutationContext
 from arid_badger.greedy_search.domain import (
     CompileFailedFeedback,
     SuccessFeedback,
     ValidEvaluation,
 )
 from arid_badger.greedy_search.feedback_mutation import (
-    FeedbackMutationFunction,
+    KernelBenchExecutionFeedbackMutationFunction,
     format_feedback_mutation_prompt,
 )
 
@@ -92,7 +92,7 @@ def test_feedback_mutation_function_sends_formatted_prompt_and_parses_code(
         previous_evaluation=evaluation,
     )
 
-    mutated = FeedbackMutationFunction()(context)
+    mutated = KernelBenchExecutionFeedbackMutationFunction()(context)
     assert "BASE_PROMPT" in captured["prompt"]
     assert "previous" in captured["prompt"]
     assert "Speedup" in captured["prompt"]
