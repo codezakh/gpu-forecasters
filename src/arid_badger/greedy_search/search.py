@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import ast
+import math
 import traceback
 from collections import Counter
 from typing import Callable, Dict, List, Literal, Optional, Tuple
 
-from arid_badger.typing_utils import Option, is_ok
-from arid_badger.kernelbench.core import KernelScoringResult
 import attrs
 from loguru import logger
+
+from arid_badger.kernelbench.core import KernelScoringResult
+from arid_badger.typing_utils import Option, is_ok
 
 from .checkpoint import GreedySearchCheckpoint, SearchCursor
 from .domain import (
@@ -43,6 +46,23 @@ def _short_ulid(ulid: Optional[object]) -> str:
         return "none"
     text = str(ulid)
     return text[:6]
+
+
+def _has_class_def(source: str, name: str) -> bool:
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == name:
+            return True
+    return False
+
+
+def _ensure_modelnew_entry_point(source: str) -> str:
+    if _has_class_def(source, "ModelNew"):
+        return source
+    return f"{source.rstrip()}\n\nclass ModelNew(Model):\n    pass\n"
 
 
 def _summarize_attempt_failures(
@@ -318,15 +338,56 @@ class GreedySearch:
         """
         self.config = config
 
+    def _validate_reference_score(self, score: KernelScoringResult) -> None:
+        exec_result = score.exec_result
+        metadata = exec_result.metadata or {}
+        if exec_result.compiled is not True:
+            raise ValueError(
+                "Reference kernel failed to compile. " f"metadata={metadata!r}"
+            )
+        if exec_result.correctness is not True:
+            raise ValueError(
+                "Reference kernel failed correctness checks. " f"metadata={metadata!r}"
+            )
+        if (
+            exec_result.runtime is None
+            or not math.isfinite(exec_result.runtime)
+            or exec_result.runtime <= 0
+        ):
+            raise ValueError(
+                "Reference kernel produced invalid runtime. "
+                f"runtime={exec_result.runtime!r} metadata={metadata!r}"
+            )
+        if (
+            exec_result.ref_runtime is None
+            or not math.isfinite(exec_result.ref_runtime)
+            or exec_result.ref_runtime <= 0
+        ):
+            raise ValueError(
+                "Reference kernel produced invalid ref runtime. "
+                f"ref_runtime={exec_result.ref_runtime!r} metadata={metadata!r}"
+            )
+
+    def score_reference_kernel_only(self) -> KernelScoringResult:
+        custom_baseline_code = _ensure_modelnew_entry_point(
+            self.config.reference_kernel_code
+        )
+        score = self.config.scoring_function(
+            custom_baseline_code, self.config.reference_kernel_code
+        )
+        self._validate_reference_score(score)
+        return score
+
     def _create_initial_checkpoint(self) -> GreedySearchCheckpoint:
         """Create the initial checkpoint for a fresh run (includes starter scoring)."""
+        starter_code = _ensure_modelnew_entry_point(self.config.starter_kernel_code)
         starter_raw_score = self.config.scoring_function(
-            self.config.starter_kernel_code, self.config.reference_kernel_code
+            starter_code, self.config.reference_kernel_code
         )
         starter_evaluation = self._score_to_evaluation(starter_raw_score)
 
         starter_candidate = KernelCandidate(
-            code=self.config.starter_kernel_code,
+            code=starter_code,
             parent_ulid=None,
             evaluation=starter_evaluation,
         )
