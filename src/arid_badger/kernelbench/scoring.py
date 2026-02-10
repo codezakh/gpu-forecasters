@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 
-def score_kernel(
+def _score_kernel_impl(
     mutated_kernel_code: str,
     reference_kernel_code: str,
     backend: str = "cuda",
@@ -15,20 +15,7 @@ def score_kernel(
     num_perf_trials: int = 100,
     build_dir: Optional[Path] = None,
 ) -> KernelScoringResult:
-    """
-    Score a mutated kernel against a reference kernel.
-
-    Args:
-        mutated_kernel_code: Source code of the mutated kernel
-        reference_kernel_code: Source code of the reference kernel
-        backend: Backend type ("cuda", "triton", etc.)
-        precision: Precision string ("fp32", "fp16", "bf16")
-        num_correct_trials: Number of correctness trials
-        num_perf_trials: Number of performance trials
-
-    Returns:
-        KernelScoringResult with exec_result, speedup, and validity flag
-    """
+    """In-process scoring logic. Called directly or from a subprocess worker."""
     # Check CUDA availability
     if not torch.cuda.is_available():
         raise RuntimeError(
@@ -73,3 +60,54 @@ def score_kernel(
     speedup: float = exec_result.ref_runtime / exec_result.runtime
 
     return KernelScoringResult(exec_result=exec_result, speedup=speedup, is_valid=True)
+
+
+def score_kernel(
+    mutated_kernel_code: str,
+    reference_kernel_code: str,
+    backend: str = "cuda",
+    precision: str = "fp32",
+    num_correct_trials: int = 5,
+    num_perf_trials: int = 100,
+    build_dir: Optional[Path] = None,
+    isolate: bool = True,
+) -> KernelScoringResult:
+    """
+    Score a mutated kernel against a reference kernel.
+
+    Args:
+        mutated_kernel_code: Source code of the mutated kernel
+        reference_kernel_code: Source code of the reference kernel
+        backend: Backend type ("cuda", "triton", etc.)
+        precision: Precision string ("fp32", "fp16", "bf16")
+        num_correct_trials: Number of correctness trials
+        num_perf_trials: Number of performance trials
+        build_dir: Directory for compiled kernel build artifacts
+        isolate: If True (default), run scoring in an isolated subprocess
+            to contain CUDA faults. Set to False for debugging.
+
+    Returns:
+        KernelScoringResult with exec_result, speedup, and validity flag
+    """
+    if not isolate:
+        return _score_kernel_impl(
+            mutated_kernel_code=mutated_kernel_code,
+            reference_kernel_code=reference_kernel_code,
+            backend=backend,
+            precision=precision,
+            num_correct_trials=num_correct_trials,
+            num_perf_trials=num_perf_trials,
+            build_dir=build_dir,
+        )
+
+    from arid_badger.kernelbench.isolated_scoring import run_scoring_in_subprocess
+
+    return run_scoring_in_subprocess(
+        mutated_kernel_code=mutated_kernel_code,
+        reference_kernel_code=reference_kernel_code,
+        backend=backend,
+        precision=precision,
+        num_correct_trials=num_correct_trials,
+        num_perf_trials=num_perf_trials,
+        build_dir=build_dir,
+    )
