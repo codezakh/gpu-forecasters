@@ -41,6 +41,8 @@ def score_kernel(
     if build_dir is None:
         build_dir = Path("/tmp/arid_badger_torch_extensions")
 
+    assert build_dir is not None
+
     # Evaluate kernel using KernelBench's evaluation function
     exec_result = eval_kernel_against_ref_logged(
         original_model_src=reference_kernel_code,
@@ -52,7 +54,7 @@ def score_kernel(
         precision=torch_precision,
         timing_method="cuda_event",
         verbose=False,
-        build_dir=str(build_dir) if build_dir is not None else None,
+        build_dir=build_dir,
     )
     if exec_result is None:
         # KernelBench returns None on transient lock/cache errors during concurrent compilation.
