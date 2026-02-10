@@ -1,9 +1,11 @@
+from pathlib import Path
+from typing import Optional
+
 import torch
 from arid_badger.kernelbench.core import KernelScoringResult
 from arid_badger.kernelbench.eval_logged import eval_kernel_against_ref_logged
+from arid_badger.kernelbench.isolated_scoring import run_scoring_in_subprocess
 from kernelbench.eval import get_torch_dtype_from_string
-from pathlib import Path
-from typing import Optional
 
 
 def _score_kernel_impl(
@@ -99,8 +101,6 @@ def score_kernel(
             num_perf_trials=num_perf_trials,
             build_dir=build_dir,
         )
-
-    from arid_badger.kernelbench.isolated_scoring import run_scoring_in_subprocess
 
     return run_scoring_in_subprocess(
         mutated_kernel_code=mutated_kernel_code,

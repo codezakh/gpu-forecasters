@@ -68,6 +68,11 @@ torch = [
 # installs, causing `source="local"` dataset loads to fail.
 kernelbench = { workspace = true, editable = true }
 
+[tool.ty.src]
+exclude = [
+    "src/arid_badger/kernelbench/eval_logged.py", # This is a copy of the eval function from KernelBench with logging added.
+]
+
 [tool.uv.workspace]
 members = [
     "third_party/KernelBench",

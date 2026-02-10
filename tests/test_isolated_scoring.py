@@ -6,6 +6,7 @@ import pytest
 import torch
 from kernelbench.dataset import BaseDataset, Problem, construct_kernelbench_dataset
 
+import re
 from arid_badger.kernelbench.scoring import score_kernel
 
 
@@ -26,7 +27,6 @@ def test_isolated_scoring_returns_valid_result() -> None:
     # mutated kernel.  For a simple identity test, just reuse the same logic
     # under the ModelNew name.  Use a regex word-boundary match to avoid
     # mangling "Module" → "ModelNewule".
-    import re
 
     mutated_kernel_code = re.sub(r"\bModel\b", "ModelNew", reference_kernel_code)
 

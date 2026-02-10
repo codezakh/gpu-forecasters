@@ -1,0 +1,3 @@
+{
+  "ignore": ["src/arid_badger/kernelbench/eval_logged.py"]
+}
