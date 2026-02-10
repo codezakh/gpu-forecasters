@@ -44,6 +44,7 @@ markers = [
     "asyncio: mark test as async",
     "cuda: requires CUDA-capable GPU",
     "integration: integration test requiring external services",
+    "poisoning: test that intentionally poisons CUDA context (run in isolation)",
     "slow: self-explanatory"
 ]
 filterwarnings = [
