@@ -43,19 +43,26 @@ def mock_scoring_function():
         # If code contains "invalid", mark as invalid
         if "invalid" in mutated_code:
             exec_result.correctness = False
-            return KernelScoringResult(
+            result = KernelScoringResult(
                 exec_result=exec_result, speedup=0.0, is_valid=False
             )
         elif "fast" in mutated_code:
             speedup = 3.0
+            result = KernelScoringResult(
+                exec_result=exec_result, speedup=speedup, is_valid=True
+            )
         elif "slow" in mutated_code:
             speedup = 0.5
+            result = KernelScoringResult(
+                exec_result=exec_result, speedup=speedup, is_valid=True
+            )
         else:
             speedup = 1.0
+            result = KernelScoringResult(
+                exec_result=exec_result, speedup=speedup, is_valid=True
+            )
 
-        return KernelScoringResult(
-            exec_result=exec_result, speedup=speedup, is_valid=True
-        )
+        return result
 
     return _scoring_fn
 

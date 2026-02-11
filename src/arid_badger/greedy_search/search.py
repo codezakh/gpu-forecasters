@@ -49,6 +49,18 @@ def _short_ulid(ulid: Optional[object]) -> str:
 
 
 def _has_class_def(source: str, name: str) -> bool:
+    """Check if a class definition with the given name exists in the source code.
+
+    Uses AST parsing to detect class definitions. Returns False on syntax errors
+    (defensive behavior for malformed code).
+
+    Args:
+        source: Python source code to analyze
+        name: Class name to search for
+
+    Returns:
+        True if a class with the given name is defined, False otherwise
+    """
     try:
         tree = ast.parse(source)
     except SyntaxError:
@@ -60,6 +72,26 @@ def _has_class_def(source: str, name: str) -> bool:
 
 
 def _ensure_modelnew_entry_point(source: str) -> str:
+    """Ensure kernel code has a ModelNew class for KernelBench compatibility.
+
+    KernelBench's evaluation system requires kernels to define a `ModelNew` class as
+    the entry point. The `load_custom_model` function in KernelBench specifically looks
+    for and instantiates this class when loading custom kernel implementations.
+
+    Reference kernels typically define `class Model`, but KernelBench expects `ModelNew`.
+    This transformation bridges that gap by adding a stub class that inherits the
+    reference behavior while satisfying KernelBench's requirements.
+
+    This function is applied to kernel code before scoring it with KernelBench. If the
+    code already has a `ModelNew` class, it's returned unchanged. Otherwise, we append
+    `class ModelNew(Model): pass` to inherit the reference implementation.
+
+    Args:
+        source: Python kernel source code
+
+    Returns:
+        Source code guaranteed to contain a ModelNew class definition
+    """
     if _has_class_def(source, "ModelNew"):
         return source
     return f"{source.rstrip()}\n\nclass ModelNew(Model):\n    pass\n"
@@ -387,7 +419,7 @@ class GreedySearch:
         starter_evaluation = self._score_to_evaluation(starter_raw_score)
 
         starter_candidate = KernelCandidate(
-            code=starter_code,
+            code=self.config.starter_kernel_code,
             parent_ulid=None,
             evaluation=starter_evaluation,
         )
