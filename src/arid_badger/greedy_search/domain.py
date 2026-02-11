@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Dict, Iterable, Literal, Optional, Protocol, Union
+from typing import Annotated, Dict, Iterable, Literal, Optional, Protocol, Sequence, Union
 
 from kernelbench.eval import KernelExecResult
 from pydantic import BaseModel, ConfigDict, Field
@@ -28,6 +28,7 @@ class MutationContext(BaseModel):
     previous_kernel_code: str = Field(min_length=1)
     previous_kernel_ulid: Optional[ULID] = None
     previous_evaluation: Optional["Evaluation"] = None
+    num_mutations: int = 1
     backend: Literal["cuda", "triton"] = "cuda"
     precision: Literal["fp32", "fp16", "bf16"] = "fp32"
 
@@ -194,6 +195,71 @@ Evaluation = Annotated[
 ]
 
 
+# ---------------------------------------------------------------------------
+# Attempt types (mutation / scoring outcomes)
+# ---------------------------------------------------------------------------
+
+
+class MutationError(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    message: str
+    exception_repr: str
+    traceback: str
+
+
+class ScoringError(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    message: str
+    exception_repr: str
+    traceback: str
+
+
+class MutationSuccess(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["success"] = "success"
+    attempt_idx: int
+    candidate_ulid: ULID
+
+
+class MutationFailure(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["failure"] = "failure"
+    attempt_idx: int
+    error: MutationError
+
+
+MutationAttempt = Annotated[
+    Union[MutationSuccess, MutationFailure],
+    Field(discriminator="kind"),
+]
+
+
+class ScoringSuccess(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["success"] = "success"
+    candidate_ulid: ULID
+    evaluation: Evaluation
+
+
+class ScoringFailure(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["failure"] = "failure"
+    candidate_ulid: ULID
+    error: ScoringError
+
+
+ScoringAttempt = Annotated[
+    Union[ScoringSuccess, ScoringFailure],
+    Field(discriminator="kind"),
+]
+
+
 class KernelCandidate(BaseModel):
     """A candidate kernel considered by the search (entity; identity is ULID)."""
 
@@ -235,3 +301,24 @@ class CandidateGraph(BaseModel):
         updated = dict(self.candidates)
         updated[ulid] = updated_candidate
         return self.model_copy(update={"candidates": updated})
+
+
+# ---------------------------------------------------------------------------
+# Provider protocols
+# ---------------------------------------------------------------------------
+
+
+class ScoringProvider(Protocol):
+    def score_candidates(
+        self,
+        candidates: Sequence[KernelCandidate],
+        reference_kernel_code: str,
+    ) -> tuple[list[ScoringAttempt], list[tuple[KernelCandidate, Evaluation]]]: ...
+
+    def score_reference(self, reference_kernel_code: str) -> Evaluation: ...
+
+
+class MutationProvider(Protocol):
+    def generate_mutations(
+        self, context: MutationContext,
+    ) -> tuple[list[MutationAttempt], list[KernelCandidate]]: ...

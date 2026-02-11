@@ -5,66 +5,35 @@ from typing import Annotated, List, Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 from ulid import ULID
 
-from .domain import Evaluation, ValidEvaluation
+from .domain import (
+    Evaluation,
+    MutationAttempt,
+    MutationError,
+    MutationFailure,
+    MutationSuccess,
+    ScoringAttempt,
+    ScoringError,
+    ScoringFailure,
+    ScoringSuccess,
+    ValidEvaluation,
+)
 
-
-class MutationError(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    message: str
-    exception_repr: str
-    traceback: str
-
-
-class ScoringError(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    message: str
-    exception_repr: str
-    traceback: str
-
-
-class MutationSuccess(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    kind: Literal["success"] = "success"
-    attempt_idx: int
-    candidate_ulid: ULID
-
-
-class MutationFailure(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    kind: Literal["failure"] = "failure"
-    attempt_idx: int
-    error: MutationError
-
-
-MutationAttempt = Annotated[
-    Union[MutationSuccess, MutationFailure],
-    Field(discriminator="kind"),
-]
-
-
-class ScoringSuccess(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    kind: Literal["success"] = "success"
-    candidate_ulid: ULID
-    evaluation: Evaluation
-
-
-class ScoringFailure(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    kind: Literal["failure"] = "failure"
-    candidate_ulid: ULID
-    error: ScoringError
-
-
-ScoringAttempt = Annotated[
-    Union[ScoringSuccess, ScoringFailure],
-    Field(discriminator="kind"),
+# Re-export attempt types so existing consumers continue to work.
+__all__ = [
+    "MutationError",
+    "ScoringError",
+    "MutationSuccess",
+    "MutationFailure",
+    "MutationAttempt",
+    "ScoringSuccess",
+    "ScoringFailure",
+    "ScoringAttempt",
+    "RoundWinnerSelected",
+    "RoundNoEvaluations",
+    "RoundAllEvaluationsInvalid",
+    "RoundOutcome",
+    "RoundTrace",
+    "SearchTrace",
 ]
 
 
