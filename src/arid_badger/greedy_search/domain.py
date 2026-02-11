@@ -1,6 +1,17 @@
 from __future__ import annotations
 
-from typing import Annotated, Dict, Iterable, Literal, Optional, Protocol, Sequence, Union
+from typing import (
+    Annotated,
+    Dict,
+    Iterable,
+    Literal,
+    Optional,
+    Protocol,
+    Sequence,
+    Union,
+)
+
+from arid_badger.typing_utils import Option
 
 from kernelbench.eval import KernelExecResult
 from pydantic import BaseModel, ConfigDict, Field
@@ -315,10 +326,13 @@ class ScoringProvider(Protocol):
         reference_kernel_code: str,
     ) -> tuple[list[ScoringAttempt], list[tuple[KernelCandidate, Evaluation]]]: ...
 
-    def score_reference(self, reference_kernel_code: str) -> Evaluation: ...
+    def score_reference(
+        self, reference_kernel_code: str
+    ) -> Option[ValidEvaluation, str]: ...
 
 
 class MutationProvider(Protocol):
     def generate_mutations(
-        self, context: MutationContext,
+        self,
+        context: MutationContext,
     ) -> tuple[list[MutationAttempt], list[KernelCandidate]]: ...

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from arid_badger.greedy_search.domain import MutationContext, MutatedKernel
+from arid_badger.greedy_search.mutation_provider import SerialMutationProvider
+from arid_badger.greedy_search.scoring_provider import SerialScoringProvider
 from arid_badger.greedy_search.search import GreedySearch, GreedySearchConfig
 from arid_badger.kernelbench.core import KernelScoringResult
 from kernelbench.eval import KernelExecResult
@@ -41,8 +43,8 @@ def _make_search(
         num_mutations=num_mutations,
         starter_kernel_code="starter",
         reference_kernel_code="reference",
-        mutation_function=mutation_fn,
-        scoring_function=_scoring_function,
+        mutation_provider=SerialMutationProvider(mutation_fn),
+        scoring_provider=SerialScoringProvider(_scoring_function),
     )
     return GreedySearch(config), mutation_fn
 

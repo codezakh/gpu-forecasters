@@ -6,9 +6,12 @@ from arid_badger.greedy_search.domain import (
     MutationContext,
     MutationFunction,
     MutatedKernel,
+    MutationFailure,
+    ScoringFailure,
+    ValidEvaluation,
 )
-from arid_badger.greedy_search.domain import ValidEvaluation
-from arid_badger.greedy_search.trace import MutationFailure, ScoringFailure
+from arid_badger.greedy_search.mutation_provider import SerialMutationProvider
+from arid_badger.greedy_search.scoring_provider import SerialScoringProvider
 from arid_badger.greedy_search.search import (
     GreedySearch,
     GreedySearchConfig,
@@ -103,8 +106,8 @@ def test_basic_search_single_depth_two_mutations(
         num_mutations=2,
         starter_kernel_code=starter_kernel_code,
         reference_kernel_code=reference_kernel_code,
-        mutation_function=mock_mutation_function,
-        scoring_function=mock_scoring_function,
+        mutation_provider=SerialMutationProvider(mock_mutation_function),
+        scoring_provider=SerialScoringProvider(mock_scoring_function),
     )
     search = GreedySearch(config=config)
 
@@ -159,8 +162,8 @@ def test_search_multiple_depth_levels(
         num_mutations=2,
         starter_kernel_code=starter_kernel_code,
         reference_kernel_code=reference_kernel_code,
-        mutation_function=mock_mutation_function,
-        scoring_function=mock_scoring_function,
+        mutation_provider=SerialMutationProvider(mock_mutation_function),
+        scoring_provider=SerialScoringProvider(mock_scoring_function),
     )
     search = GreedySearch(config=config)
 
@@ -217,8 +220,8 @@ def test_search_best_kernel_improves_over_rounds(
         num_mutations=2,
         starter_kernel_code=starter_kernel_code,
         reference_kernel_code=reference_kernel_code,
-        mutation_function=mock_mutation_function,
-        scoring_function=mock_scoring_function,
+        mutation_provider=SerialMutationProvider(mock_mutation_function),
+        scoring_provider=SerialScoringProvider(mock_scoring_function),
     )
     search = GreedySearch(config=config)
 
@@ -263,8 +266,8 @@ def test_search_no_valid_mutations_continues_with_same_parent(
         num_mutations=2,
         starter_kernel_code=starter_kernel_code,
         reference_kernel_code=reference_kernel_code,
-        mutation_function=mock_mutation_function,
-        scoring_function=mock_scoring_function,
+        mutation_provider=SerialMutationProvider(mock_mutation_function),
+        scoring_provider=SerialScoringProvider(mock_scoring_function),
     )
     search = GreedySearch(config=config)
 
@@ -304,8 +307,8 @@ def test_search_all_mutations_invalid(
         num_mutations=2,
         starter_kernel_code=starter_kernel_code,
         reference_kernel_code=reference_kernel_code,
-        mutation_function=mock_mutation_function,
-        scoring_function=mock_scoring_function,
+        mutation_provider=SerialMutationProvider(mock_mutation_function),
+        scoring_provider=SerialScoringProvider(mock_scoring_function),
     )
     search = GreedySearch(config=config)
 
@@ -350,8 +353,8 @@ def test_search_history_completeness(
         num_mutations=2,
         starter_kernel_code=starter_kernel_code,
         reference_kernel_code=reference_kernel_code,
-        mutation_function=mock_mutation_function,
-        scoring_function=mock_scoring_function,
+        mutation_provider=SerialMutationProvider(mock_mutation_function),
+        scoring_provider=SerialScoringProvider(mock_scoring_function),
     )
     search = GreedySearch(config=config)
 
@@ -389,8 +392,8 @@ def test_search_best_kernel_selection_logic(
         num_mutations=3,
         starter_kernel_code=starter_kernel_code,
         reference_kernel_code=reference_kernel_code,
-        mutation_function=mock_mutation_function,
-        scoring_function=mock_scoring_function,
+        mutation_provider=SerialMutationProvider(mock_mutation_function),
+        scoring_provider=SerialScoringProvider(mock_scoring_function),
     )
     search = GreedySearch(config=config)
 
@@ -427,8 +430,8 @@ def test_search_mutation_function_exception_handling(
         num_mutations=2,
         starter_kernel_code=starter_kernel_code,
         reference_kernel_code=reference_kernel_code,
-        mutation_function=mock_mutation_function,
-        scoring_function=mock_scoring_function,
+        mutation_provider=SerialMutationProvider(mock_mutation_function),
+        scoring_provider=SerialScoringProvider(mock_scoring_function),
     )
     search = GreedySearch(config=config)
 
@@ -466,7 +469,7 @@ def test_search_scoring_function_exception_handling(
     ) -> KernelScoringResult:
         nonlocal call_count
         call_count += 1
-        # First call is scoring the starter kernel baseline inside GreedySearch.search().
+        # First call is score_reference for the starter kernel.
         # Raise on the first mutation scoring call instead.
         if call_count == 2:
             raise RuntimeError("Scoring error")
@@ -477,8 +480,8 @@ def test_search_scoring_function_exception_handling(
         num_mutations=2,
         starter_kernel_code=starter_kernel_code,
         reference_kernel_code=reference_kernel_code,
-        mutation_function=mock_mutation_function,
-        scoring_function=scoring_with_exception,
+        mutation_provider=SerialMutationProvider(mock_mutation_function),
+        scoring_provider=SerialScoringProvider(scoring_with_exception),
     )
     search = GreedySearch(config=config)
 
@@ -529,8 +532,8 @@ def test_search_checkpoint_resume_between_rounds(
         num_mutations=2,
         starter_kernel_code=starter_kernel_code,
         reference_kernel_code=reference_kernel_code,
-        mutation_function=mock_mutation_full,
-        scoring_function=mock_scoring_function,
+        mutation_provider=SerialMutationProvider(mock_mutation_full),
+        scoring_provider=SerialScoringProvider(mock_scoring_function),
     )
     full = GreedySearch(config=config_full).run()
 
@@ -540,8 +543,8 @@ def test_search_checkpoint_resume_between_rounds(
         num_mutations=2,
         starter_kernel_code=starter_kernel_code,
         reference_kernel_code=reference_kernel_code,
-        mutation_function=mock_mutation_part,
-        scoring_function=mock_scoring_function,
+        mutation_provider=SerialMutationProvider(mock_mutation_part),
+        scoring_provider=SerialScoringProvider(mock_scoring_function),
     )
     partial = GreedySearch(config=config_part).run()
 
@@ -551,8 +554,8 @@ def test_search_checkpoint_resume_between_rounds(
         num_mutations=2,
         starter_kernel_code=starter_kernel_code,
         reference_kernel_code=reference_kernel_code,
-        mutation_function=mock_mutation_part,
-        scoring_function=mock_scoring_function,
+        mutation_provider=SerialMutationProvider(mock_mutation_part),
+        scoring_provider=SerialScoringProvider(mock_scoring_function),
     )
     resumed = GreedySearch(config=config_resume).resume(partial)
 
@@ -624,8 +627,8 @@ def test_greedy_search_passes_parent_evaluation_into_mutation_context() -> None:
         num_mutations=2,
         starter_kernel_code="starter_ok",
         reference_kernel_code="reference_ok",
-        mutation_function=mutation_function,
-        scoring_function=scoring_function,
+        mutation_provider=SerialMutationProvider(mutation_function),
+        scoring_provider=SerialScoringProvider(scoring_function),
     )
     search = GreedySearch(config=config)
     result = search.run()
@@ -638,14 +641,24 @@ def test_greedy_search_passes_parent_evaluation_into_mutation_context() -> None:
     assert result.best_candidate().code.startswith("ok_candidate")
 
 
-def test_greedy_search_feedback_driven_mutator_uses_compile_failed_feedback() -> None:
+def test_greedy_search_feedback_driven_mutator_uses_evaluation_feedback() -> None:
+    """Verify feedback-driven mutation uses the parent's evaluation to steer output.
+
+    Round 0: valid starter (speedup=2.0, success) → mutator sees success →
+             produces slow_candidate (speedup=0.5, success) → becomes winner (only valid).
+    Round 1: slow_candidate parent (speedup=0.5) → mutator sees low speedup →
+             produces fast_candidate (speedup=3.0) → becomes winner.
+    """
+
     def mutation_function(context: MutationContext) -> MutatedKernel:
         assert context.previous_evaluation is not None
-        feedback_kind = context.previous_evaluation.execution_feedback.kind
-        if feedback_kind == "compile_failed":
-            code = "ok_candidate"
+        feedback = context.previous_evaluation.execution_feedback
+        assert feedback.kind == "success"
+        # Steer based on parent speedup: if low, produce a fast candidate.
+        if feedback.speedup < 1.0:
+            code = "fast_candidate"
         else:
-            code = "compile_fail_candidate"
+            code = "slow_candidate"
         return MutatedKernel(
             kernel_code=code,
             ancestor_ulid=context.previous_kernel_ulid,
@@ -661,28 +674,62 @@ def test_greedy_search_feedback_driven_mutator_uses_compile_failed_feedback() ->
             ref_runtime=20.0,
             metadata={},
         )
-        if "compile_fail" in mutated_code:
-            exec_result.compiled = False
-            exec_result.correctness = False
-            exec_result.metadata = {
-                "compilation_error_name": "CompilerError",
-                "compilation_error": "Failed to compile",
-            }
+        if "fast" in mutated_code:
             return KernelScoringResult(
-                exec_result=exec_result, speedup=0.0, is_valid=False
+                exec_result=exec_result, speedup=3.0, is_valid=True
+            )
+        if "slow" in mutated_code:
+            return KernelScoringResult(
+                exec_result=exec_result, speedup=0.5, is_valid=True
             )
         return KernelScoringResult(exec_result=exec_result, speedup=2.0, is_valid=True)
 
     config = GreedySearchConfig(
-        max_depth=1,
+        max_depth=2,
         num_mutations=1,
-        starter_kernel_code="starter_compile_fail",
+        starter_kernel_code="starter_ok",
         reference_kernel_code="reference_ok",
-        mutation_function=mutation_function,
-        scoring_function=scoring_function,
+        mutation_provider=SerialMutationProvider(mutation_function),
+        scoring_provider=SerialScoringProvider(scoring_function),
     )
     search = GreedySearch(config=config)
     result = search.run()
 
     assert result.rounds[0].outcome.kind == "winner_selected"
-    assert result.best_candidate().code == "ok_candidate"
+    assert result.rounds[1].outcome.kind == "winner_selected"
+    assert result.best_candidate().code == "fast_candidate"
+
+
+def test_search_dies_when_starter_scoring_fails() -> None:
+    """Search raises ValueError when the starter kernel can't be scored."""
+
+    def scoring_function(
+        mutated_code: str, _reference_code: str
+    ) -> KernelScoringResult:
+        exec_result = Mock(spec=KernelExecResult)
+        exec_result.compiled = False
+        exec_result.correctness = False
+        exec_result.runtime = None
+        exec_result.ref_runtime = None
+        exec_result.metadata = {
+            "compilation_error_name": "CompilerError",
+            "compilation_error": "Failed to compile",
+        }
+        return KernelScoringResult(
+            exec_result=exec_result, speedup=0.0, is_valid=False
+        )
+
+    mock_mutation_function = MagicMock(spec=MutationFunction)
+
+    config = GreedySearchConfig(
+        max_depth=1,
+        num_mutations=1,
+        starter_kernel_code="broken_starter",
+        reference_kernel_code="reference_ok",
+        mutation_provider=SerialMutationProvider(mock_mutation_function),
+        scoring_provider=SerialScoringProvider(scoring_function),
+    )
+    search = GreedySearch(config=config)
+
+    with pytest.raises(ValueError, match="starter kernel scoring failed"):
+        search.run()

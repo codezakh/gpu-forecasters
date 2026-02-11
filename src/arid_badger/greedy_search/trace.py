@@ -6,35 +6,10 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 from ulid import ULID
 
 from .domain import (
-    Evaluation,
     MutationAttempt,
-    MutationError,
-    MutationFailure,
-    MutationSuccess,
     ScoringAttempt,
-    ScoringError,
-    ScoringFailure,
-    ScoringSuccess,
     ValidEvaluation,
 )
-
-# Re-export attempt types so existing consumers continue to work.
-__all__ = [
-    "MutationError",
-    "ScoringError",
-    "MutationSuccess",
-    "MutationFailure",
-    "MutationAttempt",
-    "ScoringSuccess",
-    "ScoringFailure",
-    "ScoringAttempt",
-    "RoundWinnerSelected",
-    "RoundNoEvaluations",
-    "RoundAllEvaluationsInvalid",
-    "RoundOutcome",
-    "RoundTrace",
-    "SearchTrace",
-]
 
 
 class RoundWinnerSelected(BaseModel):

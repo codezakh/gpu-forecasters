@@ -8,7 +8,7 @@ from arid_badger.greedy_search.domain import (
     ValidEvaluation,
 )
 from arid_badger.greedy_search.scoring_provider import SerialScoringProvider
-from arid_badger.greedy_search.trace import ScoringFailure, ScoringSuccess
+from arid_badger.greedy_search.domain import ScoringFailure, ScoringSuccess
 from arid_badger.kernelbench.core import KernelScoringResult
 from kernelbench.eval import KernelExecResult
 
@@ -115,12 +115,14 @@ class TestScoreReference:
             scoring_function=lambda _code, _ref: score,
         )
 
-        evaluation = provider.score_reference("class Model:\n    pass")
+        result = provider.score_reference("class Model:\n    pass")
 
+        assert result.is_ok()
+        evaluation = result.unwrap()
         assert isinstance(evaluation, ValidEvaluation)
         assert evaluation.speedup == 1.0
 
-    def test_compile_failed_reference_raises_value_error(self):
+    def test_compile_failed_reference_returns_err(self):
         exec_result = Mock(spec=KernelExecResult)
         exec_result.compiled = False
         exec_result.correctness = False
@@ -135,10 +137,12 @@ class TestScoreReference:
             scoring_function=lambda _code, _ref: score,
         )
 
-        with pytest.raises(ValueError, match="failed to compile"):
-            provider.score_reference("class Model:\n    pass")
+        result = provider.score_reference("class Model:\n    pass")
 
-    def test_invalid_runtime_raises_value_error(self):
+        assert result.is_err()
+        assert "failed to compile" in result.unwrap_err()
+
+    def test_invalid_runtime_returns_err(self):
         exec_result = Mock(spec=KernelExecResult)
         exec_result.compiled = True
         exec_result.correctness = True
@@ -153,5 +157,7 @@ class TestScoreReference:
             scoring_function=lambda _code, _ref: score,
         )
 
-        with pytest.raises(ValueError, match="invalid runtime"):
-            provider.score_reference("class Model:\n    pass")
+        result = provider.score_reference("class Model:\n    pass")
+
+        assert result.is_err()
+        assert "invalid runtime" in result.unwrap_err()

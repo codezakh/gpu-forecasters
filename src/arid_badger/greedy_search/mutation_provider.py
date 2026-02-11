@@ -25,7 +25,6 @@ def _short_ulid(ulid: object | None) -> str:
     return str(ulid)[:6]
 
 
-@implements(MutationProvider)
 class SerialMutationProvider:
     """Generates kernel mutations serially using a provided mutation function."""
 
@@ -33,7 +32,8 @@ class SerialMutationProvider:
         self._mutation_function = mutation_function
 
     def generate_mutations(
-        self, context: MutationContext,
+        self,
+        context: MutationContext,
     ) -> tuple[List[MutationAttempt], List[KernelCandidate]]:
         attempts: List[MutationAttempt] = []
         generated: List[KernelCandidate] = []
@@ -86,3 +86,6 @@ class SerialMutationProvider:
                 )
 
         return attempts, generated
+
+
+implements(MutationProvider)(SerialMutationProvider)

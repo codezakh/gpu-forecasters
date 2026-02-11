@@ -8,7 +8,7 @@ from typing import Callable, List, Sequence, Tuple
 from loguru import logger
 
 from arid_badger.kernelbench.core import KernelScoringResult
-from arid_badger.typing_utils import implements
+from arid_badger.typing_utils import Option, implements
 
 from .domain import (
     Evaluation,
@@ -81,44 +81,12 @@ def _score_to_evaluation(score: KernelScoringResult) -> Evaluation:
     )
 
 
-def _validate_reference_score(score: KernelScoringResult) -> None:
-    exec_result = score.exec_result
-    metadata = exec_result.metadata or {}
-    if exec_result.compiled is not True:
-        raise ValueError(
-            "Reference kernel failed to compile. " f"metadata={metadata!r}"
-        )
-    if exec_result.correctness is not True:
-        raise ValueError(
-            "Reference kernel failed correctness checks. " f"metadata={metadata!r}"
-        )
-    if (
-        exec_result.runtime is None
-        or not math.isfinite(exec_result.runtime)
-        or exec_result.runtime <= 0
-    ):
-        raise ValueError(
-            "Reference kernel produced invalid runtime. "
-            f"runtime={exec_result.runtime!r} metadata={metadata!r}"
-        )
-    if (
-        exec_result.ref_runtime is None
-        or not math.isfinite(exec_result.ref_runtime)
-        or exec_result.ref_runtime <= 0
-    ):
-        raise ValueError(
-            "Reference kernel produced invalid ref runtime. "
-            f"ref_runtime={exec_result.ref_runtime!r} metadata={metadata!r}"
-        )
-
-
 def _short_ulid(ulid: object | None) -> str:
     if ulid is None:
         return "none"
     return str(ulid)[:6]
 
 
-@implements(ScoringProvider)
 class SerialScoringProvider:
     """Scores kernel candidates serially using a provided scoring function."""
 
@@ -148,9 +116,7 @@ class SerialScoringProvider:
                 )
                 evaluation = _score_to_evaluation(raw_score)
                 attempts.append(
-                    ScoringSuccess(
-                        candidate_ulid=candidate.ulid, evaluation=evaluation
-                    )
+                    ScoringSuccess(candidate_ulid=candidate.ulid, evaluation=evaluation)
                 )
                 scored.append((candidate, evaluation))
                 if isinstance(evaluation, ValidEvaluation):
@@ -188,8 +154,67 @@ class SerialScoringProvider:
 
         return attempts, scored
 
-    def score_reference(self, reference_kernel_code: str) -> Evaluation:
+    def _score_reference_raw(self, reference_kernel_code: str) -> KernelScoringResult:
+        """Score the reference kernel and return the raw KernelScoringResult.
+
+        Preprocesses with _ensure_modelnew_entry_point and calls the scoring function.
+        No validation — let exceptions propagate.
+        """
         custom_baseline_code = _ensure_modelnew_entry_point(reference_kernel_code)
-        score = self._scoring_function(custom_baseline_code, reference_kernel_code)
-        _validate_reference_score(score)
-        return _score_to_evaluation(score)
+        return self._scoring_function(custom_baseline_code, reference_kernel_code)
+
+    def score_reference(
+        self, reference_kernel_code: str
+    ) -> Option[ValidEvaluation, str]:
+        score = self._score_reference_raw(reference_kernel_code)
+        exec_result = score.exec_result
+        metadata = exec_result.metadata or {}
+
+        if exec_result.compiled is not True:
+            return Option.err(
+                f"Reference kernel failed to compile. metadata={metadata!r}"
+            )
+        if exec_result.correctness is not True:
+            return Option.err(
+                f"Reference kernel failed correctness checks. metadata={metadata!r}"
+            )
+        if (
+            exec_result.runtime is None
+            or not math.isfinite(exec_result.runtime)
+            or exec_result.runtime <= 0
+        ):
+            return Option.err(
+                f"Reference kernel produced invalid runtime. "
+                f"runtime={exec_result.runtime!r} metadata={metadata!r}"
+            )
+        if (
+            exec_result.ref_runtime is None
+            or not math.isfinite(exec_result.ref_runtime)
+            or exec_result.ref_runtime <= 0
+        ):
+            return Option.err(
+                f"Reference kernel produced invalid ref runtime. "
+                f"ref_runtime={exec_result.ref_runtime!r} metadata={metadata!r}"
+            )
+
+        speedup = score.speedup
+        metrics = EvaluationMetrics(
+            compiled=exec_result.compiled,
+            correctness=exec_result.correctness,
+            runtime=exec_result.runtime,
+            ref_runtime=exec_result.ref_runtime,
+        )
+        execution_feedback = execution_feedback_from_exec_result(
+            exec_result=exec_result,
+            speedup=speedup,
+            is_valid=True,
+        )
+        evaluation = ValidEvaluation(
+            speedup=speedup,
+            metrics=metrics,
+            execution_feedback=execution_feedback,
+        )
+        return Option.ok(evaluation)
+
+
+implements(ScoringProvider)(SerialScoringProvider)

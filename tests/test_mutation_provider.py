@@ -6,7 +6,7 @@ from arid_badger.greedy_search.domain import (
     MutationFunction,
 )
 from arid_badger.greedy_search.mutation_provider import SerialMutationProvider
-from arid_badger.greedy_search.trace import MutationFailure, MutationSuccess
+from arid_badger.greedy_search.domain import MutationFailure, MutationSuccess
 
 
 def _make_context(*, num_mutations: int = 2) -> MutationContext:

@@ -4,15 +4,8 @@ import pytest
 import torch
 from kernelbench.dataset import BaseDataset, Problem, construct_kernelbench_dataset
 
-from arid_badger.greedy_search.domain import MutationContext, MutatedKernel
-from arid_badger.greedy_search.search import GreedySearch, GreedySearchConfig
-from arid_badger.kernelbench.core import KernelScoringResult
+from arid_badger.greedy_search.scoring_provider import SerialScoringProvider
 from arid_badger.kernelbench.scoring import score_kernel
-
-
-class _MutationFunctionStub:
-    def __call__(self, context: MutationContext) -> MutatedKernel:
-        raise AssertionError("Mutation function should not be called in this test.")
 
 
 @pytest.mark.integration
@@ -26,9 +19,8 @@ def test_reference_kernel_scoring_ignores_starter() -> None:
     )
     problem: Problem = dataset.get_problem_by_id(1)
     reference_kernel_code: str = problem.code
-    starter_kernel_code: str = "def broken("
 
-    def scoring_function(mutated_code: str, reference_code: str) -> KernelScoringResult:
+    def scoring_function(mutated_code: str, reference_code: str):
         return score_kernel(
             mutated_kernel_code=mutated_code,
             reference_kernel_code=reference_code,
@@ -38,20 +30,10 @@ def test_reference_kernel_scoring_ignores_starter() -> None:
             num_perf_trials=5,
         )
 
-    config = GreedySearchConfig(
-        max_depth=0,
-        num_mutations=0,
-        starter_kernel_code=starter_kernel_code,
-        reference_kernel_code=reference_kernel_code,
-        mutation_function=_MutationFunctionStub(),
-        scoring_function=scoring_function,
-        backend="cuda",
-        precision="fp32",
-    )
-    search = GreedySearch(config=config)
+    provider = SerialScoringProvider(scoring_function=scoring_function)
 
     try:
-        result = search.score_reference_kernel_only()
+        result = provider._score_reference_raw(reference_kernel_code)
     except RuntimeError as exc:
         message = str(exc)
         if "returned None" in message or "compile cache lock" in message:
