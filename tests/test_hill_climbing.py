@@ -81,7 +81,7 @@ def test_search_converges_to_maximum():
 
     result = search(
         initial_program="0000",
-        max_depth=20,
+        max_steps=20,
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
@@ -110,7 +110,7 @@ def test_greedy_selection_picks_best():
 
     result = search(
         initial_program="0000",  # reward = 0
-        max_depth=2,
+        max_steps=2,
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
@@ -143,7 +143,7 @@ def test_stops_at_local_maximum():
 
     result = search(
         initial_program="0000",
-        max_depth=10,
+        max_steps=10,
         samples_per_node=3,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
@@ -169,7 +169,7 @@ def test_deduplication_works():
 
     result = search(
         initial_program="0000",
-        max_depth=5,
+        max_steps=5,
         samples_per_node=10,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
@@ -193,7 +193,7 @@ def test_handles_failed_evaluations():
 
     result = search(
         initial_program="0000",
-        max_depth=5,
+        max_steps=5,
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
@@ -211,7 +211,7 @@ def test_tracks_parent_child_relationships():
 
     result = search(
         initial_program="0000",
-        max_depth=3,
+        max_steps=3,
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
@@ -246,7 +246,7 @@ def test_archive_contains_explored_nodes():
 
     search(
         initial_program="0000",
-        max_depth=5,
+        max_steps=5,
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
@@ -280,7 +280,7 @@ def test_returns_global_best_not_just_final():
 
     result = search(
         initial_program="0000",
-        max_depth=10,
+        max_steps=10,
         samples_per_node=1,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
@@ -291,8 +291,8 @@ def test_returns_global_best_not_just_final():
     assert result.reward == 15.0
 
 
-def test_stops_at_max_depth():
-    """Test that max_depth parameter is respected."""
+def test_stops_at_max_steps():
+    """Test that max_steps parameter is respected."""
     mutation_provider = BinaryStringMutationProvider(seed=42)
     evaluation_provider = BinaryStringEvaluationProvider()
 
@@ -311,13 +311,13 @@ def test_stops_at_max_depth():
 
     search(
         initial_program="0000",
-        max_depth=5,
+        max_steps=5,
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
     )
 
-    # Should call generate_mutations at most max_depth times
+    # Should call generate_mutations at most max_steps times
     assert call_count <= 5
 
 
@@ -328,7 +328,7 @@ def test_handles_all_failures():
 
     result = search(
         initial_program="0000",
-        max_depth=5,
+        max_steps=5,
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=failing_provider,
@@ -347,7 +347,7 @@ def test_handles_initial_program_failure():
 
     result = search(
         initial_program="invalid",
-        max_depth=5,
+        max_steps=5,
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=failing_provider,
@@ -359,13 +359,13 @@ def test_handles_initial_program_failure():
 
 
 def test_single_iteration():
-    """Test that search works with max_depth=1."""
+    """Test that search works with max_steps=1."""
     mutation_provider = BinaryStringMutationProvider(seed=42)
     evaluation_provider = BinaryStringEvaluationProvider()
 
     result = search(
         initial_program="0000",
-        max_depth=1,
+        max_steps=1,
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
@@ -395,14 +395,14 @@ def test_get_archive_statistics():
     assert stats["unique_programs"] == 3  # "0000", "0001", "invalid"
 
 
-def test_zero_max_depth():
-    """Test edge case with max_depth=0."""
+def test_zero_max_steps():
+    """Test edge case with max_steps=0."""
     mutation_provider = BinaryStringMutationProvider(seed=42)
     evaluation_provider = BinaryStringEvaluationProvider()
 
     result = search(
         initial_program="0000",
-        max_depth=0,
+        max_steps=0,
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
@@ -460,7 +460,7 @@ def test_no_op_provider_default():
     # Should work without explicit checkpoint provider
     result = search(
         initial_program="0000",
-        max_depth=5,
+        max_steps=5,
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
@@ -491,7 +491,7 @@ def test_checkpoint_save_called():
 
     result = search(
         initial_program="0000",
-        max_depth=3,
+        max_steps=3,
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
@@ -504,7 +504,7 @@ def test_checkpoint_save_called():
 
     # Verify last checkpoint has correct depth
     last_checkpoint = mock_provider.saved_checkpoints[-1]
-    assert last_checkpoint.current_depth > 0
+    assert last_checkpoint.current_step > 0
 
 
 def test_resume_search_continues():
@@ -516,7 +516,7 @@ def test_resume_search_continues():
 
         def save(self, checkpoint: Checkpoint) -> None:
             # Capture checkpoint after first iteration
-            if checkpoint.current_depth == 1:
+            if checkpoint.current_step == 1:
                 self.captured_checkpoint = checkpoint
 
         def load(self) -> Optional[Checkpoint]:
@@ -529,7 +529,7 @@ def test_resume_search_continues():
     # Run initial search and capture checkpoint
     result1 = search(
         initial_program="0000",
-        max_depth=2,
+        max_steps=2,
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
@@ -539,7 +539,7 @@ def test_resume_search_continues():
     # Verify we captured a checkpoint
     assert capturing_provider.captured_checkpoint is not None
     checkpoint = capturing_provider.captured_checkpoint
-    assert checkpoint.current_depth == 1
+    assert checkpoint.current_step == 1
 
     # Reset mutation provider with same seed for reproducibility
     mutation_provider = BinaryStringMutationProvider(seed=42)
@@ -547,7 +547,7 @@ def test_resume_search_continues():
     # Resume from checkpoint
     result2 = resume_search(
         checkpoint=checkpoint,
-        max_depth=3,  # Continue for 2 more iterations (depth 1 -> 3)
+        max_steps=3,  # Continue for 2 more iterations (depth 1 -> 3)
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
@@ -571,7 +571,7 @@ def test_checkpoint_serialization():
         # Run search with file checkpoint provider
         result = search(
             initial_program="0000",
-            max_depth=2,
+            max_steps=2,
             samples_per_node=4,
             mutation_provider=mutation_provider,
             evaluation_provider=evaluation_provider,
@@ -584,7 +584,7 @@ def test_checkpoint_serialization():
         # Load checkpoint
         loaded_checkpoint = provider.load()
         assert loaded_checkpoint is not None
-        assert loaded_checkpoint.current_depth == 2
+        assert loaded_checkpoint.current_step == 2
         assert loaded_checkpoint.best_node.reward == result.reward
 
         # Verify visited set was preserved
@@ -614,7 +614,7 @@ def test_resume_skips_initial_evaluation():
 
     result1 = search(
         initial_program="0000",
-        max_depth=1,
+        max_steps=1,
         samples_per_node=4,
         mutation_provider=mutation_provider,
         evaluation_provider=tracking_provider,
@@ -626,7 +626,7 @@ def test_resume_skips_initial_evaluation():
         best_node=result1,
         archive=[result1],
         visited={get_content_key(result1)},
-        current_depth=1,
+        current_step=1,
     )
 
     # Reset tracking
@@ -636,7 +636,7 @@ def test_resume_skips_initial_evaluation():
     # Resume search
     resume_search(
         checkpoint=checkpoint,
-        max_depth=2,
+        max_steps=2,
         samples_per_node=4,
         mutation_provider=mutation_provider2,
         evaluation_provider=tracking_provider2,
@@ -670,7 +670,7 @@ def test_file_checkpoint_provider_creates_directory():
             best_node=node,
             archive=[node],
             visited={"0000"},
-            current_depth=0,
+            current_step=0,
         )
 
         # Save should create nested directories
@@ -691,7 +691,7 @@ def test_checkpoint_preserves_archive_and_visited():
         # Run search to build up archive and visited
         result = search(
             initial_program="0000",
-            max_depth=3,
+            max_steps=3,
             samples_per_node=4,
             mutation_provider=mutation_provider,
             evaluation_provider=evaluation_provider,
@@ -714,7 +714,7 @@ def test_checkpoint_preserves_archive_and_visited():
 
         result2 = resume_search(
             checkpoint=loaded_checkpoint,
-            max_depth=5,
+            max_steps=5,
             samples_per_node=4,
             mutation_provider=mutation_provider2,
             evaluation_provider=evaluation_provider2,

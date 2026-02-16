@@ -23,14 +23,14 @@ class Checkpoint:
     - best_node: The best node found so far
     - archive: List of all nodes explored
     - visited: Set of content keys for deduplication
-    - current_depth: Current iteration depth
+    - current_step: Current iteration step
     """
 
     current_node: Node
     best_node: Node
     archive: List[Node]
     visited: Set[str]
-    current_depth: int
+    current_step: int
 
 
 class CheckpointProvider(Protocol):
