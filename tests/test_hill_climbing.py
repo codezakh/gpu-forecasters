@@ -10,7 +10,7 @@ Uses Binary String test environment from test_max_reward_puct.py:
 import random
 from typing import List, Optional
 
-from arid_badger.depth_first_greedy.domain import (
+from arid_badger.hill_climbing.domain import (
     search,
     get_archive_statistics,
 )

@@ -1,6 +1,6 @@
 """Depth-First Greedy Search (Hill Climbing) for program optimization."""
 
-from arid_badger.depth_first_greedy.domain import (
+from arid_badger.hill_climbing.domain import (
     search,
     get_archive_statistics,
 )
