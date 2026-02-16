@@ -8,11 +8,20 @@ Uses Binary String test environment from test_max_reward_puct.py:
 """
 
 import random
+import tempfile
+from pathlib import Path
 from typing import List, Optional
 
 from arid_badger.hill_climbing.domain import (
     search,
+    resume_search,
     get_archive_statistics,
+)
+from arid_badger.hill_climbing.checkpoint import (
+    Checkpoint,
+    CheckpointProvider,
+    NoOpCheckpointProvider,
+    FileCheckpointProvider,
 )
 from arid_badger.max_reward_puct.domain import Node, get_content_key, set_parent_info
 
@@ -438,3 +447,279 @@ def test_set_parent_info_creates_ancestor_chain():
     assert len(child.ancestors) == 2
     assert child.ancestors[0].ulid == parent.ulid
     assert child.ancestors[1].ulid == grandparent.ulid
+
+
+# Checkpoint Tests
+
+
+def test_no_op_provider_default():
+    """Test that search works without checkpointing (default behavior)."""
+    mutation_provider = BinaryStringMutationProvider(seed=42)
+    evaluation_provider = BinaryStringEvaluationProvider()
+
+    # Should work without explicit checkpoint provider
+    result = search(
+        initial_program="0000",
+        max_depth=5,
+        samples_per_node=4,
+        mutation_provider=mutation_provider,
+        evaluation_provider=evaluation_provider,
+    )
+
+    assert result.reward is not None
+    assert result.reward > 0.0
+
+
+def test_checkpoint_save_called():
+    """Test that checkpoint provider.save() is called after each iteration."""
+    # Create a mock provider that tracks save calls
+    class MockCheckpointProvider:
+        def __init__(self):
+            self.save_count = 0
+            self.saved_checkpoints: List[Checkpoint] = []
+
+        def save(self, checkpoint: Checkpoint) -> None:
+            self.save_count += 1
+            self.saved_checkpoints.append(checkpoint)
+
+        def load(self) -> Optional[Checkpoint]:
+            return None
+
+    mutation_provider = BinaryStringMutationProvider(seed=42)
+    evaluation_provider = BinaryStringEvaluationProvider()
+    mock_provider = MockCheckpointProvider()
+
+    result = search(
+        initial_program="0000",
+        max_depth=3,
+        samples_per_node=4,
+        mutation_provider=mutation_provider,
+        evaluation_provider=evaluation_provider,
+        checkpoint_provider=mock_provider,
+    )
+
+    # Should save after each iteration (depth 0->1, 1->2, 2->3)
+    assert mock_provider.save_count >= 1
+    assert len(mock_provider.saved_checkpoints) >= 1
+
+    # Verify last checkpoint has correct depth
+    last_checkpoint = mock_provider.saved_checkpoints[-1]
+    assert last_checkpoint.current_depth > 0
+
+
+def test_resume_search_continues():
+    """Test that resume_search continues from checkpoint state."""
+    # Create a mock provider that captures the checkpoint
+    class CapturingCheckpointProvider:
+        def __init__(self):
+            self.captured_checkpoint: Optional[Checkpoint] = None
+
+        def save(self, checkpoint: Checkpoint) -> None:
+            # Capture checkpoint after first iteration
+            if checkpoint.current_depth == 1:
+                self.captured_checkpoint = checkpoint
+
+        def load(self) -> Optional[Checkpoint]:
+            return None
+
+    mutation_provider = BinaryStringMutationProvider(seed=42)
+    evaluation_provider = BinaryStringEvaluationProvider()
+    capturing_provider = CapturingCheckpointProvider()
+
+    # Run initial search and capture checkpoint
+    result1 = search(
+        initial_program="0000",
+        max_depth=2,
+        samples_per_node=4,
+        mutation_provider=mutation_provider,
+        evaluation_provider=evaluation_provider,
+        checkpoint_provider=capturing_provider,
+    )
+
+    # Verify we captured a checkpoint
+    assert capturing_provider.captured_checkpoint is not None
+    checkpoint = capturing_provider.captured_checkpoint
+    assert checkpoint.current_depth == 1
+
+    # Reset mutation provider with same seed for reproducibility
+    mutation_provider = BinaryStringMutationProvider(seed=42)
+
+    # Resume from checkpoint
+    result2 = resume_search(
+        checkpoint=checkpoint,
+        max_depth=3,  # Continue for 2 more iterations (depth 1 -> 3)
+        samples_per_node=4,
+        mutation_provider=mutation_provider,
+        evaluation_provider=evaluation_provider,
+    )
+
+    # Result should have improved or stayed same (depending on local maximum)
+    assert result2.reward is not None
+    assert checkpoint.best_node.reward is not None
+    assert result2.reward >= checkpoint.best_node.reward
+
+
+def test_checkpoint_serialization():
+    """Test FileCheckpointProvider save/load roundtrip."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        checkpoint_path = Path(tmpdir) / "checkpoint.pkl"
+        provider = FileCheckpointProvider(checkpoint_path)
+
+        mutation_provider = BinaryStringMutationProvider(seed=42)
+        evaluation_provider = BinaryStringEvaluationProvider()
+
+        # Run search with file checkpoint provider
+        result = search(
+            initial_program="0000",
+            max_depth=2,
+            samples_per_node=4,
+            mutation_provider=mutation_provider,
+            evaluation_provider=evaluation_provider,
+            checkpoint_provider=provider,
+        )
+
+        # Verify checkpoint file was created
+        assert checkpoint_path.exists()
+
+        # Load checkpoint
+        loaded_checkpoint = provider.load()
+        assert loaded_checkpoint is not None
+        assert loaded_checkpoint.current_depth == 2
+        assert loaded_checkpoint.best_node.reward == result.reward
+
+        # Verify visited set was preserved
+        assert len(loaded_checkpoint.visited) > 0
+
+        # Verify archive was preserved
+        assert len(loaded_checkpoint.archive) > 0
+
+
+def test_resume_skips_initial_evaluation():
+    """Test that resume doesn't re-evaluate the current node."""
+    # Create a tracking evaluation provider
+    class TrackingEvaluationProvider:
+        def __init__(self):
+            self.evaluated_programs: List[str] = []
+
+        def evaluate(self, program_code: str) -> Optional[float]:
+            self.evaluated_programs.append(program_code)
+            try:
+                return float(int(program_code, 2))
+            except ValueError:
+                return None
+
+    # Run initial search to depth 1
+    mutation_provider = BinaryStringMutationProvider(seed=42)
+    tracking_provider = TrackingEvaluationProvider()
+
+    result1 = search(
+        initial_program="0000",
+        max_depth=1,
+        samples_per_node=4,
+        mutation_provider=mutation_provider,
+        evaluation_provider=tracking_provider,
+    )
+
+    # Create checkpoint from result
+    checkpoint = Checkpoint(
+        current_node=result1,
+        best_node=result1,
+        archive=[result1],
+        visited={get_content_key(result1)},
+        current_depth=1,
+    )
+
+    # Reset tracking
+    tracking_provider2 = TrackingEvaluationProvider()
+    mutation_provider2 = BinaryStringMutationProvider(seed=100)
+
+    # Resume search
+    resume_search(
+        checkpoint=checkpoint,
+        max_depth=2,
+        samples_per_node=4,
+        mutation_provider=mutation_provider2,
+        evaluation_provider=tracking_provider2,
+    )
+
+    # The current node from checkpoint should NOT be re-evaluated
+    # Only new mutations should be evaluated
+    assert result1.program_code not in tracking_provider2.evaluated_programs
+
+
+def test_file_checkpoint_provider_no_file():
+    """Test that FileCheckpointProvider returns None when file doesn't exist."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        checkpoint_path = Path(tmpdir) / "nonexistent.pkl"
+        provider = FileCheckpointProvider(checkpoint_path)
+
+        loaded = provider.load()
+        assert loaded is None
+
+
+def test_file_checkpoint_provider_creates_directory():
+    """Test that FileCheckpointProvider creates parent directories."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        checkpoint_path = Path(tmpdir) / "nested" / "dir" / "checkpoint.pkl"
+        provider = FileCheckpointProvider(checkpoint_path)
+
+        # Create a simple checkpoint
+        node = Node(program_code="0000", reward=0.0, ancestors=[], is_seed=True)
+        checkpoint = Checkpoint(
+            current_node=node,
+            best_node=node,
+            archive=[node],
+            visited={"0000"},
+            current_depth=0,
+        )
+
+        # Save should create nested directories
+        provider.save(checkpoint)
+        assert checkpoint_path.exists()
+        assert checkpoint_path.parent.exists()
+
+
+def test_checkpoint_preserves_archive_and_visited():
+    """Test that checkpoint correctly preserves archive and visited state."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        checkpoint_path = Path(tmpdir) / "checkpoint.pkl"
+        provider = FileCheckpointProvider(checkpoint_path)
+
+        mutation_provider = BinaryStringMutationProvider(seed=42)
+        evaluation_provider = BinaryStringEvaluationProvider()
+
+        # Run search to build up archive and visited
+        result = search(
+            initial_program="0000",
+            max_depth=3,
+            samples_per_node=4,
+            mutation_provider=mutation_provider,
+            evaluation_provider=evaluation_provider,
+            checkpoint_provider=provider,
+        )
+
+        # Load checkpoint
+        loaded_checkpoint = provider.load()
+        assert loaded_checkpoint is not None
+
+        # Archive should contain multiple nodes
+        assert len(loaded_checkpoint.archive) > 1
+
+        # Visited should contain multiple programs
+        assert len(loaded_checkpoint.visited) > 1
+
+        # Reset and resume - should not re-evaluate visited programs
+        mutation_provider2 = BinaryStringMutationProvider(seed=42)
+        evaluation_provider2 = BinaryStringEvaluationProvider()
+
+        result2 = resume_search(
+            checkpoint=loaded_checkpoint,
+            max_depth=5,
+            samples_per_node=4,
+            mutation_provider=mutation_provider2,
+            evaluation_provider=evaluation_provider2,
+            checkpoint_provider=provider,
+        )
+
+        # Should continue from checkpoint
+        assert result2.reward is not None

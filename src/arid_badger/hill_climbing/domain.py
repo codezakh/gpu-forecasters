@@ -18,6 +18,11 @@ from arid_badger.max_reward_puct.domain import (
     get_content_key,
     set_parent_info,
 )
+from arid_badger.hill_climbing.checkpoint import (
+    Checkpoint,
+    CheckpointProvider,
+    NoOpCheckpointProvider,
+)
 
 
 def search(
@@ -26,9 +31,10 @@ def search(
     samples_per_node: int,
     mutation_provider: MutationProvider,
     evaluation_provider: EvaluationProvider,
+    checkpoint_provider: CheckpointProvider = NoOpCheckpointProvider(),
 ) -> Node:
     """
-    Performs depth-first greedy search (hill climbing).
+    Performs depth-first greedy search (hill climbing) from an initial program.
 
     Algorithm:
     1. Start with initial program and evaluate it
@@ -48,11 +54,12 @@ def search(
         samples_per_node: Number of mutations to generate at each step
         mutation_provider: Provider for generating mutations
         evaluation_provider: Provider for evaluating programs
+        checkpoint_provider: Provider for saving/loading checkpoints (default: no-op)
 
     Returns:
         Best node found during search (global best, not just final node)
     """
-    # Initialize
+    # Initialize state
     initial_reward = evaluation_provider.evaluate(initial_program)
     current = Node(
         program_code=initial_program, reward=initial_reward, ancestors=[], is_seed=True
@@ -61,9 +68,93 @@ def search(
     archive: List[Node] = [current]
     visited: Set[str] = {get_content_key(current)}
 
-    print(f"Depth 0: Current={current.reward}, Best={best.reward}")
+    # Delegate to internal implementation
+    return _search_impl(
+        current=current,
+        best=best,
+        archive=archive,
+        visited=visited,
+        current_depth=0,
+        max_depth=max_depth,
+        samples_per_node=samples_per_node,
+        mutation_provider=mutation_provider,
+        evaluation_provider=evaluation_provider,
+        checkpoint_provider=checkpoint_provider,
+    )
 
-    for depth in range(max_depth):
+
+def resume_search(
+    checkpoint: Checkpoint,
+    max_depth: int,
+    samples_per_node: int,
+    mutation_provider: MutationProvider,
+    evaluation_provider: EvaluationProvider,
+    checkpoint_provider: CheckpointProvider = NoOpCheckpointProvider(),
+) -> Node:
+    """
+    Resume search from a checkpoint.
+
+    Args:
+        checkpoint: Checkpoint containing state to resume from
+        max_depth: Maximum number of iterations (total, including already completed)
+        samples_per_node: Number of mutations to generate at each step
+        mutation_provider: Provider for generating mutations
+        evaluation_provider: Provider for evaluating programs
+        checkpoint_provider: Provider for saving/loading checkpoints (default: no-op)
+
+    Returns:
+        Best node found during search (global best, not just final node)
+    """
+    return _search_impl(
+        current=checkpoint.current_node,
+        best=checkpoint.best_node,
+        archive=checkpoint.archive,
+        visited=checkpoint.visited,
+        current_depth=checkpoint.current_depth,
+        max_depth=max_depth,
+        samples_per_node=samples_per_node,
+        mutation_provider=mutation_provider,
+        evaluation_provider=evaluation_provider,
+        checkpoint_provider=checkpoint_provider,
+    )
+
+
+def _search_impl(
+    current: Node,
+    best: Node,
+    archive: List[Node],
+    visited: Set[str],
+    current_depth: int,
+    max_depth: int,
+    samples_per_node: int,
+    mutation_provider: MutationProvider,
+    evaluation_provider: EvaluationProvider,
+    checkpoint_provider: CheckpointProvider,
+) -> Node:
+    """
+    Internal search implementation. Can be called from any state.
+
+    This function is idempotent and doesn't distinguish between "initial" vs "resume" -
+    it simply continues from whatever state it receives.
+
+    Args:
+        current: Current node being explored
+        best: Best node found so far
+        archive: List of all nodes explored
+        visited: Set of content keys for deduplication
+        current_depth: Current iteration depth
+        max_depth: Maximum number of iterations
+        samples_per_node: Number of mutations to generate at each step
+        mutation_provider: Provider for generating mutations
+        evaluation_provider: Provider for evaluating programs
+        checkpoint_provider: Provider for saving checkpoints
+
+    Returns:
+        Best node found during search
+    """
+    print(f"Depth {current_depth}: Current={current.reward}, Best={best.reward}")
+
+    for depth in range(current_depth, max_depth):
         # Generate mutations
         mutation_codes = mutation_provider.generate_mutations(
             current.program_code, samples_per_node
@@ -119,6 +210,17 @@ def search(
 
         # Move to best child (depth-first)
         current = best_child
+
+        # Save checkpoint after each iteration
+        checkpoint_provider.save(
+            Checkpoint(
+                current_node=current,
+                best_node=best,
+                archive=archive,
+                visited=visited,
+                current_depth=depth + 1,
+            )
+        )
 
     return best
 
