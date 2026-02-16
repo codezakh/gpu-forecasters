@@ -10,7 +10,7 @@ This module implements a simple baseline search algorithm that:
 Uses the same provider-based architecture as max_reward_puct for consistency.
 """
 
-from typing import List, Set
+from typing import List, Set, cast
 from arid_badger.max_reward_puct.domain import (
     MutationProvider,
     EvaluationProvider,
@@ -54,7 +54,9 @@ def search(
     """
     # Initialize
     initial_reward = evaluation_provider.evaluate(initial_program)
-    current = Node(program_code=initial_program, reward=initial_reward, ancestors=[], is_seed=True)
+    current = Node(
+        program_code=initial_program, reward=initial_reward, ancestors=[], is_seed=True
+    )
     best = current
     archive: List[Node] = [current]
     visited: Set[str] = {get_content_key(current)}
@@ -93,17 +95,25 @@ def search(
             break
 
         # Greedy selection: pick best child
-        best_child = max(children, key=lambda c: c.reward if c.reward is not None else float("-inf"))
+        best_child = max(
+            children, key=lambda c: c.reward if c.reward is not None else float("-inf")
+        )
         archive.extend(children)
 
         # Update global best
-        if best_child.reward is not None and (best.reward is None or best_child.reward > best.reward):
+        if best_child.reward is not None and (
+            best.reward is None or best_child.reward > best.reward
+        ):
             best = best_child
 
         print(f"Depth {depth + 1}: Current={best_child.reward}, Best={best.reward}")
 
         # Check for local maximum (no improvement)
-        if current.reward is not None and best_child.reward is not None and best_child.reward <= current.reward:
+        if (
+            current.reward is not None
+            and best_child.reward is not None
+            and best_child.reward <= current.reward
+        ):
             print(f"Depth {depth + 1}: Local maximum reached, stopping")
             break
 
@@ -132,6 +142,8 @@ def get_archive_statistics(archive: List[Node]) -> dict:
         "total_nodes": len(archive),
         "valid_nodes": len(valid_nodes),
         "failed_nodes": len(failed_nodes),
-        "best_reward": max((n.reward for n in valid_nodes), default=None),
+        "best_reward": max(
+            cast(List[float], [n.reward for n in valid_nodes]), default=None
+        ),
         "unique_programs": len({get_content_key(n) for n in archive}),
     }
