@@ -28,9 +28,7 @@ from collections import defaultdict
 class MutationProvider(Protocol):
     """Generates mutations of a program."""
 
-    def generate_mutations(
-        self, program_code: str, num_mutations: int
-    ) -> List[str]:
+    def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
         """Returns list of mutated program codes."""
         ...
 
@@ -240,8 +238,8 @@ def expand_and_evaluate(
     The mutation and evaluation providers are injected here to allow different
     implementations for testing vs. production (toy examples vs. real kernels).
     """
-    all_children = []
-    all_parents = []
+    all_children: List[Node] = []
+    all_parents: List[Node] = []
 
     for parent in parents:
         # LLM Generation Step
