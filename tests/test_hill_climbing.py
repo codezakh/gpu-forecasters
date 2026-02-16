@@ -122,23 +122,26 @@ def test_greedy_selection_picks_best():
     assert result.reward >= 8.0  # Should improve from initial
 
 
-def test_stops_at_local_maximum():
-    """Test that search stops when no improvement is found."""
-    # Create a provider that can only generate worse or equal mutations
-    class LocalMaximumMutationProvider:
+def test_continues_sampling_without_improvement():
+    """Test that algorithm continues sampling from current position when no improvement found."""
+    # Create a provider that generates worse mutations for 3+ batches, then finds improvement on batch 4
+    class ContinuousSamplingMutationProvider:
         def __init__(self):
             self.call_count = 0
 
         def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
             self.call_count += 1
             if self.call_count == 1:
-                # First call: generate better mutations
+                # First call from "0000": move to "0011" (3)
                 return ["0001", "0010", "0011"]
+            elif self.call_count <= 4:
+                # Calls 2-4 from "0011": generate worse or equal mutations (stay at "0011")
+                return ["0001", "0010"]  # Both worse than "0011"
             else:
-                # Subsequent calls: only generate worse mutations
-                return ["0000", "0001"]
+                # Call 5+ from "0011": finally find improvement
+                return ["0111"]  # 7 > 3
 
-    mutation_provider = LocalMaximumMutationProvider()
+    mutation_provider = ContinuousSamplingMutationProvider()
     evaluation_provider = BinaryStringEvaluationProvider()
 
     result = search(
@@ -149,18 +152,22 @@ def test_stops_at_local_maximum():
         evaluation_provider=evaluation_provider,
     )
 
-    # Should stop after finding local maximum at "0011" (3)
-    assert result.program_code == "0011"
-    assert result.reward == 3.0
-    # Should not make all 10 iterations
-    assert mutation_provider.call_count <= 3
+    # Should find the improved position on batch 5
+    assert result.program_code == "0111"
+    assert result.reward == 7.0
+    # Should have called mutation provider 5+ times (proving it didn't stop early)
+    assert mutation_provider.call_count >= 5
 
 
 def test_deduplication_works():
-    """Test that duplicate programs are skipped."""
+    """Test that duplicate programs are skipped and algorithm continues until max_steps."""
     # Provider that generates duplicate mutations
     class DuplicateMutationProvider:
+        def __init__(self):
+            self.call_count = 0
+
         def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
+            self.call_count += 1
             # Always return the same mutation multiple times
             return ["0001"] * num_mutations
 
@@ -175,9 +182,94 @@ def test_deduplication_works():
         evaluation_provider=evaluation_provider,
     )
 
-    # Should only explore "0000" -> "0001", then stop (no new mutations)
+    # Should explore "0000" -> "0001", then keep trying until max_steps
     assert result.program_code == "0001"
     assert result.reward == 1.0
+    # Should continue calling generate_mutations (no valid children after first move)
+    assert mutation_provider.call_count >= 2
+
+
+def test_exhausts_budget_at_plateau():
+    """Test that algorithm uses full max_steps budget when stuck at plateau."""
+    # Provider that generates no improvements after initial move
+    class PlateauMutationProvider:
+        def __init__(self):
+            self.call_count = 0
+
+        def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
+            self.call_count += 1
+            if self.call_count == 1:
+                # First call: move from "0000" to "0001"
+                return ["0001"]
+            else:
+                # All subsequent calls: generate worse mutations (stay at plateau)
+                return ["0000"]
+
+    mutation_provider = PlateauMutationProvider()
+    evaluation_provider = BinaryStringEvaluationProvider()
+
+    result = search(
+        initial_program="0000",
+        max_steps=5,
+        samples_per_node=1,
+        mutation_provider=mutation_provider,
+        evaluation_provider=evaluation_provider,
+    )
+
+    # Should find "0001" and stay there
+    assert result.program_code == "0001"
+    assert result.reward == 1.0
+    # Should call generate_mutations exactly max_steps times (exhausts full budget)
+    assert mutation_provider.call_count == 5
+
+
+def test_only_moves_on_improvement():
+    """Test that current position only changes when improvement found."""
+    # Track which positions were sampled
+    positions_sampled = []
+
+    class TrackingMutationProvider:
+        def __init__(self):
+            self.step = 0
+
+        def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
+            positions_sampled.append(program_code)
+            self.step += 1
+
+            if self.step == 1:
+                # From "0000": move to "0011"
+                return ["0011"]
+            elif self.step == 2:
+                # From "0011": generate worse (stay at "0011")
+                return ["0001"]
+            elif self.step == 3:
+                # From "0011": generate worse again (stay at "0011")
+                return ["0010"]
+            elif self.step == 4:
+                # From "0011": finally find improvement
+                return ["0111"]
+            else:
+                # Continue from "0111"
+                return ["1111"]
+
+    mutation_provider = TrackingMutationProvider()
+    evaluation_provider = BinaryStringEvaluationProvider()
+
+    result = search(
+        initial_program="0000",
+        max_steps=5,
+        samples_per_node=1,
+        mutation_provider=mutation_provider,
+        evaluation_provider=evaluation_provider,
+    )
+
+    # Should end at "1111"
+    assert result.program_code == "1111"
+    assert result.reward == 15.0
+
+    # Verify position sequence: "0000" → "0011" (move) → "0011" (stay) → "0011" (stay) → "0111" (move) → "1111" (move)
+    expected_positions = ["0000", "0011", "0011", "0011", "0111"]
+    assert positions_sampled == expected_positions
 
 
 def test_handles_failed_evaluations():

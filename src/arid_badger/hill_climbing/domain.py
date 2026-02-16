@@ -4,8 +4,9 @@ Depth-First Greedy Search (Hill Climbing) for program optimization.
 This module implements a simple baseline search algorithm that:
 1. Generates mutations of the current program
 2. Picks the best mutation (greedy choice)
-3. Continues from that best mutation (depth-first)
-4. Stops when reaching max steps or finding no improvement (local maximum)
+3. Continues from that best mutation if it improves (depth-first)
+4. Otherwise continues sampling from current position
+5. Stops when reaching max steps
 
 Uses the same provider-based architecture as max_reward_puct for consistency.
 """
@@ -122,24 +123,6 @@ def update_global_best(candidate: Node, current_best: Node) -> Node:
     return current_best
 
 
-def check_local_maximum(current: Node, best_child: Node) -> bool:
-    """
-    Phase E: Check if we've reached a local maximum (no improvement).
-
-    Args:
-        current: Current node before the step
-        best_child: Best child selected in this step
-
-    Returns:
-        True if best_child does not improve over current (local maximum reached)
-    """
-    return (
-        current.reward is not None
-        and best_child.reward is not None
-        and best_child.reward <= current.reward
-    )
-
-
 def search(
     initial_program: str,
     max_steps: int,
@@ -159,9 +142,10 @@ def search(
        - Filter out failed evaluations (reward is None)
        - Skip duplicates using content-based deduplication
        - Pick the mutation with highest reward (greedy)
-       - If no valid children OR no improvement over current → stop (local maximum)
-       - Move to best child and repeat (depth-first)
+       - If best mutation improves over current → move to it (depth-first)
+       - Otherwise stay at current position and continue sampling
     3. Return the best node found during entire search
+    4. Stops when reaching max steps
 
     Args:
         initial_program: Starting program code
@@ -287,8 +271,8 @@ def _search_impl(
 
         # Check for dead end (no valid children)
         if not children:
-            print(f"Step {step + 1}: No valid children found, stopping")
-            break
+            print(f"Step {step + 1}: No valid children in this batch, continuing")
+            continue
 
         # C. GREEDY SELECTION
         best_child = select_best_child(children)
@@ -297,17 +281,22 @@ def _search_impl(
         # D. BEST TRACKING
         best = update_global_best(candidate=best_child, current_best=best)
 
-        print(f"Step {step + 1}: Current={best_child.reward}, Best={best.reward}")
+        # E. MOVEMENT DECISION
+        # Only move if best_child improves over current (handle None rewards safely)
+        should_move = False
+        if current.reward is None or best_child.reward is None:
+            # If either reward is None, move to best_child (preserve existing behavior)
+            should_move = True
+        elif best_child.reward > current.reward:
+            should_move = True
 
-        # E. TERMINATION CHECK
-        if check_local_maximum(current=current, best_child=best_child):
-            print(f"Step {step + 1}: Local maximum reached, stopping")
-            break
+        if should_move:
+            print(f"Step {step + 1}: Moving to improved position (reward={best_child.reward})")
+            current = best_child
+        else:
+            print(f"Step {step + 1}: No improvement (best_child={best_child.reward}, current={current.reward}), continuing from current position")
 
-        # F. STATE UPDATE
-        current = best_child
-
-        # G. CHECKPOINT
+        # F. CHECKPOINT
         checkpoint_provider.save(
             Checkpoint(
                 current_node=current,
