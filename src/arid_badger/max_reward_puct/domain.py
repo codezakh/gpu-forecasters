@@ -1,11 +1,46 @@
 from pydantic import BaseModel, Field
 from ulid import ULID
-from typing import Optional, List, Sequence, Set, Mapping, Tuple, Dict
+from typing import Optional, List, Sequence, Set, Mapping, Tuple, Dict, Protocol
 import numpy as np
 import numpy.typing as npt
 import math
 from typing import Callable
 from collections import defaultdict
+
+
+# Provider Protocols
+#
+# We use dependency injection with Protocol-based providers to enable testing
+# with toy examples (e.g., Binary Graph Traversal) before integrating real
+# LLM mutation and KernelBench evaluation.
+#
+# Design notes:
+# - Intentionally simpler than greedy_search providers (no context objects,
+#   no complex result types) - focus on testability, can evolve later
+# - EvaluationProvider is separate (not just a function) because for kernel
+#   optimization, scoring the initial/reference program sometimes requires
+#   different logic than scoring mutations (e.g., running multiple times for
+#   stable baseline, using different compilation flags)
+# - Returns Optional[float] to handle evaluation failures gracefully (None
+#   signals compilation errors, crashes, etc.)
+
+
+class MutationProvider(Protocol):
+    """Generates mutations of a program."""
+
+    def generate_mutations(
+        self, program_code: str, num_mutations: int
+    ) -> List[str]:
+        """Returns list of mutated program codes."""
+        ...
+
+
+class EvaluationProvider(Protocol):
+    """Evaluates a program and returns its reward."""
+
+    def evaluate(self, program_code: str) -> Optional[float]:
+        """Returns reward (or None if evaluation failed)."""
+        ...
 
 
 class AncestorPointer(BaseModel):
@@ -37,17 +72,11 @@ class Node(BaseModel):
     is_seed: bool = False
 
 
-class PuctStats(BaseModel):
-    """
-    External PUCT statistics (not stored on nodes).
-    These persist independently of archive membership: evicted nodes keep their counts.
-    """
-
-    # how many times we have expanded a node with ULID
-    visit_counts: Dict[ULID, int]
-    # best one-step child reward for node with ULID
-    best_child_rewards: Dict[ULID, float]
-    global_expansion_count: int
+# --- External PUCT statistics (not stored on nodes) ---
+# These persist independently of archive membership: evicted nodes keep their counts.
+# n: Dict[ULID, int] = {}  # n[id] = visit count for state id
+# m: Dict[ULID, float] = {}  # m[id] = best one-step child reward for state id
+# T: int = 0               # Global expansion counter
 
 
 def get_global_scale(archive: Sequence[Node], seed_ids: Set[ULID]) -> float:
@@ -198,27 +227,31 @@ def select_batch_of_parents(
     return selected
 
 
-def mutate_kernel(program_code: str, samples_per_parent: int) -> List[str]: ...
-def evaluate_program(program_code: str) -> float: ...
-
-
 def expand_and_evaluate(
-    parents: List[Node], samples_per_parent: int
+    parents: List[Node],
+    samples_per_parent: int,
+    mutation_provider: MutationProvider,
+    evaluation_provider: EvaluationProvider,
 ) -> Tuple[List[Node], List[Node]]:
     """
     Generates mutations (via LLM) and evaluates them.
     Returns (children, parent_of_each_child) as parallel lists.
+
+    The mutation and evaluation providers are injected here to allow different
+    implementations for testing vs. production (toy examples vs. real kernels).
     """
     all_children = []
     all_parents = []
 
     for parent in parents:
         # LLM Generation Step
-        program_candidates = mutate_kernel(parent.program_code, samples_per_parent)
+        program_candidates = mutation_provider.generate_mutations(
+            parent.program_code, samples_per_parent
+        )
 
         for code in program_candidates:
             # Execution Sandbox Step — reward may be None on failure
-            reward = evaluate_program(code)
+            reward = evaluation_provider.evaluate(code)
 
             child = Node(
                 program_code=code,
@@ -402,9 +435,11 @@ def search(
     total_budget_steps: int,
     batch_size: int,
     samples_per_parent: int,
+    mutation_provider: MutationProvider,
+    evaluation_provider: EvaluationProvider,
 ):
     # Initialization
-    r_init = evaluate_program(initial_program)
+    r_init = evaluation_provider.evaluate(initial_program)
     root = Node(program_code=initial_program, reward=r_init, is_seed=True, ancestors=[])
 
     archive = [root]
@@ -425,7 +460,9 @@ def search(
 
         # B. EXPANSION
         # Generate and evaluate children
-        children, parent_states = expand_and_evaluate(parents, samples_per_parent)
+        children, parent_states = expand_and_evaluate(
+            parents, samples_per_parent, mutation_provider, evaluation_provider
+        )
 
         # C. BACKPROPAGATION
         # Update m for direct parents, n for all ancestors, T += 1 per parent
