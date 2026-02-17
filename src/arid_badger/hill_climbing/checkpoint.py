@@ -7,72 +7,32 @@ allowing interrupted searches to be resumed.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Set, Optional, Protocol
+from typing import List, Set, Optional, Protocol, Generic
 import pickle
-
-from arid_badger.max_reward_puct.domain import Node
-
-
-@dataclass
-class Checkpoint:
-    """
-    Minimal state needed to resume a hill climbing search.
-
-    Contains only the evolving state during search:
-    - current_node: The current node being explored
-    - best_node: The best node found so far
-    - archive: List of all nodes explored
-    - visited: Set of content keys for deduplication
-    - current_step: Current iteration step
-    """
-
-    current_node: Node
-    best_node: Node
-    archive: List[Node]
-    visited: Set[str]
-    current_step: int
+from .domain import Checkpoint, CheckpointProvider, ObservationT
+from arid_badger.typing_utils import implements
 
 
-class CheckpointProvider(Protocol):
-    """
-    Protocol for checkpoint providers.
-
-    Implementations can use different serialization strategies
-    (pickle, JSON, binary formats, etc.) and storage backends
-    (files, databases, cloud storage, etc.).
-    """
-
-    def save(self, checkpoint: Checkpoint) -> None:
-        """Save checkpoint to the provider's configured location."""
-        ...
-
-    def load(self) -> Optional[Checkpoint]:
-        """
-        Load checkpoint from the provider's configured location.
-
-        Returns:
-            Checkpoint if one exists, None otherwise.
-        """
-        ...
-
-
-class NoOpCheckpointProvider:
+class NoOpCheckpointProvider(CheckpointProvider[ObservationT]):
     """
     Provider that doesn't save or load anything.
 
     This is the default provider when no checkpointing is needed.
     """
 
-    def save(self, checkpoint: Checkpoint) -> None:
+    def save(self, checkpoint: Checkpoint[ObservationT]) -> None:
         """No-op save."""
         pass
 
-    def load(self) -> Optional[Checkpoint]:
+    def load(self) -> Optional[Checkpoint[ObservationT]]:
         """Always returns None."""
         return None
 
 
-class FileCheckpointProvider:
+implements(CheckpointProvider)(NoOpCheckpointProvider)
+
+
+class FileCheckpointProvider(CheckpointProvider[ObservationT]):
     """
     Provider that saves/loads checkpoints to/from a file.
 
@@ -89,7 +49,7 @@ class FileCheckpointProvider:
         """
         self.path = path
 
-    def save(self, checkpoint: Checkpoint) -> None:
+    def save(self, checkpoint: Checkpoint[ObservationT]) -> None:
         """
         Save checkpoint to file using pickle.
 
@@ -103,7 +63,7 @@ class FileCheckpointProvider:
         with open(self.path, "wb") as f:
             pickle.dump(checkpoint, f)
 
-    def load(self) -> Optional[Checkpoint]:
+    def load(self) -> Optional[Checkpoint[ObservationT]]:
         """
         Load checkpoint from file.
 
@@ -115,3 +75,6 @@ class FileCheckpointProvider:
 
         with open(self.path, "rb") as f:
             return pickle.load(f)
+
+
+implements(CheckpointProvider)(FileCheckpointProvider)
