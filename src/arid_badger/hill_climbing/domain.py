@@ -68,7 +68,6 @@ class Node(BaseModel, Generic[ObservationT]):
 
 class Checkpoint(BaseModel, Generic[ObservationT]):
     current_node: Node[ObservationT]
-    best_node: Node[ObservationT]
     archive: List[Node[ObservationT]]
     visited: Set[str]
     current_step: int
@@ -162,6 +161,45 @@ def evaluate_mutations(
     return children
 
 
+def expand_and_evaluate(
+    current: Node[ObservationT],
+    samples_per_node: int,
+    mutation_provider: MutationProvider[ObservationT],
+    evaluation_provider: EvaluationProvider[ObservationT],
+    visited: Set[str],
+) -> List[Node[ObservationT]]:
+    mutated_programs = mutation_provider.generate_mutations(
+        current.program_code, samples_per_node, current.evaluation
+    )
+
+    children: List[Node[ObservationT]] = []
+    for program in mutated_programs:
+        # Skip duplicates
+        if program in visited:
+            continue
+
+        # Evaluate
+        evaluation = evaluation_provider.evaluate(program)
+        if evaluation.reward is None:
+            # Skip failed evaluations
+            # NOTE: We explicitly do not store these; we may _want_ to store them simply
+            # to provide better feedback (i.e. compilation errors, etc.) but for now this is
+            # a choice we are making to keep the code simpler.
+            continue
+
+        # Create child node
+        child = Node(
+            program_code=program,
+            ancestors=[],
+            evaluation=evaluation,
+        )
+        set_parent_info(child, current)
+        children.append(child)
+        visited.add(program)
+
+    return children
+
+
 def select_best_child(children: List[Node[ObservationT]]) -> Node[ObservationT]:
     """
     Phase C: Select the child with the highest reward (greedy selection).
@@ -179,26 +217,6 @@ def select_best_child(children: List[Node[ObservationT]]) -> Node[ObservationT]:
         ),
     )
 
-
-def update_global_best(
-    candidate: Node[ObservationT], current_best: Node[ObservationT]
-) -> Node[ObservationT]:
-    """
-    Phase D: Update global best if candidate is better.
-
-    Args:
-        candidate: Node to consider as new best
-        current_best: Current global best node
-
-    Returns:
-        Updated best node (either candidate or current_best)
-    """
-    if candidate.evaluation.reward is not None and (
-        current_best.evaluation.reward is None
-        or candidate.evaluation.reward > current_best.evaluation.reward
-    ):
-        return candidate
-    return current_best
 
 
 def search(
@@ -244,14 +262,12 @@ def search(
         ancestors=[],
         is_seed=True,
     )
-    best = current
     archive: List[Node[ObservationT]] = [current]
-    visited: Set[str] = {get_content_key(current)}
+    visited: Set[str] = {current.program_code}
 
     # Delegate to internal implementation
     return _search_impl(
         current=current,
-        best=best,
         archive=archive,
         visited=visited,
         current_step=0,
@@ -287,7 +303,6 @@ def resume_search(
     """
     return _search_impl(
         current=checkpoint.current_node,
-        best=checkpoint.best_node,
         archive=checkpoint.archive,
         visited=checkpoint.visited,
         current_step=checkpoint.current_step,
@@ -301,7 +316,6 @@ def resume_search(
 
 def _search_impl(
     current: Node[ObservationT],
-    best: Node[ObservationT],
     archive: List[Node[ObservationT]],
     visited: Set[str],
     current_step: int,
@@ -319,7 +333,6 @@ def _search_impl(
 
     Args:
         current: Current node being explored
-        best: Best node found so far
         archive: List of all nodes explored
         visited: Set of content keys for deduplication
         current_step: Current iteration step
@@ -332,48 +345,30 @@ def _search_impl(
     Returns:
         Best node found during search
     """
-    print(
-        f"Step {current_step}: Current={current.evaluation.reward}, Best={best.evaluation.reward}"
-    )
+    print(f"Step {current_step}: Current={current.evaluation.reward}")
 
     for step in range(current_step, max_steps):
-        # A. MUTATION GENERATION
-        mutation_codes = generate_mutations_from_current(
+        children = expand_and_evaluate(
             current=current,
             samples_per_node=samples_per_node,
             mutation_provider=mutation_provider,
-        )
-
-        # B. EVALUATION
-        children = evaluate_mutations(
-            mutation_codes=mutation_codes,
-            current=current,
-            visited=visited,
             evaluation_provider=evaluation_provider,
+            visited=visited,
         )
 
-        # Check for dead end (no valid children)
         if not children:
             print(f"Step {step + 1}: No valid children in this batch, continuing")
             continue
 
-        # C. GREEDY SELECTION
         best_child = select_best_child(children)
         archive.extend(children)
 
-        # D. BEST TRACKING
-        best = update_global_best(candidate=best_child, current_best=best)
-
-        # E. MOVEMENT DECISION
-        # Only move if best_child improves over current (handle None rewards safely)
-        should_move = False
-        if current.evaluation.reward is None or best_child.evaluation.reward is None:
-            # If either reward is None, move to best_child (preserve existing behavior)
-            should_move = True
+        if current.evaluation.reward is None:
+            print(
+                f"Step {step + 1}: Moving to improved position (reward={best_child.evaluation.reward})"
+            )
+            current = best_child
         elif best_child.evaluation.reward > current.evaluation.reward:
-            should_move = True
-
-        if should_move:
             print(
                 f"Step {step + 1}: Moving to improved position (reward={best_child.evaluation.reward})"
             )
@@ -383,18 +378,16 @@ def _search_impl(
                 f"Step {step + 1}: No improvement (best_child={best_child.evaluation.reward}, current={current.evaluation.reward}), continuing from current position"
             )
 
-        # F. CHECKPOINT
         checkpoint_provider.save(
             Checkpoint(
                 current_node=current,
-                best_node=best,
                 archive=archive,
                 visited=visited,
                 current_step=step + 1,
             )
         )
 
-    return best
+    return max(archive, key=lambda n: n.evaluation.reward if n.evaluation.reward is not None else float("-inf"))
 
 
 def get_archive_statistics(archive: List[Node]) -> dict:
