@@ -11,11 +11,12 @@ This module implements a simple baseline search algorithm that:
 Uses the same provider-based architecture as max_reward_puct for consistency.
 """
 
-from typing import List, Set, cast, Generic, Union, Annotated
+from typing import List, Set, cast, Generic, Union, Annotated, Any
 from pydantic import BaseModel, ConfigDict, Field
 from typing import TypeVar, TypeGuard
 from typing import Literal, Protocol, Optional
 from ulid import ULID
+import ulid
 
 
 class NoFeedback(BaseModel):
@@ -67,7 +68,6 @@ class Node(BaseModel, Generic[ObservationT]):
 
 
 class Checkpoint(BaseModel, Generic[ObservationT]):
-    current_node: Node[ObservationT]
     archive: List[Node[ObservationT]]
     visited: Set[str]
     current_step: int
@@ -200,25 +200,6 @@ def expand_and_evaluate(
     return children
 
 
-def select_best_child(children: List[Node[ObservationT]]) -> Node[ObservationT]:
-    """
-    Phase C: Select the child with the highest reward (greedy selection).
-
-    Args:
-        children: List of child nodes (must be non-empty)
-
-    Returns:
-        Child node with highest reward
-    """
-    return max(
-        children,
-        key=lambda c: (
-            c.evaluation.reward if c.evaluation.reward is not None else float("-inf")
-        ),
-    )
-
-
-
 def search(
     initial_program: str,
     max_steps: int,
@@ -233,14 +214,13 @@ def search(
     Algorithm:
     1. Start with initial program and evaluate it
     2. For each step (up to max_steps):
-       - Generate samples_per_node mutations of current program
+       - Select the best node in the archive as the expansion point
+       - Generate samples_per_node mutations from it
        - Evaluate all mutations
        - Filter out failed evaluations (reward is None)
        - Skip duplicates using content-based deduplication
-       - Pick the mutation with highest reward (greedy)
-       - If best mutation improves over current → move to it (depth-first)
-       - Otherwise stay at current position and continue sampling
-    3. Return the best node found during entire search
+       - Add valid mutations to the archive
+    3. Return the best node in the archive
     4. Stops when reaching max steps
 
     Args:
@@ -254,22 +234,16 @@ def search(
     Returns:
         Best node found during search (global best, not just final node)
     """
-    # Initialize state
     initial_evaluation = evaluation_provider.evaluate(initial_program)
-    current = Node(
+    seed = Node(
         program_code=initial_program,
         evaluation=initial_evaluation,
         ancestors=[],
         is_seed=True,
     )
-    archive: List[Node[ObservationT]] = [current]
-    visited: Set[str] = {current.program_code}
-
-    # Delegate to internal implementation
     return _search_impl(
-        current=current,
-        archive=archive,
-        visited=visited,
+        archive=[seed],
+        visited={seed.program_code},
         current_step=0,
         max_steps=max_steps,
         samples_per_node=samples_per_node,
@@ -302,7 +276,6 @@ def resume_search(
         Best node found during search (global best, not just final node)
     """
     return _search_impl(
-        current=checkpoint.current_node,
         archive=checkpoint.archive,
         visited=checkpoint.visited,
         current_step=checkpoint.current_step,
@@ -314,8 +287,53 @@ def resume_search(
     )
 
 
+def select_best(archive: List[Node[ObservationT]]) -> Node[ObservationT]:
+    return max(
+        archive,
+        key=lambda n: (
+            n.evaluation.reward if n.evaluation.reward is not None else float("-inf")
+        ),
+    )
+
+
+def log_changes(
+    step: int, prev_best: Node[ObservationT], new_best: Node[ObservationT]
+) -> None:
+    if prev_best.ulid != new_best.ulid:
+        print(
+            f"Step {step + 1}: Reward changed from {prev_best.evaluation.reward:.4f} to {new_best.evaluation.reward:.4f}"
+        )
+    else:
+        print(f"Step {step + 1}: Reward unchanged at {new_best.evaluation.reward:.4f}")
+
+
+class ChangeLogger:
+    def __init__(self, step: int, initial: Optional[Node[Any]] = None):
+        self.step = step
+        self.initial = initial
+
+    @staticmethod
+    def _safe_fmt_reward(reward: Optional[float]) -> str:
+        return f"{reward:.4f}" if reward is not None else "None"
+
+    def __call__(self, new_best: Node[Any]) -> None:
+        if self.initial is None:
+            print(
+                f"Step {self.step + 1}: Starting search, best reward={self._safe_fmt_reward(new_best.evaluation.reward)}"
+            )
+        else:
+            if new_best.ulid != self.initial.ulid:
+                print(
+                    f"Step {self.step + 1}: Reward changed from {self._safe_fmt_reward(self.initial.evaluation.reward)} to {self._safe_fmt_reward(new_best.evaluation.reward)}"
+                )
+            else:
+                print(
+                    f"Step {self.step + 1}: Reward unchanged at {self._safe_fmt_reward(new_best.evaluation.reward)}"
+                )
+        self.initial = new_best
+
+
 def _search_impl(
-    current: Node[ObservationT],
     archive: List[Node[ObservationT]],
     visited: Set[str],
     current_step: int,
@@ -332,8 +350,7 @@ def _search_impl(
     it simply continues from whatever state it receives.
 
     Args:
-        current: Current node being explored
-        archive: List of all nodes explored
+        archive: List of all nodes explored so far
         visited: Set of content keys for deduplication
         current_step: Current iteration step
         max_steps: Maximum number of iterations
@@ -345,11 +362,16 @@ def _search_impl(
     Returns:
         Best node found during search
     """
-    print(f"Step {current_step}: Current={current.evaluation.reward}")
-
+    change_logger = ChangeLogger(current_step)
     for step in range(current_step, max_steps):
+        to_expand = select_best(archive)
+        change_logger(to_expand)
+        print(
+            f"Step {step}: Expanding best node (reward={to_expand.evaluation.reward})"
+        )
+
         children = expand_and_evaluate(
-            current=current,
+            current=to_expand,
             samples_per_node=samples_per_node,
             mutation_provider=mutation_provider,
             evaluation_provider=evaluation_provider,
@@ -360,34 +382,16 @@ def _search_impl(
             print(f"Step {step + 1}: No valid children in this batch, continuing")
             continue
 
-        best_child = select_best_child(children)
         archive.extend(children)
-
-        if current.evaluation.reward is None:
-            print(
-                f"Step {step + 1}: Moving to improved position (reward={best_child.evaluation.reward})"
-            )
-            current = best_child
-        elif best_child.evaluation.reward > current.evaluation.reward:
-            print(
-                f"Step {step + 1}: Moving to improved position (reward={best_child.evaluation.reward})"
-            )
-            current = best_child
-        else:
-            print(
-                f"Step {step + 1}: No improvement (best_child={best_child.evaluation.reward}, current={current.evaluation.reward}), continuing from current position"
-            )
-
         checkpoint_provider.save(
             Checkpoint(
-                current_node=current,
                 archive=archive,
                 visited=visited,
                 current_step=step + 1,
             )
         )
 
-    return max(archive, key=lambda n: n.evaluation.reward if n.evaluation.reward is not None else float("-inf"))
+    return select_best(archive)
 
 
 def get_archive_statistics(archive: List[Node]) -> dict:
