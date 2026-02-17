@@ -9,15 +9,31 @@ evaluations.
 """
 
 import multiprocessing
-import multiprocessing.queues
+import traceback
 from pathlib import Path
 from typing import Optional
 
-from arid_badger.kernelbench.core import KernelScoringResult
-from arid_badger.typing_utils import Option, Ok, Err, is_ok
+from pydantic import BaseModel
+
+from arid_badger.typing_utils import Option, Ok, Err
+
+from arid_badger.kernelbench.scoring import _score_kernel_impl
+from kernelbench.eval import KernelExecResult
 
 # Default timeout for subprocess scoring (seconds).
 DEFAULT_SUBPROCESS_TIMEOUT_SECONDS = 300
+
+
+class ScoringError(BaseModel):
+    """Structured error from a subprocess scoring attempt.
+
+    Uses a Pydantic model rather than a raw Exception so it serialises
+    reliably across the subprocess (pickle) boundary.
+    """
+
+    reason: str
+    exit_code: Optional[int] = None
+    cause: Optional[str] = None
 
 
 def _scoring_worker(
@@ -32,12 +48,10 @@ def _scoring_worker(
 ) -> None:
     """Entry point executed inside the spawned subprocess.
 
-    Runs the actual scoring logic and puts the result (or exception) onto
+    Runs the actual scoring logic and puts the result (or error) onto
     *queue* so the parent process can retrieve it.
     """
     try:
-        from arid_badger.kernelbench.scoring import _score_kernel_impl
-
         result = _score_kernel_impl(
             mutated_kernel_code=mutated_kernel_code,
             reference_kernel_code=reference_kernel_code,
@@ -47,9 +61,19 @@ def _scoring_worker(
             num_perf_trials=num_perf_trials,
             build_dir=build_dir,
         )
-        queue.put(Ok(result))
+        if result is None:
+            queue.put(Err(ScoringError(reason="Scoring returned None")))
+        else:
+            queue.put(Ok(result))
     except Exception as exc:
-        queue.put(Err(exc))
+        queue.put(
+            Err(
+                ScoringError(
+                    reason=str(exc),
+                    cause=traceback.format_exc(),
+                )
+            )
+        )
 
 
 def run_scoring_in_subprocess(
@@ -61,18 +85,18 @@ def run_scoring_in_subprocess(
     num_perf_trials: int = 100,
     build_dir: Optional[Path] = None,
     timeout_seconds: int = DEFAULT_SUBPROCESS_TIMEOUT_SECONDS,
-) -> KernelScoringResult:
+) -> Option[KernelExecResult, ScoringError]:
     """Score a kernel in an isolated subprocess.
 
     Uses ``multiprocessing.get_context('spawn')`` so the child process starts
     a fresh Python interpreter, avoiding inheritance of any poisoned CUDA
     context from the parent.
 
-    Raises:
-        RuntimeError: If the subprocess crashes (e.g. CUDA fault) or times out.
+    Returns ``Ok(KernelExecResult)`` on success or ``Err(ScoringError)`` on
+    any failure (timeout, crash, scoring error).
     """
     ctx = multiprocessing.get_context("spawn")
-    queue: multiprocessing.Queue[Option[KernelScoringResult, Exception]] = ctx.Queue()
+    queue: multiprocessing.Queue[Option[KernelExecResult, ScoringError]] = ctx.Queue()
 
     process = ctx.Process(
         target=_scoring_worker,
@@ -96,31 +120,32 @@ def run_scoring_in_subprocess(
         if process.is_alive():
             process.kill()
             process.join(timeout=5)
-        raise RuntimeError(
-            f"Kernel scoring subprocess timed out after {timeout_seconds}s"
-        )
+        return Err(ScoringError(reason=f"Timed out after {timeout_seconds}s"))
 
     if process.exitcode != 0:
-        # The subprocess crashed (e.g. a CUDA fault killed it).  Try to
-        # retrieve any exception that was placed on the queue before the
-        # crash, otherwise report the exit code.
-        if not queue.empty():
-            outcome: Option[KernelScoringResult, Exception] = queue.get_nowait()
-            if outcome.is_err():
-                raise RuntimeError(
-                    f"Kernel scoring subprocess failed (exit code {process.exitcode})"
-                ) from outcome.unwrap_err()
-        raise RuntimeError(
-            f"Kernel scoring subprocess crashed with exit code {process.exitcode}"
+        cause = _drain_error_from_queue(queue)
+        return Err(
+            ScoringError(
+                reason="Subprocess crashed",
+                exit_code=process.exitcode,
+                cause=cause,
+            )
         )
 
-    # Subprocess exited cleanly – retrieve the result from the queue.
     if queue.empty():
-        raise RuntimeError(
-            "Kernel scoring subprocess exited successfully but produced no result"
-        )
+        return Err(ScoringError(reason="Subprocess produced no result"))
 
+    return queue.get_nowait()
+
+
+def _drain_error_from_queue(
+    queue: multiprocessing.Queue,
+) -> Optional[str]:
+    """Try to retrieve a stringified error cause from the queue, if any."""
+    if queue.empty():
+        return None
     outcome = queue.get_nowait()
-    if is_ok(outcome):
-        return outcome.unwrap()
-    raise outcome.unwrap_err()
+    if isinstance(outcome, Err):
+        error: ScoringError = outcome.unwrap_err()
+        return error.cause or error.reason
+    return None

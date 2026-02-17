@@ -4,8 +4,17 @@ from typing import Optional
 import torch
 from arid_badger.kernelbench.core import KernelScoringResult
 from arid_badger.kernelbench.eval_logged import eval_kernel_against_ref_logged
-from arid_badger.kernelbench.isolated_scoring import run_scoring_in_subprocess
-from kernelbench.eval import get_torch_dtype_from_string
+from kernelbench.eval import get_torch_dtype_from_string, KernelExecResult
+
+DEFAULT_BUILD_DIR = Path("/tmp/arid_badger_torch_extensions")
+
+
+def check_kernel_exec_result_valid(exec_result: KernelExecResult) -> bool:
+    if not exec_result.correctness:
+        return False
+    if exec_result.runtime <= 0 or exec_result.ref_runtime <= 0:
+        return False
+    return True
 
 
 def _score_kernel_impl(
@@ -16,7 +25,7 @@ def _score_kernel_impl(
     num_correct_trials: int = 5,
     num_perf_trials: int = 100,
     build_dir: Optional[Path] = None,
-) -> KernelScoringResult:
+) -> Optional[KernelExecResult]:
     """In-process scoring logic. Called directly or from a subprocess worker."""
     # Check CUDA availability
     if not torch.cuda.is_available():
@@ -28,7 +37,7 @@ def _score_kernel_impl(
     torch_precision: torch.dtype = get_torch_dtype_from_string(precision)
 
     if build_dir is None:
-        build_dir = Path("/tmp/arid_badger_torch_extensions")
+        build_dir = DEFAULT_BUILD_DIR
 
     assert build_dir is not None
 
@@ -45,69 +54,5 @@ def _score_kernel_impl(
         verbose=False,
         build_dir=build_dir,
     )
-    if exec_result is None:
-        # KernelBench returns None on transient lock/cache errors during concurrent compilation.
-        # Callers that run parallel compilation should retry.
-        raise RuntimeError(
-            "KernelBench evaluation returned None (likely compile cache lock error); retry scoring."
-        )
 
-    # Calculate speedup (same logic as demo_kernelbench_apis.py)
-    if not exec_result.correctness:
-        return KernelScoringResult(exec_result=exec_result, speedup=0.0, is_valid=False)
-
-    if exec_result.runtime <= 0 or exec_result.ref_runtime <= 0:
-        return KernelScoringResult(exec_result=exec_result, speedup=0.0, is_valid=False)
-
-    speedup: float = exec_result.ref_runtime / exec_result.runtime
-
-    return KernelScoringResult(exec_result=exec_result, speedup=speedup, is_valid=True)
-
-
-def score_kernel(
-    mutated_kernel_code: str,
-    reference_kernel_code: str,
-    backend: str = "cuda",
-    precision: str = "fp32",
-    num_correct_trials: int = 5,
-    num_perf_trials: int = 100,
-    build_dir: Optional[Path] = None,
-    isolate: bool = True,
-) -> KernelScoringResult:
-    """
-    Score a mutated kernel against a reference kernel.
-
-    Args:
-        mutated_kernel_code: Source code of the mutated kernel
-        reference_kernel_code: Source code of the reference kernel
-        backend: Backend type ("cuda", "triton", etc.)
-        precision: Precision string ("fp32", "fp16", "bf16")
-        num_correct_trials: Number of correctness trials
-        num_perf_trials: Number of performance trials
-        build_dir: Directory for compiled kernel build artifacts
-        isolate: If True (default), run scoring in an isolated subprocess
-            to contain CUDA faults. Set to False for debugging.
-
-    Returns:
-        KernelScoringResult with exec_result, speedup, and validity flag
-    """
-    if not isolate:
-        return _score_kernel_impl(
-            mutated_kernel_code=mutated_kernel_code,
-            reference_kernel_code=reference_kernel_code,
-            backend=backend,
-            precision=precision,
-            num_correct_trials=num_correct_trials,
-            num_perf_trials=num_perf_trials,
-            build_dir=build_dir,
-        )
-
-    return run_scoring_in_subprocess(
-        mutated_kernel_code=mutated_kernel_code,
-        reference_kernel_code=reference_kernel_code,
-        backend=backend,
-        precision=precision,
-        num_correct_trials=num_correct_trials,
-        num_perf_trials=num_perf_trials,
-        build_dir=build_dir,
-    )
+    return exec_result

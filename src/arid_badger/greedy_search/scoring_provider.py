@@ -7,7 +7,10 @@ from typing import Callable, List, Sequence, Tuple
 
 from loguru import logger
 
-from arid_badger.kernelbench.core import KernelScoringResult
+from arid_badger.kernelbench.core import (
+    KernelScoringResult,
+    execution_feedback_from_exec_result,
+)
 from arid_badger.typing_utils import Option, implements
 
 from .domain import (
@@ -21,7 +24,6 @@ from .domain import (
     ScoringProvider,
     ScoringSuccess,
     ValidEvaluation,
-    execution_feedback_from_exec_result,
 )
 
 
