@@ -16,6 +16,7 @@ from arid_badger.hill_climbing.domain import (
     search,
     resume_search,
     get_archive_statistics,
+    EvaluationProvider,
 )
 from arid_badger.hill_climbing.checkpoint import (
     Checkpoint,
@@ -24,6 +25,8 @@ from arid_badger.hill_climbing.checkpoint import (
     FileCheckpointProvider,
 )
 from arid_badger.max_reward_puct.domain import Node, get_content_key, set_parent_info
+from arid_badger.typing_utils import implements
+from arid_badger.hill_climbing.domain import NoFeedback
 
 
 # Test Providers (reused from PUCT tests)
@@ -35,9 +38,7 @@ class BinaryStringMutationProvider:
     def __init__(self, seed: Optional[int] = None):
         self.rng = random.Random(seed)
 
-    def generate_mutations(
-        self, program_code: str, num_mutations: int
-    ) -> List[str]:
+    def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
         """Generate mutations by flipping bit positions."""
         mutations = []
         n = len(program_code)
@@ -64,6 +65,9 @@ class BinaryStringEvaluationProvider:
             return None
 
 
+implements(EvaluationProvider[NoFeedback])(BinaryStringEvaluationProvider)
+
+
 class FailingEvaluationProvider:
     """Provider that always returns None to test failed evaluation handling."""
 
@@ -71,6 +75,7 @@ class FailingEvaluationProvider:
         return None
 
 
+implements(EvaluationProvider[NoFeedback])(FailingEvaluationProvider)
 # Tests
 
 
@@ -94,9 +99,12 @@ def test_search_converges_to_maximum():
 
 def test_greedy_selection_picks_best():
     """Test that greedy choice always picks highest reward at each step."""
+
     # Use a deterministic mutation provider that generates all single-bit flips
     class DeterministicMutationProvider:
-        def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
+        def generate_mutations(
+            self, program_code: str, num_mutations: int
+        ) -> List[str]:
             """Generate all single-bit flips."""
             mutations = []
             for i in range(len(program_code)):
@@ -124,12 +132,15 @@ def test_greedy_selection_picks_best():
 
 def test_continues_sampling_without_improvement():
     """Test that algorithm continues sampling from current position when no improvement found."""
+
     # Create a provider that generates worse mutations for 3+ batches, then finds improvement on batch 4
     class ContinuousSamplingMutationProvider:
         def __init__(self):
             self.call_count = 0
 
-        def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
+        def generate_mutations(
+            self, program_code: str, num_mutations: int
+        ) -> List[str]:
             self.call_count += 1
             if self.call_count == 1:
                 # First call from "0000": move to "0011" (3)
@@ -161,12 +172,15 @@ def test_continues_sampling_without_improvement():
 
 def test_deduplication_works():
     """Test that duplicate programs are skipped and algorithm continues until max_steps."""
+
     # Provider that generates duplicate mutations
     class DuplicateMutationProvider:
         def __init__(self):
             self.call_count = 0
 
-        def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
+        def generate_mutations(
+            self, program_code: str, num_mutations: int
+        ) -> List[str]:
             self.call_count += 1
             # Always return the same mutation multiple times
             return ["0001"] * num_mutations
@@ -191,12 +205,15 @@ def test_deduplication_works():
 
 def test_exhausts_budget_at_plateau():
     """Test that algorithm uses full max_steps budget when stuck at plateau."""
+
     # Provider that generates no improvements after initial move
     class PlateauMutationProvider:
         def __init__(self):
             self.call_count = 0
 
-        def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
+        def generate_mutations(
+            self, program_code: str, num_mutations: int
+        ) -> List[str]:
             self.call_count += 1
             if self.call_count == 1:
                 # First call: move from "0000" to "0001"
@@ -232,7 +249,9 @@ def test_only_moves_on_improvement():
         def __init__(self):
             self.step = 0
 
-        def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
+        def generate_mutations(
+            self, program_code: str, num_mutations: int
+        ) -> List[str]:
             positions_sampled.append(program_code)
             self.step += 1
 
@@ -274,9 +293,12 @@ def test_only_moves_on_improvement():
 
 def test_handles_failed_evaluations():
     """Test that None rewards are filtered out correctly."""
+
     # Provider that generates mix of valid and invalid mutations
     class MixedMutationProvider:
-        def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
+        def generate_mutations(
+            self, program_code: str, num_mutations: int
+        ) -> List[str]:
             # Return mix of valid binary strings and invalid strings
             return ["0001", "invalid", "0010", "also_invalid"]
 
@@ -323,7 +345,9 @@ def test_archive_contains_explored_nodes():
     visited_programs = []
 
     class TrackingMutationProvider:
-        def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
+        def generate_mutations(
+            self, program_code: str, num_mutations: int
+        ) -> List[str]:
             visited_programs.append(program_code)
             mutations = []
             n = len(program_code)
@@ -350,12 +374,15 @@ def test_archive_contains_explored_nodes():
 
 def test_returns_global_best_not_just_final():
     """Test that search returns best node from entire search, not just final node."""
+
     # Create a scenario where we climb up then down
     class PeakMutationProvider:
         def __init__(self):
             self.step = 0
 
-        def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
+        def generate_mutations(
+            self, program_code: str, num_mutations: int
+        ) -> List[str]:
             self.step += 1
             if self.step == 1:
                 # First step: go to high value
@@ -391,7 +418,9 @@ def test_stops_at_max_steps():
     call_count = 0
 
     class CountingMutationProvider:
-        def generate_mutations(self, program_code: str, num_mutations: int) -> List[str]:
+        def generate_mutations(
+            self, program_code: str, num_mutations: int
+        ) -> List[str]:
             nonlocal call_count
             call_count += 1
             # Always generate valid mutations so we don't stop early
@@ -509,7 +538,9 @@ def test_zero_max_steps():
 def test_content_key_deduplication():
     """Test that get_content_key works correctly for deduplication."""
     node1 = Node(program_code="0001", reward=1.0, ancestors=[])
-    node2 = Node(program_code="0001", reward=2.0, ancestors=[])  # same code, different reward
+    node2 = Node(
+        program_code="0001", reward=2.0, ancestors=[]
+    )  # same code, different reward
     node3 = Node(program_code="0010", reward=1.0, ancestors=[])
 
     key1 = get_content_key(node1)
@@ -564,6 +595,7 @@ def test_no_op_provider_default():
 
 def test_checkpoint_save_called():
     """Test that checkpoint provider.save() is called after each iteration."""
+
     # Create a mock provider that tracks save calls
     class MockCheckpointProvider:
         def __init__(self):
@@ -601,6 +633,7 @@ def test_checkpoint_save_called():
 
 def test_resume_search_continues():
     """Test that resume_search continues from checkpoint state."""
+
     # Create a mock provider that captures the checkpoint
     class CapturingCheckpointProvider:
         def __init__(self):
@@ -688,6 +721,7 @@ def test_checkpoint_serialization():
 
 def test_resume_skips_initial_evaluation():
     """Test that resume doesn't re-evaluate the current node."""
+
     # Create a tracking evaluation provider
     class TrackingEvaluationProvider:
         def __init__(self):

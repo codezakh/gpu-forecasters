@@ -11,10 +11,9 @@ This module implements a simple baseline search algorithm that:
 Uses the same provider-based architecture as max_reward_puct for consistency.
 """
 
-from typing import List, Set, cast
+from typing import List, Set, cast, Generic, Union, Annotated
 from arid_badger.max_reward_puct.domain import (
     MutationProvider,
-    EvaluationProvider,
     Node,
     get_content_key,
     set_parent_info,
@@ -24,6 +23,30 @@ from arid_badger.hill_climbing.checkpoint import (
     CheckpointProvider,
     NoOpCheckpointProvider,
 )
+from pydantic import BaseModel, ConfigDict, Field
+from typing import TypeVar, TypeGuard
+from typing import Literal, Protocol, Optional
+
+
+class NoFeedback(BaseModel):
+    value: None = None
+
+
+ObservationT = TypeVar("ObservationT", bound=BaseModel, default=NoFeedback)
+
+
+class Evaluation(BaseModel, Generic[ObservationT]):
+    observation: ObservationT
+    reward: Optional[float] = None
+    model_config = ConfigDict(frozen=True)
+
+
+class EvaluationProvider(Protocol[ObservationT]):
+    """Evaluates a program and returns its reward."""
+
+    def evaluate(self, program_code: str) -> Evaluation[ObservationT]:
+        """Returns reward (or None if evaluation failed)."""
+        ...
 
 
 # Helper functions for search phases (extracted for clarity and testability)
@@ -45,9 +68,7 @@ def generate_mutations_from_current(
     Returns:
         List of mutation codes
     """
-    return mutation_provider.generate_mutations(
-        current.program_code, samples_per_node
-    )
+    return mutation_provider.generate_mutations(current.program_code, samples_per_node)
 
 
 def evaluate_mutations(
@@ -76,13 +97,13 @@ def evaluate_mutations(
             continue
 
         # Evaluate
-        reward = evaluation_provider.evaluate(code)
-        if reward is None:
+        evaluation = evaluation_provider.evaluate(code)
+        if evaluation.reward is None:
             # Skip failed evaluations
             continue
 
         # Create child node
-        child = Node(program_code=code, reward=reward, ancestors=[])
+        child = Node(program_code=code, reward=evaluation.reward, ancestors=[])
         set_parent_info(child, current)
         children.append(child)
         visited.add(content_key)
@@ -159,9 +180,12 @@ def search(
         Best node found during search (global best, not just final node)
     """
     # Initialize state
-    initial_reward = evaluation_provider.evaluate(initial_program)
+    initial_evaluation = evaluation_provider.evaluate(initial_program)
     current = Node(
-        program_code=initial_program, reward=initial_reward, ancestors=[], is_seed=True
+        program_code=initial_program,
+        reward=initial_evaluation.reward,
+        ancestors=[],
+        is_seed=True,
     )
     best = current
     archive: List[Node] = [current]
@@ -291,10 +315,14 @@ def _search_impl(
             should_move = True
 
         if should_move:
-            print(f"Step {step + 1}: Moving to improved position (reward={best_child.reward})")
+            print(
+                f"Step {step + 1}: Moving to improved position (reward={best_child.reward})"
+            )
             current = best_child
         else:
-            print(f"Step {step + 1}: No improvement (best_child={best_child.reward}, current={current.reward}), continuing from current position")
+            print(
+                f"Step {step + 1}: No improvement (best_child={best_child.reward}, current={current.reward}), continuing from current position"
+            )
 
         # F. CHECKPOINT
         checkpoint_provider.save(
