@@ -16,6 +16,7 @@ from arid_badger.hill_climbing.domain import (
     search,
     resume_search,
     get_archive_statistics,
+    Evaluation,
     EvaluationProvider,
 )
 from arid_badger.hill_climbing.checkpoint import (
@@ -57,12 +58,12 @@ class BinaryStringMutationProvider:
 class BinaryStringEvaluationProvider:
     """Toy evaluation provider: returns decimal value of binary string."""
 
-    def evaluate(self, program_code: str) -> Optional[float]:
+    def evaluate(self, program_code: str) -> Evaluation[NoFeedback]:
         """Return decimal value of binary string."""
         try:
-            return float(int(program_code, 2))
+            return Evaluation(observation=NoFeedback(), reward=float(int(program_code, 2)))
         except ValueError:
-            return None
+            return Evaluation(observation=NoFeedback(), reward=None)
 
 
 implements(EvaluationProvider[NoFeedback])(BinaryStringEvaluationProvider)
@@ -71,8 +72,8 @@ implements(EvaluationProvider[NoFeedback])(BinaryStringEvaluationProvider)
 class FailingEvaluationProvider:
     """Provider that always returns None to test failed evaluation handling."""
 
-    def evaluate(self, program_code: str) -> Optional[float]:
-        return None
+    def evaluate(self, program_code: str) -> Evaluation[NoFeedback]:
+        return Evaluation(observation=NoFeedback(), reward=None)
 
 
 implements(EvaluationProvider[NoFeedback])(FailingEvaluationProvider)
@@ -727,12 +728,12 @@ def test_resume_skips_initial_evaluation():
         def __init__(self):
             self.evaluated_programs: List[str] = []
 
-        def evaluate(self, program_code: str) -> Optional[float]:
+        def evaluate(self, program_code: str) -> Evaluation[NoFeedback]:
             self.evaluated_programs.append(program_code)
             try:
-                return float(int(program_code, 2))
+                return Evaluation(observation=NoFeedback(), reward=float(int(program_code, 2)))
             except ValueError:
-                return None
+                return Evaluation(observation=NoFeedback(), reward=None)
 
     # Run initial search to depth 1
     mutation_provider = BinaryStringMutationProvider(seed=42)
