@@ -8,11 +8,11 @@ and convergence behavior.
 """
 
 import random
-from typing import List, Optional
+from typing import List
 import pytest
 
-from arid_badger.max_reward_puct.domain import (
-    Node,
+from arid_badger.hill_climbing.domain import Evaluation, NoFeedback, Node
+from arid_badger.max_reward_puct.search import (
     search,
     select_batch_of_parents,
     expand_and_evaluate,
@@ -20,17 +20,25 @@ from arid_badger.max_reward_puct.domain import (
     backpropagate,
     record_failed_rollout,
     calculate_puct_scores,
+    set_parent_info,
 )
+
+
+def _eval(reward: float | None) -> Evaluation[NoFeedback]:
+    return Evaluation(observation=NoFeedback(), reward=reward)
 
 
 class BinaryStringMutationProvider:
     """Toy mutation provider: flips single bits in binary string."""
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: int | None = None):
         self.rng = random.Random(seed)
 
     def generate_mutations(
-        self, program_code: str, num_mutations: int
+        self,
+        program_code: str,
+        num_mutations: int,
+        evaluation: Evaluation[NoFeedback],
     ) -> List[str]:
         """Generate mutations by flipping bit positions."""
         mutations = []
@@ -50,25 +58,26 @@ class BinaryStringMutationProvider:
 class BinaryStringEvaluationProvider:
     """Toy evaluation provider: returns decimal value of binary string."""
 
-    def evaluate(self, program_code: str) -> Optional[float]:
+    def evaluate(self, program_code: str) -> Evaluation[NoFeedback]:
         """Return decimal value of binary string."""
         try:
-            return float(int(program_code, 2))
+            reward: float | None = float(int(program_code, 2))
         except ValueError:
-            return None
+            reward = None
+        return _eval(reward)
 
 
 class FailingEvaluationProvider:
-    """Provider that always returns None to test failed rollout handling."""
+    """Provider that always returns reward=None to test failed rollout handling."""
 
-    def evaluate(self, program_code: str) -> Optional[float]:
-        return None
+    def evaluate(self, program_code: str) -> Evaluation[NoFeedback]:
+        return _eval(None)
 
 
 def test_binary_string_mutation_provider():
     """Test that mutation provider generates valid mutations."""
     provider = BinaryStringMutationProvider(seed=42)
-    mutations = provider.generate_mutations("0000", 4)
+    mutations = provider.generate_mutations("0000", 4, _eval(0.0))
 
     assert len(mutations) == 4
     # Each mutation should differ by exactly one bit
@@ -83,11 +92,11 @@ def test_binary_string_evaluation_provider():
     """Test that evaluation provider returns correct decimal values."""
     provider = BinaryStringEvaluationProvider()
 
-    assert provider.evaluate("0000") == 0.0
-    assert provider.evaluate("0001") == 1.0
-    assert provider.evaluate("0010") == 2.0
-    assert provider.evaluate("1111") == 15.0
-    assert provider.evaluate("invalid") is None
+    assert provider.evaluate("0000").reward == 0.0
+    assert provider.evaluate("0001").reward == 1.0
+    assert provider.evaluate("0010").reward == 2.0
+    assert provider.evaluate("1111").reward == 15.0
+    assert provider.evaluate("invalid").reward is None
 
 
 def test_search_converges_to_maximum():
@@ -106,7 +115,7 @@ def test_search_converges_to_maximum():
 
     # Should find the maximum (all 1s)
     assert result.program_code == "1111"
-    assert result.reward == 15.0
+    assert result.evaluation.reward == 15.0
 
 
 def test_search_batch_size_greater_than_one():
@@ -124,16 +133,16 @@ def test_search_batch_size_greater_than_one():
     )
 
     # Should still find a high-reward solution
-    assert result.reward is not None
-    assert result.reward >= 10.0  # Should get reasonably close to maximum
+    assert result.evaluation.reward is not None
+    assert result.evaluation.reward >= 10.0  # Should get reasonably close to maximum
 
 
 def test_puct_selection_prioritizes_high_reward():
     """Test that PUCT scoring prioritizes high-reward states."""
     # Create a simple archive with different rewards
-    node_low = Node(program_code="0001", reward=1.0, ancestors=[], is_seed=True)
-    node_mid = Node(program_code="0011", reward=3.0, ancestors=[], is_seed=True)
-    node_high = Node(program_code="0111", reward=7.0, ancestors=[], is_seed=True)
+    node_low = Node(program_code="0001", evaluation=_eval(1.0), ancestors=[], is_seed=True)
+    node_mid = Node(program_code="0011", evaluation=_eval(3.0), ancestors=[], is_seed=True)
+    node_high = Node(program_code="0111", evaluation=_eval(7.0), ancestors=[], is_seed=True)
 
     archive = [node_low, node_mid, node_high]
     seed_ids = {node_low.ulid, node_mid.ulid, node_high.ulid}
@@ -156,13 +165,11 @@ def test_puct_selection_prioritizes_high_reward():
 def test_lineage_blocking_in_batch_selection():
     """Test that lineage blocking prevents parent-child pairs in same batch."""
     # Create a parent and its children
-    parent = Node(program_code="0000", reward=0.0, ancestors=[], is_seed=True)
-    child1 = Node(program_code="0001", reward=1.0, ancestors=[])
-    child2 = Node(program_code="0010", reward=2.0, ancestors=[])
+    parent = Node(program_code="0000", evaluation=_eval(0.0), ancestors=[], is_seed=True)
+    child1 = Node(program_code="0001", evaluation=_eval(1.0), ancestors=[])
+    child2 = Node(program_code="0010", evaluation=_eval(2.0), ancestors=[])
 
     # Manually set parent info
-    from arid_badger.max_reward_puct.domain import set_parent_info
-
     set_parent_info(child1, parent)
     set_parent_info(child2, parent)
 
@@ -191,7 +198,7 @@ def test_archive_update_enforces_top_k_per_parent():
     mutation_provider = BinaryStringMutationProvider(seed=42)
     evaluation_provider = BinaryStringEvaluationProvider()
 
-    parent = Node(program_code="0000", reward=0.0, ancestors=[], is_seed=True)
+    parent = Node(program_code="0000", evaluation=_eval(0.0), ancestors=[], is_seed=True)
 
     # Generate many children
     children, parent_states = expand_and_evaluate(
@@ -222,7 +229,7 @@ def test_archive_update_skips_none_rewards():
     failing_provider = FailingEvaluationProvider()
     mutation_provider = BinaryStringMutationProvider(seed=42)
 
-    parent = Node(program_code="0000", reward=0.0, ancestors=[], is_seed=True)
+    parent = Node(program_code="0000", evaluation=_eval(0.0), ancestors=[], is_seed=True)
 
     children, parent_states = expand_and_evaluate(
         parents=[parent],
@@ -248,13 +255,11 @@ def test_archive_update_skips_none_rewards():
 
 def test_archive_deduplication():
     """Test that update_archive deduplicates by program content."""
-    evaluation_provider = BinaryStringEvaluationProvider()
-
-    parent = Node(program_code="0000", reward=0.0, ancestors=[], is_seed=True)
+    parent = Node(program_code="0000", evaluation=_eval(0.0), ancestors=[], is_seed=True)
 
     # Create duplicate children manually
-    child1 = Node(program_code="0001", reward=1.0, ancestors=[])
-    child2 = Node(program_code="0001", reward=1.0, ancestors=[])  # duplicate
+    child1 = Node(program_code="0001", evaluation=_eval(1.0), ancestors=[])
+    child2 = Node(program_code="0001", evaluation=_eval(1.0), ancestors=[])  # duplicate
 
     archive = [parent]
     seed_ids = {parent.ulid}
@@ -272,10 +277,8 @@ def test_archive_deduplication():
 
 def test_backpropagate_updates_visit_counts():
     """Test that backpropagate correctly updates n and m."""
-    parent = Node(program_code="0000", reward=0.0, ancestors=[], is_seed=True)
-    child = Node(program_code="0001", reward=1.0, ancestors=[])
-
-    from arid_badger.max_reward_puct.domain import set_parent_info
+    parent = Node(program_code="0000", evaluation=_eval(0.0), ancestors=[], is_seed=True)
+    child = Node(program_code="0001", evaluation=_eval(1.0), ancestors=[])
 
     set_parent_info(child, parent)
 
@@ -297,10 +300,8 @@ def test_backpropagate_updates_visit_counts():
 
 def test_backpropagate_skips_none_rewards():
     """Test that backpropagate skips children with None rewards."""
-    parent = Node(program_code="0000", reward=0.0, ancestors=[], is_seed=True)
-    child = Node(program_code="invalid", reward=None, ancestors=[])
-
-    from arid_badger.max_reward_puct.domain import set_parent_info
+    parent = Node(program_code="0000", evaluation=_eval(0.0), ancestors=[], is_seed=True)
+    child = Node(program_code="invalid", evaluation=_eval(None), ancestors=[])
 
     set_parent_info(child, parent)
 
@@ -320,7 +321,7 @@ def test_backpropagate_skips_none_rewards():
 
 def test_record_failed_rollout():
     """Test that failed rollouts still increment visit counts."""
-    parent = Node(program_code="0000", reward=0.0, ancestors=[], is_seed=True)
+    parent = Node(program_code="0000", evaluation=_eval(0.0), ancestors=[], is_seed=True)
 
     n = {}
     T = 0
@@ -350,13 +351,13 @@ def test_search_handles_all_failed_evaluations():
 
     # Should return the initial program (no valid children found)
     assert result.program_code == "0000"
-    assert result.reward is None
+    assert result.evaluation.reward is None
 
 
 def test_exploration_bonus_decays_with_visits():
     """Test that nodes with more visits get lower exploration bonus."""
-    node1 = Node(program_code="0001", reward=1.0, ancestors=[], is_seed=True)
-    node2 = Node(program_code="0010", reward=1.0, ancestors=[], is_seed=True)
+    node1 = Node(program_code="0001", evaluation=_eval(1.0), ancestors=[], is_seed=True)
+    node2 = Node(program_code="0010", evaluation=_eval(1.0), ancestors=[], is_seed=True)
 
     archive = [node1, node2]
     seed_ids = {node1.ulid, node2.ulid}
