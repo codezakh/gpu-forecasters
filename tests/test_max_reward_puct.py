@@ -7,11 +7,22 @@ deterministic way to test the PUCT algorithm's selection, exploration/exploitati
 and convergence behavior.
 """
 
+import json
 import random
+from pathlib import Path
 from typing import List, Optional
 import pytest
+from ulid import ULID
 
 from arid_badger.hill_climbing.domain import Evaluation, NoFeedback, Node
+from arid_badger.hill_climbing.scoring_providers.kernelbench import KernelBenchObservation
+from arid_badger.kernelbench.core import (
+    CompileFailedFeedback,
+    RuntimeErrorFeedback,
+    IncorrectFeedback,
+    SuccessFeedback,
+    InfrastructureFailureFeedback,
+)
 from arid_badger.max_reward_puct.search import (
     search,
     resume_search,
@@ -23,7 +34,7 @@ from arid_badger.max_reward_puct.search import (
     calculate_puct_scores,
     set_parent_info,
 )
-from arid_badger.max_reward_puct.checkpoint import PuctCheckpoint
+from arid_badger.max_reward_puct.checkpoint import FilePuctCheckpointProvider, PuctCheckpoint
 
 
 def _eval(reward: float | None) -> Evaluation[NoFeedback]:
@@ -526,3 +537,194 @@ def test_resume_idempotent_when_complete():
     )
 
     assert len(mutation_calls) == 0, "No mutations should occur when resuming a completed search"
+
+
+# FilePuctCheckpointProvider JSON round-trip tests
+
+
+def test_file_checkpoint_json_round_trip_no_feedback(tmp_path: Path) -> None:
+    """Checkpoint with NoFeedback nodes serializes and deserializes via JSON correctly."""
+    node_a = Node(program_code="0000", evaluation=_eval(0.0), ancestors=[], is_seed=True)
+    node_b = Node(program_code="0001", evaluation=_eval(1.0), ancestors=[node_a.ulid])
+
+    checkpoint = PuctCheckpoint[NoFeedback](
+        archive=[node_a, node_b],
+        seed_ids={node_a.ulid},
+        visit_counts={node_a.ulid: 3},
+        best_child_rewards={node_a.ulid: 1.0},
+        global_expansion_count=5,
+        current_step=2,
+    )
+
+    provider: FilePuctCheckpointProvider[NoFeedback] = FilePuctCheckpointProvider(
+        path=tmp_path / "checkpoint.json",
+        checkpoint_type=PuctCheckpoint[NoFeedback],
+    )
+    provider.save(checkpoint)
+    loaded = provider.load()
+
+    assert loaded is not None
+    assert loaded.current_step == 2
+    assert loaded.global_expansion_count == 5
+    assert len(loaded.archive) == 2
+
+    loaded_ulids = {n.ulid for n in loaded.archive}
+    assert node_a.ulid in loaded_ulids
+    assert node_b.ulid in loaded_ulids
+
+    assert node_a.ulid in loaded.seed_ids
+    assert loaded.visit_counts[node_a.ulid] == 3
+    assert loaded.best_child_rewards[node_a.ulid] == 1.0
+
+    loaded_b = next(n for n in loaded.archive if n.ulid == node_b.ulid)
+    assert loaded_b.ancestors == [node_a.ulid]
+
+
+def test_file_checkpoint_load_returns_none_when_missing(tmp_path: Path) -> None:
+    """load() returns None when the checkpoint file does not exist."""
+    provider: FilePuctCheckpointProvider[NoFeedback] = FilePuctCheckpointProvider(
+        path=tmp_path / "nonexistent.json",
+        checkpoint_type=PuctCheckpoint[NoFeedback],
+    )
+    assert provider.load() is None
+
+
+def test_file_checkpoint_json_round_trip_kernelbench_all_feedback_variants(
+    tmp_path: Path,
+) -> None:
+    """All five KernelBench feedback variants survive a JSON checkpoint round-trip."""
+
+    def _kb_eval(feedback: object, reward: float | None) -> Evaluation[KernelBenchObservation]:
+        return Evaluation[KernelBenchObservation](
+            observation=KernelBenchObservation(feedback=feedback),  # type: ignore[arg-type]
+            reward=reward,
+        )
+
+    node_compile = Node(
+        program_code="kernel_compile_fail",
+        evaluation=_kb_eval(
+            CompileFailedFeedback(
+                compilation_error_name="SyntaxError",
+                compilation_error="unexpected token",
+            ),
+            reward=None,
+        ),
+        ancestors=[],
+        is_seed=True,
+    )
+    node_runtime = Node(
+        program_code="kernel_runtime_error",
+        evaluation=_kb_eval(
+            RuntimeErrorFeedback(
+                runtime_error_name="RuntimeError",
+                runtime_error="segfault",
+                runtime_error_traceback="traceback here",
+            ),
+            reward=None,
+        ),
+        ancestors=[node_compile.ulid],
+    )
+    node_incorrect = Node(
+        program_code="kernel_incorrect",
+        evaluation=_kb_eval(
+            IncorrectFeedback(
+                correctness_issue="wrong output",
+                max_difference=["0.5"],
+                avg_difference=["0.1"],
+            ),
+            reward=None,
+        ),
+        ancestors=[node_compile.ulid],
+    )
+    node_success = Node(
+        program_code="kernel_success",
+        evaluation=_kb_eval(
+            SuccessFeedback(runtime_us=100.0, ref_runtime_us=200.0, speedup=2.0),
+            reward=2.0,
+        ),
+        ancestors=[node_compile.ulid],
+    )
+    node_infra = Node(
+        program_code="kernel_infra_fail",
+        evaluation=_kb_eval(
+            InfrastructureFailureFeedback(reason="subprocess timeout"),
+            reward=None,
+        ),
+        ancestors=[node_compile.ulid],
+    )
+
+    all_nodes = [node_compile, node_runtime, node_incorrect, node_success, node_infra]
+
+    checkpoint = PuctCheckpoint[KernelBenchObservation](
+        archive=all_nodes,
+        seed_ids={node_compile.ulid},
+        visit_counts={node_compile.ulid: 4},
+        best_child_rewards={node_compile.ulid: 2.0},
+        global_expansion_count=4,
+        current_step=4,
+    )
+
+    provider: FilePuctCheckpointProvider[KernelBenchObservation] = FilePuctCheckpointProvider(
+        path=tmp_path / "kb_checkpoint.json",
+        checkpoint_type=PuctCheckpoint[KernelBenchObservation],
+    )
+    provider.save(checkpoint)
+    loaded = provider.load()
+
+    assert loaded is not None
+    assert len(loaded.archive) == 5
+
+    by_ulid = {n.ulid: n for n in loaded.archive}
+
+    fb_compile = by_ulid[node_compile.ulid].evaluation.observation.feedback
+    assert fb_compile.kind == "compile_failed"
+    assert fb_compile.compilation_error_name == "SyntaxError"
+
+    fb_runtime = by_ulid[node_runtime.ulid].evaluation.observation.feedback
+    assert fb_runtime.kind == "runtime_error"
+    assert fb_runtime.runtime_error == "segfault"
+    assert by_ulid[node_runtime.ulid].ancestors == [node_compile.ulid]
+
+    fb_incorrect = by_ulid[node_incorrect.ulid].evaluation.observation.feedback
+    assert fb_incorrect.kind == "incorrect"
+    assert fb_incorrect.correctness_issue == "wrong output"
+
+    fb_success = by_ulid[node_success.ulid].evaluation.observation.feedback
+    assert fb_success.kind == "success"
+    assert fb_success.speedup == 2.0
+    assert by_ulid[node_success.ulid].evaluation.reward == 2.0
+
+    fb_infra = by_ulid[node_infra.ulid].evaluation.observation.feedback
+    assert fb_infra.kind == "infrastructure_failure"
+    assert fb_infra.reason == "subprocess timeout"
+
+
+def test_file_checkpoint_produces_valid_json(tmp_path: Path) -> None:
+    """Saved checkpoint file contains valid JSON with expected top-level keys."""
+    node = Node(program_code="0000", evaluation=_eval(0.0), ancestors=[], is_seed=True)
+    checkpoint = PuctCheckpoint[NoFeedback](
+        archive=[node],
+        seed_ids={node.ulid},
+        visit_counts={},
+        best_child_rewards={},
+        global_expansion_count=0,
+        current_step=0,
+    )
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    provider: FilePuctCheckpointProvider[NoFeedback] = FilePuctCheckpointProvider(
+        path=checkpoint_path,
+        checkpoint_type=PuctCheckpoint[NoFeedback],
+    )
+    provider.save(checkpoint)
+
+    raw = checkpoint_path.read_text()
+    data = json.loads(raw)
+
+    assert isinstance(data, dict)
+    assert "archive" in data
+    assert "seed_ids" in data
+    assert "visit_counts" in data
+    assert "best_child_rewards" in data
+    assert "global_expansion_count" in data
+    assert "current_step" in data

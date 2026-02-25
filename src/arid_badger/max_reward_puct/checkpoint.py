@@ -7,9 +7,8 @@ allowing interrupted searches to be resumed.
 
 from pathlib import Path
 from typing import Dict, List, Set, Optional, Protocol, Generic
-import pickle
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from ulid import ULID
 
 from arid_badger.hill_climbing.domain import Node, ObservationT
@@ -23,8 +22,6 @@ class PuctCheckpoint(BaseModel, Generic[ObservationT]):
     best_child_rewards: Dict[ULID, float]
     global_expansion_count: int
     current_step: int
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class PuctCheckpointProvider(Protocol[ObservationT]):
@@ -55,29 +52,36 @@ class FilePuctCheckpointProvider(PuctCheckpointProvider[ObservationT]):
     """
     Provider that saves/loads checkpoints to/from a file.
 
-    Uses pickle for serialization, which efficiently handles
-    the nested Pydantic model structure.
+    Uses JSON via Pydantic's model_dump_json()/model_validate_json() for
+    human-readable, safe serialization.
     """
 
-    def __init__(self, path: Path):
+    def __init__(
+        self,
+        path: Path,
+        checkpoint_type: type[PuctCheckpoint[ObservationT]] = PuctCheckpoint,
+    ):
         """
         Initialize provider with a file path.
 
         Args:
             path: Path where checkpoint will be saved/loaded
+            checkpoint_type: Concrete generic type used for deserialization,
+                e.g. PuctCheckpoint[KernelBenchObservation]
         """
         self.path = path
+        self._checkpoint_type = checkpoint_type
 
     def save(self, checkpoint: PuctCheckpoint[ObservationT]) -> None:
         """
-        Save checkpoint to file using pickle.
+        Save checkpoint to file as JSON.
 
         Creates parent directories if they don't exist.
         Overwrites existing checkpoint file.
         """
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.path, "wb") as f:
-            pickle.dump(checkpoint, f)
+        with open(self.path, "w") as f:
+            f.write(checkpoint.model_dump_json())
 
     def load(self) -> Optional[PuctCheckpoint[ObservationT]]:
         """
@@ -88,8 +92,8 @@ class FilePuctCheckpointProvider(PuctCheckpointProvider[ObservationT]):
         """
         if not self.path.exists():
             return None
-        with open(self.path, "rb") as f:
-            return pickle.load(f)
+        with open(self.path, "r") as f:
+            return self._checkpoint_type.model_validate_json(f.read())
 
 
 implements(PuctCheckpointProvider)(FilePuctCheckpointProvider)
