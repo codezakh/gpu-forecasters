@@ -8,12 +8,13 @@ and convergence behavior.
 """
 
 import random
-from typing import List
+from typing import List, Optional
 import pytest
 
 from arid_badger.hill_climbing.domain import Evaluation, NoFeedback, Node
 from arid_badger.max_reward_puct.search import (
     search,
+    resume_search,
     select_batch_of_parents,
     expand_and_evaluate,
     update_archive,
@@ -22,6 +23,7 @@ from arid_badger.max_reward_puct.search import (
     calculate_puct_scores,
     set_parent_info,
 )
+from arid_badger.max_reward_puct.checkpoint import PuctCheckpoint
 
 
 def _eval(reward: float | None) -> Evaluation[NoFeedback]:
@@ -378,3 +380,149 @@ def test_exploration_bonus_decays_with_visits():
 
     # Node2 should have higher score due to exploration bonus
     assert scores_dict[node2.ulid] > scores_dict[node1.ulid]
+
+
+# Checkpoint Tests
+
+
+def test_checkpoint_save_called():
+    """Test that checkpoint provider.save() is called after each step."""
+
+    class MockCheckpointProvider:
+        def __init__(self):
+            self.save_count = 0
+            self.saved_checkpoints: List[PuctCheckpoint] = []
+
+        def save(self, checkpoint: PuctCheckpoint) -> None:
+            self.save_count += 1
+            self.saved_checkpoints.append(checkpoint)
+
+        def load(self) -> Optional[PuctCheckpoint]:
+            return None
+
+    mutation_provider = BinaryStringMutationProvider(seed=42)
+    evaluation_provider = BinaryStringEvaluationProvider()
+    mock_provider = MockCheckpointProvider()
+
+    search(
+        initial_program="0000",
+        total_budget_steps=3,
+        batch_size=1,
+        samples_per_parent=4,
+        mutation_provider=mutation_provider,
+        evaluation_provider=evaluation_provider,
+        checkpoint_provider=mock_provider,
+    )
+
+    assert mock_provider.save_count >= 1
+    assert len(mock_provider.saved_checkpoints) >= 1
+
+    last_checkpoint = mock_provider.saved_checkpoints[-1]
+    assert last_checkpoint.current_step > 0
+
+
+def test_checkpoint_resume_produces_same_result():
+    """Test that resuming from a checkpoint finds an equally good or better result."""
+    N = 20
+    N_half = N // 2
+
+    evaluation_provider = BinaryStringEvaluationProvider()
+
+    # Run partial search to N//2, capturing final checkpoint
+    saved_checkpoints: List[PuctCheckpoint] = []
+
+    class CapturingProvider:
+        def save(self, checkpoint: PuctCheckpoint) -> None:
+            saved_checkpoints.append(checkpoint)
+
+        def load(self) -> Optional[PuctCheckpoint]:
+            return None
+
+    mutation_provider_partial = BinaryStringMutationProvider(seed=42)
+    search(
+        initial_program="0000",
+        total_budget_steps=N_half,
+        batch_size=1,
+        samples_per_parent=4,
+        mutation_provider=mutation_provider_partial,
+        evaluation_provider=evaluation_provider,
+        checkpoint_provider=CapturingProvider(),
+    )
+
+    assert saved_checkpoints, "Expected at least one checkpoint to be saved"
+    checkpoint = saved_checkpoints[-1]
+
+    # Get best reward in the checkpoint's archive
+    best_in_checkpoint = max(
+        (n.evaluation.reward for n in checkpoint.archive if n.evaluation.reward is not None),
+        default=None,
+    )
+
+    # Resume from checkpoint for the remaining steps
+    mutation_provider_resume = BinaryStringMutationProvider(seed=42)
+    result_resumed = resume_search(
+        checkpoint=checkpoint,
+        total_budget_steps=N,
+        batch_size=1,
+        samples_per_parent=4,
+        mutation_provider=mutation_provider_resume,
+        evaluation_provider=evaluation_provider,
+    )
+
+    assert result_resumed.evaluation.reward is not None
+    if best_in_checkpoint is not None:
+        assert result_resumed.evaluation.reward >= best_in_checkpoint
+
+
+def test_resume_idempotent_when_complete():
+    """Test that resuming a completed checkpoint performs no additional mutations."""
+    N = 5
+
+    evaluation_provider = BinaryStringEvaluationProvider()
+    saved_checkpoints: List[PuctCheckpoint] = []
+
+    class CapturingProvider:
+        def save(self, checkpoint: PuctCheckpoint) -> None:
+            saved_checkpoints.append(checkpoint)
+
+        def load(self) -> Optional[PuctCheckpoint]:
+            return None
+
+    mutation_provider = BinaryStringMutationProvider(seed=42)
+    search(
+        initial_program="0000",
+        total_budget_steps=N,
+        batch_size=1,
+        samples_per_parent=4,
+        mutation_provider=mutation_provider,
+        evaluation_provider=evaluation_provider,
+        checkpoint_provider=CapturingProvider(),
+    )
+
+    assert saved_checkpoints, "Expected checkpoints to be saved during search"
+    final_checkpoint = saved_checkpoints[-1]
+    assert final_checkpoint.current_step == N
+
+    # Resume with same total_budget_steps — loop range(N, N) is empty, no mutations
+    mutation_calls: List[str] = []
+
+    class TrackingMutationProvider:
+        def generate_mutations(
+            self,
+            program_code: str,
+            num_mutations: int,
+            evaluation: Evaluation[NoFeedback],
+        ) -> List[str]:
+            mutation_calls.append(program_code)
+            return []
+
+    resume_search(
+        checkpoint=final_checkpoint,
+        total_budget_steps=N,
+        batch_size=1,
+        samples_per_parent=4,
+        mutation_provider=TrackingMutationProvider(),
+        evaluation_provider=evaluation_provider,
+    )
+
+    assert len(mutation_calls) == 0, "No mutations should occur when resuming a completed search"

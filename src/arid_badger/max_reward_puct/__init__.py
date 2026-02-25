@@ -2,6 +2,7 @@
 
 from arid_badger.max_reward_puct.search import (
     search,
+    resume_search,
     select_batch_of_parents,
     expand_and_evaluate,
     update_archive,
@@ -17,9 +18,16 @@ from arid_badger.max_reward_puct.search import (
     get_content_key,
     set_parent_info,
 )
+from arid_badger.max_reward_puct.checkpoint import (
+    PuctCheckpoint,
+    PuctCheckpointProvider,
+    NoOpPuctCheckpointProvider,
+    FilePuctCheckpointProvider,
+)
 
 __all__ = [
     "search",
+    "resume_search",
     "select_batch_of_parents",
     "expand_and_evaluate",
     "update_archive",
@@ -34,4 +42,8 @@ __all__ = [
     "get_full_lineage",
     "get_content_key",
     "set_parent_info",
+    "PuctCheckpoint",
+    "PuctCheckpointProvider",
+    "NoOpPuctCheckpointProvider",
+    "FilePuctCheckpointProvider",
 ]

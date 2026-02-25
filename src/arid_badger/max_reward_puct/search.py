@@ -11,6 +11,11 @@ from arid_badger.hill_climbing.domain import (
     EvaluationProvider,
     ObservationT,
 )
+from arid_badger.max_reward_puct.checkpoint import (
+    PuctCheckpoint,
+    PuctCheckpointProvider,
+    NoOpPuctCheckpointProvider,
+)
 
 
 def get_global_scale(archive: Sequence[Node[ObservationT]], seed_ids: Set[ULID]) -> float:
@@ -382,32 +387,27 @@ def flush_archive(
         archive[:] = [archive[i] for i in sorted(keep)]
 
 
-def search(
-    initial_program: str,
+def _search_impl(
+    archive: List[Node[ObservationT]],
+    seed_ids: Set[ULID],
+    n: Dict[ULID, int],
+    m: Dict[ULID, float],
+    T: int,
+    current_step: int,
     total_budget_steps: int,
     batch_size: int,
     samples_per_parent: int,
     mutation_provider: MutationProvider[ObservationT],
     evaluation_provider: EvaluationProvider[ObservationT],
+    checkpoint_provider: PuctCheckpointProvider[ObservationT],
 ) -> Node[ObservationT]:
-    # Initialization
-    eval_result = evaluation_provider.evaluate(initial_program)
-    root: Node[ObservationT] = Node(
-        program_code=initial_program,
-        evaluation=eval_result,
-        is_seed=True,
-        ancestors=[],
-    )
+    """
+    Internal search implementation. Can be called from any state.
 
-    archive: List[Node[ObservationT]] = [root]
-    seed_ids = {root.ulid}
-
-    # External PUCT statistics
-    n: Dict[ULID, int] = {}
-    m: Dict[ULID, float] = {}
-    T: int = 0
-
-    for step in range(total_budget_steps):
+    This function is idempotent and doesn't distinguish between "initial" vs "resume" —
+    it simply continues from whatever state it receives.
+    """
+    for step in range(current_step, total_budget_steps):
         # A. SELECTION
         # Select parents with lineage blocking
         parents = select_batch_of_parents(archive, batch_size, n, m, T, seed_ids)
@@ -447,9 +447,103 @@ def search(
         )
         print(f"Step {step}: Best Reward = {best.evaluation.reward}")
 
+        # E. CHECKPOINT
+        checkpoint_provider.save(
+            PuctCheckpoint(
+                archive=archive,
+                seed_ids=seed_ids,
+                visit_counts=dict(n),
+                best_child_rewards=dict(m),
+                global_expansion_count=T,
+                current_step=step + 1,
+            )
+        )
+
     return max(
         archive,
         key=lambda s: s.evaluation.reward
         if s.evaluation.reward is not None
         else float("-inf"),
+    )
+
+
+def search(
+    initial_program: str,
+    total_budget_steps: int,
+    batch_size: int,
+    samples_per_parent: int,
+    mutation_provider: MutationProvider[ObservationT],
+    evaluation_provider: EvaluationProvider[ObservationT],
+    checkpoint_provider: PuctCheckpointProvider[ObservationT] = NoOpPuctCheckpointProvider(),  # type: ignore[assignment]
+) -> Node[ObservationT]:
+    # Initialization
+    eval_result = evaluation_provider.evaluate(initial_program)
+    root: Node[ObservationT] = Node(
+        program_code=initial_program,
+        evaluation=eval_result,
+        is_seed=True,
+        ancestors=[],
+    )
+
+    archive: List[Node[ObservationT]] = [root]
+    seed_ids = {root.ulid}
+
+    # External PUCT statistics
+    n: Dict[ULID, int] = {}
+    m: Dict[ULID, float] = {}
+    T: int = 0
+
+    return _search_impl(
+        archive=archive,
+        seed_ids=seed_ids,
+        n=n,
+        m=m,
+        T=T,
+        current_step=0,
+        total_budget_steps=total_budget_steps,
+        batch_size=batch_size,
+        samples_per_parent=samples_per_parent,
+        mutation_provider=mutation_provider,
+        evaluation_provider=evaluation_provider,
+        checkpoint_provider=checkpoint_provider,
+    )
+
+
+def resume_search(
+    checkpoint: PuctCheckpoint[ObservationT],
+    total_budget_steps: int,
+    batch_size: int,
+    samples_per_parent: int,
+    mutation_provider: MutationProvider[ObservationT],
+    evaluation_provider: EvaluationProvider[ObservationT],
+    checkpoint_provider: PuctCheckpointProvider[ObservationT] = NoOpPuctCheckpointProvider(),  # type: ignore[assignment]
+) -> Node[ObservationT]:
+    """
+    Resume a PUCT search from a saved checkpoint.
+
+    Args:
+        checkpoint: Checkpoint containing the search state to resume from.
+        total_budget_steps: Total number of steps (including already completed).
+        batch_size: Number of parents to select per step.
+        samples_per_parent: Number of mutations per parent per step.
+        mutation_provider: Provider for generating mutations.
+        evaluation_provider: Provider for evaluating programs.
+        checkpoint_provider: Provider for saving checkpoints during the resumed run.
+
+    Returns:
+        Best node found during the full search (including steps before the checkpoint).
+    """
+    return _search_impl(
+        archive=list(checkpoint.archive),
+        seed_ids=set(checkpoint.seed_ids),
+        n=dict(checkpoint.visit_counts),
+        m=dict(checkpoint.best_child_rewards),
+        T=checkpoint.global_expansion_count,
+        current_step=checkpoint.current_step,
+        total_budget_steps=total_budget_steps,
+        batch_size=batch_size,
+        samples_per_parent=samples_per_parent,
+        mutation_provider=mutation_provider,
+        evaluation_provider=evaluation_provider,
+        checkpoint_provider=checkpoint_provider,
     )
