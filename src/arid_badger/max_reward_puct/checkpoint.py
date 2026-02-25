@@ -8,7 +8,7 @@ allowing interrupted searches to be resumed.
 from pathlib import Path
 from typing import Dict, List, Set, Optional, Protocol, Generic
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 from ulid import ULID
 
 from arid_badger.hill_climbing.domain import Node, ObservationT
@@ -71,6 +71,14 @@ class FilePuctCheckpointProvider(PuctCheckpointProvider[ObservationT]):
         """
         self.path = path
         self._checkpoint_type = checkpoint_type
+        # Use TypeAdapter rather than checkpoint.model_dump_json() so that
+        # serialization uses the parametrized schema from checkpoint_type.
+        # Without this, an unparametrized PuctCheckpoint(...) construction
+        # (as in _search_impl) causes Pydantic to fall back to the TypeVar
+        # default schema (NoFeedback), silently dropping all observation fields.
+        self._type_adapter: TypeAdapter[PuctCheckpoint[ObservationT]] = TypeAdapter(
+            checkpoint_type
+        )
 
     def save(self, checkpoint: PuctCheckpoint[ObservationT]) -> None:
         """
@@ -80,8 +88,8 @@ class FilePuctCheckpointProvider(PuctCheckpointProvider[ObservationT]):
         Overwrites existing checkpoint file.
         """
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.path, "w") as f:
-            f.write(checkpoint.model_dump_json())
+        with open(self.path, "wb") as f:
+            f.write(self._type_adapter.dump_json(checkpoint))
 
     def load(self) -> Optional[PuctCheckpoint[ObservationT]]:
         """
@@ -92,8 +100,8 @@ class FilePuctCheckpointProvider(PuctCheckpointProvider[ObservationT]):
         """
         if not self.path.exists():
             return None
-        with open(self.path, "r") as f:
-            return self._checkpoint_type.model_validate_json(f.read())
+        with open(self.path, "rb") as f:
+            return self._type_adapter.validate_json(f.read())
 
 
 implements(PuctCheckpointProvider)(FilePuctCheckpointProvider)

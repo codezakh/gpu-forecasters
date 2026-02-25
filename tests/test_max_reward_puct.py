@@ -728,3 +728,56 @@ def test_file_checkpoint_produces_valid_json(tmp_path: Path) -> None:
     assert "best_child_rewards" in data
     assert "global_expansion_count" in data
     assert "current_step" in data
+
+
+def test_unparametrized_checkpoint_loses_kernelbench_observation(tmp_path: Path) -> None:
+    """Regression test for the e0007 serialization bug.
+
+    _search_impl creates PuctCheckpoint(archive=...) without the concrete type
+    parameter.  Previously, Pydantic serialized KernelBenchObservation using
+    NoFeedback's schema (the TypeVar default), silently dropping all observation
+    fields and causing a ValidationError on load.
+
+    FilePuctCheckpointProvider now uses a TypeAdapter built from checkpoint_type
+    for both save and load, so the correct parametrized schema is always used
+    regardless of how the PuctCheckpoint object was constructed.
+    """
+    node = Node(
+        program_code="kernel_code",
+        evaluation=Evaluation[KernelBenchObservation](
+            observation=KernelBenchObservation(
+                feedback=SuccessFeedback(runtime_us=100.0, ref_runtime_us=200.0, speedup=2.0)
+            ),
+            reward=2.0,
+        ),
+        ancestors=[],
+        is_seed=True,
+    )
+
+    # Simulate what _search_impl does: PuctCheckpoint without the type parameter.
+    checkpoint = PuctCheckpoint(
+        archive=[node],
+        seed_ids={node.ulid},
+        visit_counts={},
+        best_child_rewards={},
+        global_expansion_count=0,
+        current_step=1,
+    )
+
+    provider = FilePuctCheckpointProvider(
+        path=tmp_path / "checkpoint.json",
+        checkpoint_type=PuctCheckpoint[KernelBenchObservation],
+    )
+    provider.save(checkpoint)
+
+    loaded = provider.load()
+    assert loaded is not None
+    assert loaded.current_step == 1
+    assert len(loaded.archive) == 1
+    loaded_node = loaded.archive[0]
+    assert loaded_node.program_code == "kernel_code"
+    feedback = loaded_node.evaluation.observation.feedback
+    assert isinstance(feedback, SuccessFeedback)
+    assert feedback.speedup == 2.0
+    assert feedback.runtime_us == 100.0
+    assert feedback.ref_runtime_us == 200.0
