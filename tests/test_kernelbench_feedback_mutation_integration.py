@@ -9,7 +9,33 @@ from arid_badger.greedy_search.feedback_mutation import (
     KernelBenchExecutionFeedbackMutationFunction,
 )
 from arid_badger.greedy_search.scoring_provider import SerialScoringProvider
-from arid_badger.kernelbench.scoring import score_kernel
+from arid_badger.kernelbench.core import KernelScoringResult
+from arid_badger.kernelbench.isolated_scoring import run_scoring_in_subprocess
+from arid_badger.kernelbench.scoring import check_kernel_exec_result_valid
+
+
+def _score_kernel(
+    mutated_kernel_code: str,
+    reference_kernel_code: str,
+    backend: str = "cuda",
+    precision: str = "fp32",
+    num_correct_trials: int = 5,
+    num_perf_trials: int = 100,
+) -> KernelScoringResult:
+    result = run_scoring_in_subprocess(
+        mutated_kernel_code=mutated_kernel_code,
+        reference_kernel_code=reference_kernel_code,
+        backend=backend,
+        precision=precision,
+        num_correct_trials=num_correct_trials,
+        num_perf_trials=num_perf_trials,
+    )
+    if result.is_err():
+        raise RuntimeError(f"Scoring failed: {result.unwrap_err().reason}")
+    exec_result = result.unwrap()
+    is_valid = check_kernel_exec_result_valid(exec_result)
+    speedup = exec_result.ref_runtime / exec_result.runtime if is_valid else float("nan")
+    return KernelScoringResult(exec_result=exec_result, speedup=speedup, is_valid=is_valid)
 
 
 @pytest.mark.integration
@@ -27,7 +53,7 @@ def test_feedback_mutation_success_path_runs_end_to_end() -> None:
     starter_kernel_code: str = problem.code
 
     provider = SerialScoringProvider(
-        scoring_function=lambda code, ref: score_kernel(
+        scoring_function=lambda code, ref: _score_kernel(
             mutated_kernel_code=code,
             reference_kernel_code=ref,
             backend="cuda",
@@ -49,7 +75,7 @@ def test_feedback_mutation_success_path_runs_end_to_end() -> None:
     )
     mutated = KernelBenchExecutionFeedbackMutationFunction()(context)
 
-    scoring_result = score_kernel(
+    scoring_result = _score_kernel(
         mutated_kernel_code=mutated.kernel_code,
         reference_kernel_code=starter_kernel_code,
         backend="cuda",
@@ -78,7 +104,7 @@ def test_feedback_mutation_compile_failed_path_runs_end_to_end() -> None:
     starter_kernel_code: str = problem.code
 
     provider = SerialScoringProvider(
-        scoring_function=lambda code, ref: score_kernel(
+        scoring_function=lambda code, ref: _score_kernel(
             mutated_kernel_code=code,
             reference_kernel_code=ref,
             backend="cuda",
@@ -102,7 +128,7 @@ def test_feedback_mutation_compile_failed_path_runs_end_to_end() -> None:
     )
     mutated = KernelBenchExecutionFeedbackMutationFunction()(context)
 
-    scoring_result = score_kernel(
+    scoring_result = _score_kernel(
         mutated_kernel_code=mutated.kernel_code,
         reference_kernel_code=starter_kernel_code,
         backend="cuda",

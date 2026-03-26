@@ -1,13 +1,15 @@
 """Integration test for subprocess-isolated kernel scoring."""
 
 import math
+import re
 
 import pytest
 import torch
 from kernelbench.dataset import BaseDataset, Problem, construct_kernelbench_dataset
 
-import re
-from arid_badger.kernelbench.scoring import score_kernel
+from arid_badger.kernelbench.isolated_scoring import run_scoring_in_subprocess
+from arid_badger.kernelbench.scoring import check_kernel_exec_result_valid
+from arid_badger.typing_utils import is_ok
 
 
 @pytest.mark.integration
@@ -15,7 +17,7 @@ from arid_badger.kernelbench.scoring import score_kernel
 @pytest.mark.slow
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
 def test_isolated_scoring_returns_valid_result() -> None:
-    """score_kernel(isolate=True) should return a valid result for a known-good kernel."""
+    """run_scoring_in_subprocess should return a valid result for a known-good kernel."""
     dataset: BaseDataset = construct_kernelbench_dataset(
         level=1,
         source="local",
@@ -23,22 +25,16 @@ def test_isolated_scoring_returns_valid_result() -> None:
     problem: Problem = dataset.get_problem_by_id(1)
     reference_kernel_code: str = problem.code
 
-    # The reference kernel uses "Model"; we need a "ModelNew" variant for the
-    # mutated kernel.  For a simple identity test, just reuse the same logic
-    # under the ModelNew name.  Use a regex word-boundary match to avoid
-    # mangling "Module" → "ModelNewule".
-
     mutated_kernel_code = re.sub(r"\bModel\b", "ModelNew", reference_kernel_code)
 
     try:
-        result = score_kernel(
+        outcome = run_scoring_in_subprocess(
             mutated_kernel_code=mutated_kernel_code,
             reference_kernel_code=reference_kernel_code,
             backend="cuda",
             precision="fp32",
             num_correct_trials=1,
             num_perf_trials=5,
-            isolate=True,
         )
     except RuntimeError as exc:
         message = str(exc)
@@ -48,12 +44,16 @@ def test_isolated_scoring_returns_valid_result() -> None:
             )
         raise
 
-    exec_result = result.exec_result
+    assert is_ok(outcome), f"Scoring failed: {outcome.unwrap_err()}"
+    exec_result = outcome.unwrap()
     assert exec_result.compiled is True
     assert exec_result.correctness is True
     assert exec_result.runtime > 0
     assert exec_result.ref_runtime > 0
     assert math.isfinite(exec_result.runtime)
     assert math.isfinite(exec_result.ref_runtime)
-    assert result.speedup > 0
-    assert result.is_valid is True
+
+    is_valid = check_kernel_exec_result_valid(exec_result)
+    assert is_valid is True
+    speedup = exec_result.ref_runtime / exec_result.runtime
+    assert speedup > 0

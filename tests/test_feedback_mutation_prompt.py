@@ -3,12 +3,8 @@ from types import SimpleNamespace
 import pytest
 from ulid import ULID
 
-from arid_badger.greedy_search.domain import MutationContext
-from arid_badger.greedy_search.domain import (
-    CompileFailedFeedback,
-    SuccessFeedback,
-    ValidEvaluation,
-)
+from arid_badger.kernelbench.core import CompileFailedFeedback, SuccessFeedback
+from arid_badger.greedy_search.domain import MutationContext, ValidEvaluation
 from arid_badger.greedy_search.feedback_mutation import (
     KernelBenchExecutionFeedbackMutationFunction,
     format_feedback_mutation_prompt,

@@ -9,7 +9,32 @@ from arid_badger.greedy_search.kernelbench_prompt_mutation import (
     KernelBenchPromptMutationFunction,
 )
 from arid_badger.kernelbench.core import KernelScoringResult
-from arid_badger.kernelbench.scoring import score_kernel
+from arid_badger.kernelbench.isolated_scoring import run_scoring_in_subprocess
+from arid_badger.kernelbench.scoring import check_kernel_exec_result_valid
+
+
+def _score_kernel(
+    mutated_kernel_code: str,
+    reference_kernel_code: str,
+    backend: str = "cuda",
+    precision: str = "fp32",
+    num_correct_trials: int = 5,
+    num_perf_trials: int = 100,
+) -> KernelScoringResult:
+    result = run_scoring_in_subprocess(
+        mutated_kernel_code=mutated_kernel_code,
+        reference_kernel_code=reference_kernel_code,
+        backend=backend,
+        precision=precision,
+        num_correct_trials=num_correct_trials,
+        num_perf_trials=num_perf_trials,
+    )
+    if result.is_err():
+        raise RuntimeError(f"Scoring failed: {result.unwrap_err().reason}")
+    exec_result = result.unwrap()
+    is_valid = check_kernel_exec_result_valid(exec_result)
+    speedup = exec_result.ref_runtime / exec_result.runtime if is_valid else float("nan")
+    return KernelScoringResult(exec_result=exec_result, speedup=speedup, is_valid=is_valid)
 
 
 @pytest.mark.integration
@@ -69,7 +94,7 @@ def test_kernelbench_greedy_search_pipeline():
 
     # 7. Score the mutated kernel against the reference
     # Use fewer trials for faster test execution (integration test only needs to verify pipeline works)
-    scoring_result: KernelScoringResult = score_kernel(
+    scoring_result: KernelScoringResult = _score_kernel(
         mutated_kernel_code=mutated_kernel.kernel_code,
         reference_kernel_code=starter_kernel_code,
         backend=context.backend,

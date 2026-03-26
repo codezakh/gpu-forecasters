@@ -25,7 +25,7 @@ import pytest
 import torch
 from pathlib import Path
 
-from arid_badger.kernelbench.scoring import score_kernel
+from arid_badger.kernelbench.isolated_scoring import run_scoring_in_subprocess
 
 
 # Good reference kernel: simple PyTorch matmul (uses "Model" class)
@@ -148,16 +148,15 @@ def test_cuda_context_poisoning_from_illegal_memory_access() -> None:
     """
     Test that demonstrates CUDA context poisoning after illegal memory access.
 
-    This test is EXPECTED TO FAIL until subprocess isolation is implemented.
+    Now that subprocess isolation is implemented via run_scoring_in_subprocess,
+    this test verifies that step 3 passes (the good kernel still works because the
+    broken kernel was isolated in a subprocess).
 
     The test shows that:
     1. A valid kernel can be scored successfully (step 1)
-    2. A broken kernel triggers illegal memory access (step 2)
-    3. After poisoning, even the valid kernel from step 1 fails (step 3)
-
-    After subprocess isolation is implemented, this test should be updated to
-    verify that step 3 passes (the good kernel still works because the broken
-    kernel was isolated in a subprocess).
+    2. A broken kernel triggers illegal memory access, but the fault is contained
+       in the spawned subprocess — the parent process is not affected (step 2)
+    3. After the broken kernel, the valid kernel from step 1 still works (step 3)
 
     Related issue: docs/specs/gh004-fix-cuda-crash-poisoning-kernelbench-evals.md
     """
@@ -165,7 +164,7 @@ def test_cuda_context_poisoning_from_illegal_memory_access() -> None:
     # Step 1: Score good kernel (sanity check)
     # This should succeed without any issues
     print("\n=== Step 1: Scoring good kernel (sanity check) ===")
-    result_1 = score_kernel(
+    result_1 = run_scoring_in_subprocess(
         mutated_kernel_code=GOOD_MUTATED_KERNEL_CODE,
         reference_kernel_code=GOOD_REFERENCE_KERNEL_CODE,
         backend="cuda",
@@ -175,44 +174,36 @@ def test_cuda_context_poisoning_from_illegal_memory_access() -> None:
         build_dir=Path("/tmp/test_cuda_poisoning_good_1"),
     )
 
-    assert result_1.exec_result is not None, "First good kernel should compile"
+    assert result_1.is_ok(), f"First good kernel failed: {result_1.unwrap_err()}"
+    exec_result_1 = result_1.unwrap()
     assert (
-        result_1.exec_result.compiled
-    ), f"First good kernel failed to compile. Metadata: {result_1.exec_result.metadata!r}"
-    print(
-        f"✓ Step 1 passed: Good kernel scored successfully (speedup={result_1.speedup})"
+        exec_result_1.compiled
+    ), f"First good kernel failed to compile. Metadata: {exec_result_1.metadata!r}"
+    print("✓ Step 1 passed: Good kernel scored successfully")
+
+    # Step 2: Score broken kernel — the CUDA illegal memory access happens in the
+    # spawned subprocess, not the parent. The subprocess crashes or returns a failure
+    # result; either way the parent CUDA context is unaffected.
+    print("\n=== Step 2: Scoring broken kernel (subprocess absorbs CUDA fault) ===")
+    result_2 = run_scoring_in_subprocess(
+        mutated_kernel_code=BROKEN_KERNEL_CODE,
+        reference_kernel_code=GOOD_REFERENCE_KERNEL_CODE,
+        backend="cuda",
+        precision="fp32",
+        num_correct_trials=1,
+        num_perf_trials=5,
+        build_dir=Path("/tmp/test_cuda_poisoning_broken"),
     )
+    # The subprocess crashes or returns a failure result — either is acceptable.
+    # What matters is that the parent process is not affected.
+    print(f"✓ Step 2 complete: broken kernel result is_ok={result_2.is_ok()} (parent unaffected)")
 
-    # Step 2: Score broken kernel (poison the context)
-    # This should raise a CUDA error due to illegal memory access
-    print("\n=== Step 2: Scoring broken kernel (expecting CUDA error) ===")
-    with pytest.raises(
-        (torch.cuda.OutOfMemoryError, RuntimeError, torch.AcceleratorError),
-        match="(?i)(cuda|illegal|memory|accelerator)",
-    ):
-        score_kernel(
-            mutated_kernel_code=BROKEN_KERNEL_CODE,
-            reference_kernel_code=GOOD_REFERENCE_KERNEL_CODE,
-            backend="cuda",
-            precision="fp32",
-            num_correct_trials=1,
-            num_perf_trials=5,
-            build_dir=Path("/tmp/test_cuda_poisoning_broken"),
-        )
-    print("✓ Step 2 passed: Broken kernel raised expected CUDA error")
+    # Step 3: Try to score good kernel again (verify isolation worked)
+    # With subprocess isolation, the CUDA context in the parent process was never
+    # poisoned, so the good kernel should still work here.
+    print("\n=== Step 3: Scoring good kernel again (verifying no CUDA context poisoning) ===")
 
-    # Step 3: Try to score good kernel again (demonstrate poisoning)
-    # EXPECTED BEHAVIOR (current bug): This will fail with CUDA error even though
-    # it's the same valid kernel from step 1, because the CUDA context is poisoned.
-    #
-    # After subprocess isolation is implemented, this should pass.
-    print("\n=== Step 3: Scoring good kernel again (demonstrating poisoning) ===")
-    print(
-        "NOTE: This step is EXPECTED TO FAIL until subprocess isolation is implemented."
-    )
-    print("      The CUDA context is poisoned from step 2, so even valid kernels fail.")
-
-    result_3 = score_kernel(
+    result_3 = run_scoring_in_subprocess(
         mutated_kernel_code=GOOD_MUTATED_KERNEL_CODE,
         reference_kernel_code=GOOD_REFERENCE_KERNEL_CODE,
         backend="cuda",
@@ -222,13 +213,12 @@ def test_cuda_context_poisoning_from_illegal_memory_access() -> None:
         build_dir=Path("/tmp/test_cuda_poisoning_good_2"),
     )
 
-    # If we reach here without error, the CUDA context was NOT poisoned
-    # (which means subprocess isolation is working!)
-    assert result_3.exec_result is not None, "Second good kernel should compile"
+    # If this passes, the CUDA context was NOT poisoned in the parent process
+    # (subprocess isolation is working correctly)
+    assert result_3.is_ok(), f"Second good kernel failed after broken kernel: {result_3.unwrap_err()}"
+    exec_result_3 = result_3.unwrap()
     assert (
-        result_3.exec_result.compiled
-    ), f"Second good kernel failed to compile. Metadata: {result_3.exec_result.metadata!r}"
-    print(
-        f"✓ Step 3 passed: Good kernel still works after broken kernel (speedup={result_3.speedup})"
-    )
+        exec_result_3.compiled
+    ), f"Second good kernel failed to compile. Metadata: {exec_result_3.metadata!r}"
+    print("✓ Step 3 passed: Good kernel still works after broken kernel")
     print("✓ CUDA context isolation is working! The fix has been implemented.")

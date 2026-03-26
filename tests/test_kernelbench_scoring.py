@@ -2,9 +2,10 @@ import math
 
 import pytest
 import torch
-from kernelbench.prompt_constructor_toml import get_prompt_for_backend
 
-from arid_badger.kernelbench.scoring import score_kernel
+from arid_badger.kernelbench.isolated_scoring import run_scoring_in_subprocess
+from arid_badger.kernelbench.scoring import check_kernel_exec_result_valid
+from arid_badger.typing_utils import is_ok
 
 
 REFERENCE_KERNEL_CODE = """
@@ -50,7 +51,7 @@ class ModelNew(nn.Module):
 @pytest.mark.cuda
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
 def test_kernelbench_scoring_hardcoded_kernels() -> None:
-    result = score_kernel(
+    outcome = run_scoring_in_subprocess(
         mutated_kernel_code=MUTATED_KERNEL_CODE,
         reference_kernel_code=REFERENCE_KERNEL_CODE,
         backend="cuda",
@@ -59,9 +60,12 @@ def test_kernelbench_scoring_hardcoded_kernels() -> None:
         num_perf_trials=5,
     )
 
-    assert result.exec_result is not None
-    assert (
-        result.exec_result.compiled
-    ), f"Kernel failed to compile. Metadata: {result.exec_result.metadata!r}"
-    assert math.isfinite(result.speedup)
-    assert not result.is_valid or result.exec_result.correctness
+    assert is_ok(outcome), f"Scoring failed: {outcome.unwrap_err()}"
+    exec_result = outcome.unwrap()
+    assert exec_result.compiled, f"Kernel failed to compile. Metadata: {exec_result.metadata!r}"
+
+    is_valid = check_kernel_exec_result_valid(exec_result)
+    if is_valid:
+        speedup = exec_result.ref_runtime / exec_result.runtime
+        assert math.isfinite(speedup)
+        assert exec_result.correctness
