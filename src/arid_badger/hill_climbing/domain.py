@@ -15,6 +15,7 @@ from typing import List, Set, cast, Generic, Union, Annotated, Any
 from pydantic import BaseModel, ConfigDict, Field
 from typing import TypeVar, TypeGuard
 from typing import Literal, Protocol, Optional
+from typing import Self
 from ulid import ULID
 
 
@@ -32,11 +33,23 @@ class Evaluation(BaseModel, Generic[ObservationT]):
 
 
 class EvaluationProvider(Protocol[ObservationT]):
-    """Evaluates a program and returns its reward."""
+    """Evaluates a program and returns its reward.
+
+    Providers must be used as context managers to ensure proper lifecycle
+    management. Local providers implement no-op enter/exit; remote providers
+    (e.g. Modal) use them to open and close the remote session:
+
+        with Provider(reference_kernel_code=ref_code) as provider:
+            best = search(..., evaluation_provider=provider)
+    """
 
     def evaluate(self, program_code: str) -> Evaluation[ObservationT]:
         """Returns reward (or None if evaluation failed)."""
         ...
+
+    def __enter__(self) -> Self: ...
+
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None: ...
 
 
 class MutationProvider(Protocol[ObservationT]):

@@ -57,6 +57,12 @@ class Provider:
         self.num_perf_trials = num_perf_trials
         self.build_dir = build_dir
 
+    def __enter__(self) -> "Provider":
+        return self
+
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
+        pass
+
     def evaluate(self, program_code: str) -> Evaluation[KernelBenchObservation]:
         outcome = run_scoring_in_subprocess(
             mutated_kernel_code=program_code,

@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "ipdb>=0.13.13",
+    "modal>=1.0",
     "kernelbench",
     "litellm>=1.81.5",
     "loguru>=0.7.3",
@@ -45,6 +46,7 @@ markers = [
     "asyncio: mark test as async",
     "cuda: requires CUDA-capable GPU",
     "integration: integration test requiring external services",
+    "modal: requires Modal authentication and a remote GPU",
     "poisoning: test that intentionally poisons CUDA context (run in isolation)",
     "slow: self-explanatory"
 ]
