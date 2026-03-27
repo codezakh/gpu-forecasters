@@ -23,6 +23,7 @@ dependencies = [
     "torch >= 2.5.1",
     "transformers >= 4.57.3",
     "wandb>=0.23.1",
+    "scipy>=1.17.1",
 ]
 
 [project.scripts]
