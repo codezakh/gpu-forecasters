@@ -78,7 +78,10 @@ class ModalKernelEvaluator:
         num_perf_trials: int = 100,
     ) -> KernelExecResult:
         import torch
-        from kernelbench.eval import eval_kernel_against_ref, get_torch_dtype_from_string
+        from kernelbench.eval import (
+            eval_kernel_against_ref,
+            get_torch_dtype_from_string,
+        )
         from kernelbench.utils import set_gpu_arch
 
         # Wait for the GPU to become available (containers occasionally start
@@ -87,9 +90,7 @@ class ModalKernelEvaluator:
         while not torch.cuda.is_available():
             elapsed = time.time() - start
             if elapsed >= _GPU_WAIT_TIMEOUT_S:
-                raise RuntimeError(
-                    f"GPU not available after {_GPU_WAIT_TIMEOUT_S}s"
-                )
+                raise RuntimeError(f"GPU not available after {_GPU_WAIT_TIMEOUT_S}s")
             delay = min(
                 _GPU_WAIT_INITIAL_DELAY_S * (2 ** int(elapsed / 2)),
                 _GPU_WAIT_MAX_DELAY_S,
@@ -163,9 +164,12 @@ def modal_scoring_session(
         that returns ``Option[KernelExecResult, ScoringError]``.
     """
     gpu_arch = GPU_ARCH_MAPPING.get(gpu, ["Ampere"])
-    evaluator = ModalKernelEvaluator.with_options(gpu=gpu)  # ty: ignore[unresolved-attribute]
+    evaluator = ModalKernelEvaluator.with_options(  # ty: ignore[unresolved-attribute]  # pyright: ignore[reportAttributeAccessIssue]
+        gpu=gpu
+    )
 
     with app.run():
+
         def score(
             mutated_kernel_code: str,
             reference_kernel_code: str,
