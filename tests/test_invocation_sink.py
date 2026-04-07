@@ -126,6 +126,19 @@ class TestFilesystemInvocationSink:
         sink = FilesystemInvocationSink(tmp_path)
         assert isinstance(sink, InvocationSink)
 
+    def test_record_does_not_raise_on_write_failure(self, tmp_path: Path) -> None:
+        sink = FilesystemInvocationSink(tmp_path)
+        with patch("arid_badger.invocation_sink.Path.write_text", side_effect=OSError("disk full")):
+            sink.record(_SimpleRecord(value=1))  # must not raise
+
+    def test_record_writes_to_nested_nonexistent_path(self, tmp_path: Path) -> None:
+        subdir = tmp_path / "deep" / "nested"
+        assert not subdir.exists()
+        sink = FilesystemInvocationSink(subdir)
+        sink.record(_SimpleRecord(value=7))
+        files = list(subdir.iterdir())
+        assert len(files) == 1
+
 
 # ---------------------------------------------------------------------------
 # code_sha256

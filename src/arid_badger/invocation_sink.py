@@ -4,6 +4,14 @@ Each provider (evaluator or mutator) accepts an optional ``InvocationSink``.
 When present, the provider writes a structured record after each invocation.
 When ``None``, no tracking occurs and there is zero overhead.
 
+**Fault tolerance contract**
+-----------------------------
+``InvocationSink`` implementations MUST NOT raise exceptions under any
+circumstances.  Sinks are optional cost-tracking infrastructure; a transient
+write failure (disk full, permissions error, etc.) must never propagate up and
+abort the provider call that triggered it.  Implementations should log a
+warning and swallow the error.
+
 Tying records back to search nodes
 ------------------------------------
 Records are tied to ``Node`` objects via ``code_sha256``, a SHA-256 digest of
@@ -19,13 +27,17 @@ import hashlib
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from loguru import logger
 from pydantic import BaseModel
 from ulid import ULID
 
 
 @runtime_checkable
 class InvocationSink(Protocol):
-    """Receives and persists provider invocation records."""
+    """Receives and persists provider invocation records.
+
+    Implementations must never raise — see module docstring.
+    """
 
     def record(self, payload: BaseModel) -> None: ...
 
@@ -38,6 +50,8 @@ class FilesystemInvocationSink:
     - No filename collisions across concurrent writers.
     - No file-level locking required (one file per record).
     - Natural chronological ordering (ULIDs are time-sortable).
+
+    Write failures are caught and logged as warnings; they never propagate.
     """
 
     def __init__(self, directory: Path) -> None:
@@ -45,9 +59,15 @@ class FilesystemInvocationSink:
         self._directory.mkdir(parents=True, exist_ok=True)
 
     def record(self, payload: BaseModel) -> None:
-        record_id = str(ULID())
-        path = self._directory / f"{record_id}.json"
-        path.write_text(payload.model_dump_json(indent=2))
+        try:
+            record_id = str(ULID())
+            path = self._directory / f"{record_id}.json"
+            path.write_text(payload.model_dump_json(indent=2))
+        except Exception:
+            logger.opt(exception=True).warning(
+                "FilesystemInvocationSink failed to write record; "
+                "cost tracking may be incomplete."
+            )
 
 
 def code_sha256(program_code: str) -> str:
