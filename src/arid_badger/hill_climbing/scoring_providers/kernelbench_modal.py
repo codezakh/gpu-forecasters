@@ -17,10 +17,15 @@ local providers implement no-op enter/exit, Modal manages its session.
 from __future__ import annotations
 
 import logging
+import time
 from contextlib import AbstractContextManager
+from datetime import datetime, timezone
 from types import TracebackType
-from typing import Optional
+from typing import Literal, Optional
 
+from pydantic import BaseModel
+
+from arid_badger.invocation_sink import InvocationSink, code_sha256
 from arid_badger.kernelbench.core import (
     InfrastructureFailureFeedback,
     execution_feedback_from_exec_result,
@@ -30,6 +35,16 @@ from arid_badger.kernelbench.scoring import check_kernel_exec_result_valid
 from arid_badger.typing_utils import is_ok
 from ..domain import Evaluation
 from .kernelbench import KernelBenchObservation
+
+
+class ModalEvaluationRecord(BaseModel, frozen=True):
+    """Invocation record for a single Modal GPU kernel evaluation."""
+
+    kind: Literal["modal_evaluation"] = "modal_evaluation"
+    code_sha256: str
+    wall_clock_seconds: float
+    reward: float | None
+    timestamp_utc: str
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +64,7 @@ class ModalProvider(AbstractContextManager["ModalProvider"]):
         precision: str = "fp32",
         num_correct_trials: int = 5,
         num_perf_trials: int = 100,
+        invocation_sink: Optional[InvocationSink] = None,
     ) -> None:
         self._reference_kernel_code = reference_kernel_code
         self._gpu = gpu
@@ -56,6 +72,7 @@ class ModalProvider(AbstractContextManager["ModalProvider"]):
         self._precision = precision
         self._num_correct_trials = num_correct_trials
         self._num_perf_trials = num_perf_trials
+        self._invocation_sink = invocation_sink
         self._session_cm: Optional[AbstractContextManager[ScoringFn]] = None
         self._score_fn: Optional[ScoringFn] = None
 
@@ -86,10 +103,12 @@ class ModalProvider(AbstractContextManager["ModalProvider"]):
                 "Use: `with ModalProvider(...) as provider: provider.evaluate(...)`"
             )
 
+        start_time_s = time.perf_counter()
         outcome = self._score_fn(
             program_code,
             self._reference_kernel_code,
         )
+        wall_clock_seconds = time.perf_counter() - start_time_s
 
         if not is_ok(outcome):
             scoring_error = outcome.unwrap_err()
@@ -97,6 +116,15 @@ class ModalProvider(AbstractContextManager["ModalProvider"]):
             observation = KernelBenchObservation(
                 feedback=InfrastructureFailureFeedback(reason=scoring_error.reason),
             )
+            if self._invocation_sink is not None:
+                self._invocation_sink.record(
+                    ModalEvaluationRecord(
+                        code_sha256=code_sha256(program_code),
+                        wall_clock_seconds=wall_clock_seconds,
+                        reward=None,
+                        timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                    )
+                )
             return Evaluation[KernelBenchObservation](
                 observation=observation, reward=None
             )
@@ -113,8 +141,19 @@ class ModalProvider(AbstractContextManager["ModalProvider"]):
             is_valid=is_valid,
         )
         observation = KernelBenchObservation(feedback=feedback)
+        reward = speedup if is_valid else None
+
+        if self._invocation_sink is not None:
+            self._invocation_sink.record(
+                ModalEvaluationRecord(
+                    code_sha256=code_sha256(program_code),
+                    wall_clock_seconds=wall_clock_seconds,
+                    reward=reward,
+                    timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                )
+            )
 
         return Evaluation[KernelBenchObservation](
             observation=observation,
-            reward=speedup if is_valid else None,
+            reward=reward,
         )

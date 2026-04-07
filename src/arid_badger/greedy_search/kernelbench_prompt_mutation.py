@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Literal
 
 from kernelbench.prompt_constructor_toml import get_prompt_for_backend
@@ -7,9 +8,24 @@ from kernelbench.utils import extract_first_code
 from litellm import completion
 from loguru import logger
 import time
+from pydantic import BaseModel
 
+from arid_badger.invocation_sink import InvocationSink, code_sha256
 from arid_badger.typing_utils import implements
 from .domain import MutationContext, MutationFunction, MutatedKernel
+
+
+class PromptMutationRecord(BaseModel, frozen=True):
+    """Invocation record for a single KernelBench prompt mutation LLM call."""
+
+    kind: Literal["prompt_mutation"] = "prompt_mutation"
+    parent_code_sha256: str
+    child_code_sha256: str
+    model_slug: str
+    input_tokens: int
+    output_tokens: int
+    wall_clock_seconds: float
+    timestamp_utc: str
 
 
 class KernelBenchPromptMutationFunction:
@@ -20,9 +36,11 @@ class KernelBenchPromptMutationFunction:
         *,
         model_slug: str = "gemini/gemini-3-flash-preview",
         prompt_option: Literal["zero_shot", "one_shot", "few_shot"] = "one_shot",
+        invocation_sink: InvocationSink | None = None,
     ) -> None:
         self._model_slug = model_slug
         self._prompt_option = prompt_option
+        self._invocation_sink = invocation_sink
 
     def _build_prompt(self, context: MutationContext) -> str:
         return get_prompt_for_backend(
@@ -77,6 +95,22 @@ class KernelBenchPromptMutationFunction:
             "Mutation produced kernel code (chars={length}).",
             length=len(kernel_code),
         )
+
+        if self._invocation_sink is not None:
+            raw_usage = response.usage  # pyright: ignore[reportAttributeAccessIssue]
+            if raw_usage is not None:
+                self._invocation_sink.record(
+                    PromptMutationRecord(
+                        parent_code_sha256=code_sha256(context.previous_kernel_code),
+                        child_code_sha256=code_sha256(kernel_code),
+                        model_slug=self._model_slug,
+                        input_tokens=raw_usage.prompt_tokens,
+                        output_tokens=raw_usage.completion_tokens,
+                        wall_clock_seconds=elapsed_s,
+                        timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                    )
+                )
+
         return mutated
 
 
