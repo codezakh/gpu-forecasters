@@ -16,7 +16,7 @@ local providers implement no-op enter/exit, Modal manages its session.
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import time
 from datetime import datetime, timezone
 from contextlib import AbstractContextManager
@@ -46,9 +46,6 @@ class ModalEvaluationRecord(BaseModel, frozen=True):
     wall_clock_seconds: float
     reward: float | None
     timestamp_utc: str
-
-
-logger = logging.getLogger(__name__)
 
 
 class ModalProvider:
@@ -118,7 +115,11 @@ class ModalProvider:
 
         if not is_ok(outcome):
             scoring_error = outcome.unwrap_err()
-            logger.warning("Modal kernel scoring failed: %s", scoring_error.reason)
+            logger.warning(
+                "Modal eval failed after {elapsed:.1f}s: {reason}",
+                elapsed=wall_clock_seconds,
+                reason=scoring_error.reason,
+            )
             observation = KernelBenchObservation(
                 feedback=InfrastructureFailureFeedback(reason=scoring_error.reason),
             )
@@ -147,10 +148,18 @@ class ModalProvider:
         observation = KernelBenchObservation(feedback=feedback)
         reward = speedup if is_valid else None
 
+        sha = code_sha256(program_code)
+        logger.info(
+            "Modal eval done: reward={reward}, elapsed={elapsed:.1f}s, sha256={sha}",
+            reward=f"{reward:.4f}" if reward is not None else "None",
+            elapsed=wall_clock_seconds,
+            sha=sha[:8],
+        )
+
         if self._invocation_sink is not None:
             self._invocation_sink.record(
                 ModalEvaluationRecord(
-                    code_sha256=code_sha256(program_code),
+                    code_sha256=sha,
                     wall_clock_seconds=wall_clock_seconds,
                     reward=reward,
                     timestamp_utc=datetime.now(timezone.utc).isoformat(),

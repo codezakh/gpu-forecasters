@@ -3,6 +3,9 @@ from typing import List, Sequence, Set, Mapping, Tuple, Dict
 import numpy as np
 import numpy.typing as npt
 import math
+
+from loguru import logger
+
 from collections import defaultdict
 
 from arid_badger.hill_climbing.domain import (
@@ -415,6 +418,14 @@ def _search_impl(
         if not parents:
             break
 
+        logger.info(
+            "Step {step}/{total}: selecting {nparents} parent(s), launching {nevals} evaluation(s).",
+            step=step,
+            total=total_budget_steps,
+            nparents=len(parents),
+            nevals=len(parents) * samples_per_parent,
+        )
+
         # B. EXPANSION
         # Generate and evaluate children
         children, parent_states = expand_and_evaluate(
@@ -445,7 +456,13 @@ def _search_impl(
             if s.evaluation.reward is not None
             else float("-inf"),
         )
-        print(f"Step {step}: Best Reward = {best.evaluation.reward}")
+        logger.info(
+            "Step {step}/{total} complete: archive_size={size}, best_reward={reward}.",
+            step=step,
+            total=total_budget_steps,
+            size=len(archive),
+            reward=f"{best.evaluation.reward:.4f}" if best.evaluation.reward is not None else "None",
+        )
 
         # E. CHECKPOINT
         checkpoint_provider.save(
