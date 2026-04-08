@@ -21,13 +21,17 @@ import time
 from datetime import datetime, timezone
 from contextlib import AbstractContextManager
 from types import TracebackType
-from typing import Literal, Optional, cast
+from typing import Literal, Optional, assert_never, cast
 
 from pydantic import BaseModel
 
 from arid_badger.invocation_sink import InvocationSink, code_sha256
 from arid_badger.kernelbench.core import (
+    CompileFailedFeedback,
     InfrastructureFailureFeedback,
+    IncorrectFeedback,
+    RuntimeErrorFeedback,
+    SuccessFeedback,
     execution_feedback_from_exec_result,
 )
 from arid_badger.kernelbench.modal_scoring import modal_scoring_session, ScoringFn
@@ -150,11 +154,24 @@ class ModalProvider:
         observation = KernelBenchObservation(feedback=feedback)
         reward = speedup if is_valid else None
 
+        match feedback:
+            case SuccessFeedback():
+                outcome = "success"
+            case CompileFailedFeedback(compilation_error_name=name):
+                outcome = f"compile_failed({name})"
+            case RuntimeErrorFeedback(runtime_error_name=name):
+                outcome = f"runtime_error({name})"
+            case IncorrectFeedback():
+                outcome = "incorrect"
+            case _:
+                assert_never(feedback)
+
         logger.info(
-            "Modal eval done: reward={reward}, elapsed={elapsed:.1f}s, sha256={sha}",
+            "Modal eval done: reward={reward}, elapsed={elapsed:.1f}s, sha256={sha}, outcome={outcome}",
             reward=f"{reward:.4f}" if reward is not None else "None",
             elapsed=wall_clock_seconds,
             sha=sha[:8],
+            outcome=outcome,
         )
 
         if self._invocation_sink is not None:
