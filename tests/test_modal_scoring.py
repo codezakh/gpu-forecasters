@@ -12,6 +12,7 @@ import pytest
 from arid_badger.kernelbench.modal_scoring import (
     modal_scoring_session,
     run_scoring_on_modal,
+    _wrap_exec_result,
 )
 from arid_badger.hill_climbing.scoring_providers.kernelbench_modal import ModalProvider
 from arid_badger.typing_utils import is_ok, is_err
@@ -132,6 +133,23 @@ def test_run_scoring_on_modal_convenience() -> None:
     exec_result = result.unwrap()
     assert exec_result.compiled
     assert exec_result.correctness
+
+
+def test_wrap_exec_result_returns_err_for_none() -> None:
+    """_wrap_exec_result returns Err when eval_kernel_against_ref returns None.
+
+    eval_kernel_against_ref returns None (not raises, not a failed KernelExecResult)
+    on lock-file / 'No such file or directory' errors during compilation. Callers
+    must never receive Ok(None), so None must be converted to Err(ScoringError).
+
+    The correct treatment is Err rather than Ok(KernelExecResult(compiled=False)):
+    the lock-file error is a Modal infrastructure race, not a defect in the kernel.
+    The LLM cannot act on this feedback — it cannot fix a file-system race — so
+    routing it to InfrastructureFailureFeedback (zero-shot fallback) is better than
+    a misleading 'compile failed' prompt.
+    """
+    result = _wrap_exec_result(None)
+    assert is_err(result)
 
 
 @pytest.mark.integration

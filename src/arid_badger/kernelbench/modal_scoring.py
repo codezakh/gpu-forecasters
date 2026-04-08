@@ -76,7 +76,7 @@ class ModalKernelEvaluator:
         precision: str = "fp32",
         num_correct_trials: int = 5,
         num_perf_trials: int = 100,
-    ) -> KernelExecResult:
+    ) -> KernelExecResult | None:
         import torch
         from kernelbench.eval import (
             eval_kernel_against_ref,
@@ -137,6 +137,23 @@ class ModalKernelEvaluator:
 ScoringFn = Callable[..., Option[KernelExecResult, ScoringError]]
 
 
+def _wrap_exec_result(exec_result: KernelExecResult | None) -> Option[KernelExecResult, ScoringError]:
+    """Convert a possibly-None exec result into the Option type.
+
+    eval_kernel_against_ref returns None (not raises, not a failed KernelExecResult)
+    on lock-file / "No such file or directory" errors during compilation. Callers
+    must never receive Ok(None), so None is converted to Err(ScoringError).
+    """
+    if exec_result is None:
+        return Err(
+            ScoringError(
+                reason="eval_kernel_against_ref returned None (likely lock-file error during compilation)",
+                cause="eval_kernel_against_ref returned None",
+            )
+        )
+    return Ok(exec_result)
+
+
 @contextmanager
 def modal_scoring_session(
     gpu: str = _DEFAULT_GPU,
@@ -181,7 +198,7 @@ def modal_scoring_session(
             build_dir: Optional[Path] = None,  # accepted for signature compat, unused
         ) -> Option[KernelExecResult, ScoringError]:
             try:
-                exec_result: KernelExecResult = evaluator().evaluate.remote(
+                exec_result: KernelExecResult | None = evaluator().evaluate.remote(
                     mutated_kernel_code=mutated_kernel_code,
                     reference_kernel_code=reference_kernel_code,
                     gpu_arch=gpu_arch,
@@ -190,7 +207,7 @@ def modal_scoring_session(
                     num_correct_trials=num_correct_trials,
                     num_perf_trials=num_perf_trials,
                 )
-                return Ok(exec_result)
+                return _wrap_exec_result(exec_result)
             except Exception as exc:
                 return Err(
                     ScoringError(
