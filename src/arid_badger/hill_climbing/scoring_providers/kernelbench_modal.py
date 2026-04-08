@@ -33,8 +33,9 @@ from arid_badger.kernelbench.core import (
 from arid_badger.kernelbench.modal_scoring import modal_scoring_session, ScoringFn
 from arid_badger.kernelbench.scoring import check_kernel_exec_result_valid
 from arid_badger.typing_utils import is_ok
-from ..domain import Evaluation
+from ..domain import Evaluation, EvaluationProvider
 from .kernelbench import KernelBenchObservation
+from arid_badger.typing_utils import implements
 
 
 class ModalEvaluationRecord(BaseModel, frozen=True):
@@ -45,6 +46,7 @@ class ModalEvaluationRecord(BaseModel, frozen=True):
     wall_clock_seconds: float
     reward: float | None
     timestamp_utc: str
+
 
 logger = logging.getLogger(__name__)
 
@@ -131,9 +133,7 @@ class ModalProvider(AbstractContextManager["ModalProvider"]):
 
         exec_result = outcome.unwrap()
         is_valid = check_kernel_exec_result_valid(exec_result)
-        speedup = (
-            exec_result.ref_runtime / exec_result.runtime if is_valid else 0.0
-        )
+        speedup = exec_result.ref_runtime / exec_result.runtime if is_valid else 0.0
 
         feedback = execution_feedback_from_exec_result(
             exec_result=exec_result,
@@ -157,3 +157,6 @@ class ModalProvider(AbstractContextManager["ModalProvider"]):
             observation=observation,
             reward=reward,
         )
+
+
+implements(EvaluationProvider[KernelBenchObservation])(ModalProvider)
