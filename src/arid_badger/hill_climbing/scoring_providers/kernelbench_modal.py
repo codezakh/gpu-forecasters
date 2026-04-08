@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import logging
 import time
-from contextlib import AbstractContextManager
 from datetime import datetime, timezone
+from contextlib import AbstractContextManager
 from types import TracebackType
-from typing import Literal, Optional
+from typing import Literal, Optional, cast
 
 from pydantic import BaseModel
 
@@ -51,7 +51,7 @@ class ModalEvaluationRecord(BaseModel, frozen=True):
 logger = logging.getLogger(__name__)
 
 
-class ModalProvider(AbstractContextManager["ModalProvider"]):
+class ModalProvider:
     """Evaluates KernelBench kernels on Modal remote GPU containers.
 
     Must be used as a context manager to manage the Modal session lifecycle.
@@ -91,12 +91,16 @@ class ModalProvider(AbstractContextManager["ModalProvider"]):
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
+        exc_type: object,
+        exc_val: object,
+        exc_tb: object,
     ) -> None:
         if self._session_cm is not None:
-            self._session_cm.__exit__(exc_type, exc_val, exc_tb)
+            self._session_cm.__exit__(
+                cast(type[BaseException] | None, exc_type),
+                cast(BaseException | None, exc_val),
+                cast(TracebackType | None, exc_tb),
+            )
 
     def evaluate(self, program_code: str) -> Evaluation[KernelBenchObservation]:
         if self._score_fn is None:
