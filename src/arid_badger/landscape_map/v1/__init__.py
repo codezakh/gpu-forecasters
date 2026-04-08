@@ -12,6 +12,7 @@ from arid_badger.landscape_map.v1.domain import (
     SpeedupEstimator,
 )
 from arid_badger.landscape_map.v1.llm_estimator import EstimatorParseError, LlmSpeedupEstimator
+from arid_badger.landscape_map.v1.mutation_provider import LandscapeMapModelMutationProvider
 from arid_badger.landscape_map.v1.stub_estimator import StubEstimator
 
 __all__ = [
@@ -26,5 +27,6 @@ __all__ = [
     "SpeedupEstimator",
     "EstimatorParseError",
     "LlmSpeedupEstimator",
+    "LandscapeMapModelMutationProvider",
     "StubEstimator",
 ]

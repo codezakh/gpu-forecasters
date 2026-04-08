@@ -1,0 +1,16 @@
+{{ base_prompt }}
+
+Here is your latest generation:
+```
+{{ previous_kernel_code }}
+```
+
+Your kernel was analyzed by a performance estimator. Here is the assessment:
+
+Predicted performance: {{ predicted_bin_label }}
+(Speedup bins range from 1=severe slowdown to 8=extreme speedup, relative to the PyTorch reference)
+
+Estimator's analysis:
+{{ reasoning }}
+
+Please rewrite the entire kernel to maximize performance relative to the PyTorch reference.
