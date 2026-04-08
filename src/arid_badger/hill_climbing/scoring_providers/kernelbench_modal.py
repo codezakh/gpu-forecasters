@@ -106,6 +106,8 @@ class ModalProvider:
                 "Use: `with ModalProvider(...) as provider: provider.evaluate(...)`"
             )
 
+        sha = code_sha256(program_code)
+        logger.info("Modal eval launching: sha256={sha}", sha=sha[:8])
         start_time_s = time.perf_counter()
         outcome = self._score_fn(
             program_code,
@@ -148,7 +150,6 @@ class ModalProvider:
         observation = KernelBenchObservation(feedback=feedback)
         reward = speedup if is_valid else None
 
-        sha = code_sha256(program_code)
         logger.info(
             "Modal eval done: reward={reward}, elapsed={elapsed:.1f}s, sha256={sha}",
             reward=f"{reward:.4f}" if reward is not None else "None",
