@@ -16,7 +16,8 @@ from typing import Literal
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.hill_climbing.domain import Evaluation
+from arid_badger.hill_climbing.domain import Evaluation, EvaluationProvider
+from arid_badger.typing_utils import implements
 from arid_badger.invocation_sink import InvocationSink, code_sha256
 
 from .domain import (
@@ -82,6 +83,13 @@ class KernelWorldModelEvaluationProvider:
         no tracking occurs. Records are only written when the estimator returns
         non-None usage.
     """
+
+    _reference: KernelImplementation
+    _task_info: KernelTaskInfo
+    _estimator: SpeedupEstimator
+    _hardware: HardwareContext | None
+    _model_slug: str
+    _invocation_sink: InvocationSink | None
 
     def __init__(
         self,
@@ -153,3 +161,12 @@ class KernelWorldModelEvaluationProvider:
             reward = float(estimate.predicted_bin)
 
         return Evaluation[KernelRuntimeEstimate](observation=estimate, reward=reward)
+
+    def __enter__(self) -> KernelWorldModelEvaluationProvider:
+        return self
+
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
+        pass
+
+
+implements(EvaluationProvider[KernelRuntimeEstimate])(KernelWorldModelEvaluationProvider)  # pyright: ignore[reportUnusedCallResult]
