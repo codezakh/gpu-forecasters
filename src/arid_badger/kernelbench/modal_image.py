@@ -60,7 +60,7 @@ image = (
     # arid_badger's additional deps not covered by KernelBench. We can't
     # uv_sync our own pyproject.toml because it uses uv workspaces, which
     # Modal doesn't support.
-    .uv_pip_install("loguru", "pydantic", "pytest")
+    .uv_pip_install("loguru", "pydantic", "pytest", "python-ulid")
     .env({"PYTHONPATH": "/root/kernelbench_src"})
     # add_local_* must come last — Modal mounts these at startup rather than
     # baking them into the image, so no build steps can follow.
