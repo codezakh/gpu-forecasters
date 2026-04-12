@@ -11,7 +11,6 @@ import json
 import random
 from pathlib import Path
 from typing import List, Optional
-import pytest
 from ulid import ULID
 
 from arid_badger.hill_climbing.domain import Evaluation, NoFeedback, Node
@@ -35,6 +34,7 @@ from arid_badger.max_reward_puct.search import (
     set_parent_info,
 )
 from arid_badger.max_reward_puct.checkpoint import FilePuctCheckpointProvider, PuctCheckpoint
+from arid_badger.max_reward_puct.trajectory import FileTrajectoryProvider, TrajectoryRecord
 
 
 def _eval(reward: float | None) -> Evaluation[NoFeedback]:
@@ -791,3 +791,64 @@ def test_unparametrized_checkpoint_loses_kernelbench_observation(tmp_path: Path)
     assert feedback.speedup == 2.0
     assert feedback.runtime_us == 100.0
     assert feedback.ref_runtime_us == 200.0
+
+
+# Trajectory Tests
+
+
+def test_trajectory_records_one_per_step() -> None:
+    """trajectory_provider.record() is called exactly once per step with correct data."""
+
+    class CapturingTrajectoryProvider:
+        def __init__(self) -> None:
+            self.records: list[tuple[int, ULID, float | None, int]] = []
+
+        def record(self, step: int, best_node: Node, archive_size: int) -> None:
+            self.records.append((step, best_node.ulid, best_node.evaluation.reward, archive_size))
+
+    captured = CapturingTrajectoryProvider()
+    search(
+        initial_program="0000",
+        total_budget_steps=5,
+        batch_size=1,
+        samples_per_parent=4,
+        mutation_provider=BinaryStringMutationProvider(seed=42),
+        evaluation_provider=BinaryStringEvaluationProvider(),
+        trajectory_provider=captured,
+    )
+
+    assert len(captured.records) == 5
+    assert [r[0] for r in captured.records] == [0, 1, 2, 3, 4]
+    # BinaryString evaluator always succeeds — reward is always non-None
+    assert all(r[2] is not None for r in captured.records)
+    # archive_size is monotonically non-decreasing
+    sizes = [r[3] for r in captured.records]
+    assert sizes == sorted(sizes)
+
+
+def test_file_trajectory_provider_writes_valid_jsonl(tmp_path: Path) -> None:
+    """FileTrajectoryProvider appends valid JSONL that round-trips via TrajectoryRecord."""
+    path = tmp_path / "trajectory.jsonl"
+    provider = FileTrajectoryProvider(path)
+
+    node_a = Node(program_code="0000", evaluation=_eval(0.5), ancestors=[], is_seed=True)
+    node_b = Node(program_code="0001", evaluation=_eval(0.9), ancestors=[node_a.ulid])
+
+    provider.record(step=0, best_node=node_a, archive_size=1)
+    provider.record(step=1, best_node=node_b, archive_size=2)
+
+    lines = path.read_text().strip().split("\n")
+    assert len(lines) == 2
+
+    rec0 = TrajectoryRecord.model_validate_json(lines[0])
+    rec1 = TrajectoryRecord.model_validate_json(lines[1])
+
+    assert rec0.step == 0
+    assert rec0.best_ulid == node_a.ulid
+    assert rec0.best_reward == 0.5
+    assert rec0.archive_size == 1
+
+    assert rec1.step == 1
+    assert rec1.best_ulid == node_b.ulid
+    assert rec1.best_reward == 0.9
+    assert rec1.archive_size == 2

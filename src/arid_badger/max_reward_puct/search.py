@@ -19,6 +19,10 @@ from arid_badger.max_reward_puct.checkpoint import (
     PuctCheckpointProvider,
     NoOpPuctCheckpointProvider,
 )
+from arid_badger.max_reward_puct.trajectory import (
+    TrajectoryProvider,
+    NoOpTrajectoryProvider,
+)
 
 
 def get_global_scale(archive: Sequence[Node[ObservationT]], seed_ids: Set[ULID]) -> float:
@@ -401,6 +405,7 @@ def _search_impl(
     mutation_provider: MutationProvider[ObservationT],
     evaluation_provider: EvaluationProvider[ObservationT],
     checkpoint_provider: PuctCheckpointProvider[ObservationT],
+    trajectory_provider: TrajectoryProvider[ObservationT] = NoOpTrajectoryProvider(),  # type: ignore[assignment]
 ) -> Node[ObservationT]:
     """
     Internal search implementation. Can be called from any state.
@@ -462,6 +467,8 @@ def _search_impl(
             reward=f"{best.evaluation.reward:.4f}" if best.evaluation.reward is not None else "None",
         )
 
+        trajectory_provider.record(step=step, best_node=best, archive_size=len(archive))
+
         # E. CHECKPOINT
         checkpoint_provider.save(
             PuctCheckpoint(
@@ -490,6 +497,7 @@ def search(
     mutation_provider: MutationProvider[ObservationT],
     evaluation_provider: EvaluationProvider[ObservationT],
     checkpoint_provider: PuctCheckpointProvider[ObservationT] = NoOpPuctCheckpointProvider(),  # type: ignore[assignment]
+    trajectory_provider: TrajectoryProvider[ObservationT] = NoOpTrajectoryProvider(),  # type: ignore[assignment]
 ) -> Node[ObservationT]:
     # Initialization
     eval_result = evaluation_provider.evaluate(initial_program)
@@ -521,6 +529,7 @@ def search(
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
         checkpoint_provider=checkpoint_provider,
+        trajectory_provider=trajectory_provider,
     )
 
 
@@ -532,6 +541,7 @@ def resume_search(
     mutation_provider: MutationProvider[ObservationT],
     evaluation_provider: EvaluationProvider[ObservationT],
     checkpoint_provider: PuctCheckpointProvider[ObservationT] = NoOpPuctCheckpointProvider(),  # type: ignore[assignment]
+    trajectory_provider: TrajectoryProvider[ObservationT] = NoOpTrajectoryProvider(),  # type: ignore[assignment]
 ) -> Node[ObservationT]:
     """
     Resume a PUCT search from a saved checkpoint.
@@ -544,6 +554,7 @@ def resume_search(
         mutation_provider: Provider for generating mutations.
         evaluation_provider: Provider for evaluating programs.
         checkpoint_provider: Provider for saving checkpoints during the resumed run.
+        trajectory_provider: Provider for recording per-step trajectory data.
 
     Returns:
         Best node found during the full search (including steps before the checkpoint).
@@ -561,4 +572,5 @@ def resume_search(
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
         checkpoint_provider=checkpoint_provider,
+        trajectory_provider=trajectory_provider,
     )
