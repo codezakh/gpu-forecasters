@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 
+import litellm
 from jinja2 import Environment, FileSystemLoader
 from litellm import completion
 from loguru import logger
@@ -11,6 +12,7 @@ from loguru import logger
 from arid_badger.typing_utils import implements
 
 from .domain import (
+    AsyncSpeedupEstimator,
     KernelRuntimeEstimate,
     KernelRuntimeQuery,
     LikertConfidence,
@@ -226,5 +228,48 @@ class LlmSpeedupEstimator:
 
         return _parse_llm_response(content), llm_usage
 
+    async def aestimate(
+        self, query: KernelRuntimeQuery
+    ) -> tuple[KernelRuntimeEstimate, LlmCallUsage | None]:
+        system_prompt = _JINJA_ENV.get_template("system.j2").render()
+        user_prompt = _JINJA_ENV.get_template("user.j2").render(
+            task=query.task,
+            reference=query.reference,
+            candidate=query.candidate,
+            hardware=query.hardware,
+        )
+
+        logger.debug(
+            "Calling {model} for {op} (async)...",
+            model=self._model_slug,
+            op=query.task.op_name,
+        )
+
+        response = await litellm.acompletion(
+            model=self._model_slug,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=self._temperature,
+        )
+
+        content = response.choices[  # pyright: ignore[reportAttributeAccessIssue]
+            0
+        ].message.content  # pyright: ignore[reportAttributeAccessIssue]
+        if content is None:
+            raise EstimatorParseError("LLM returned empty content")
+
+        raw_usage = response.usage  # pyright: ignore[reportAttributeAccessIssue]
+        llm_usage: LlmCallUsage | None = None
+        if raw_usage is not None:
+            llm_usage = LlmCallUsage(
+                input_tokens=raw_usage.prompt_tokens,
+                output_tokens=raw_usage.completion_tokens,
+            )
+
+        return _parse_llm_response(content), llm_usage
+
 
 implements(SpeedupEstimator)(LlmSpeedupEstimator)
+implements(AsyncSpeedupEstimator)(LlmSpeedupEstimator)

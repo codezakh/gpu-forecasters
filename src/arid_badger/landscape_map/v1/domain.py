@@ -124,3 +124,11 @@ class SpeedupEstimator(Protocol):
     def estimate(
         self, query: KernelRuntimeQuery
     ) -> tuple[KernelRuntimeEstimate, LlmCallUsage | None]: ...
+
+
+class AsyncSpeedupEstimator(Protocol):
+    """Protocol for asynchronously estimating relative kernel speedup."""
+
+    async def aestimate(
+        self, query: KernelRuntimeQuery
+    ) -> tuple[KernelRuntimeEstimate, LlmCallUsage | None]: ...
