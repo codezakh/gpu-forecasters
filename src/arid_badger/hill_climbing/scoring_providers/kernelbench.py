@@ -101,3 +101,10 @@ class Provider:
             observation=observation,
             reward=speedup if is_valid else None,
         )
+
+    def batch_evaluate(
+        self, program_codes: list[str]
+    ) -> list[Evaluation[KernelBenchObservation]]:
+        # Serial: each evaluate() already spawns a subprocess and contends
+        # for the local GPU; parallelism here would multiply CUDA-fault risk.
+        return [self.evaluate(code) for code in program_codes]

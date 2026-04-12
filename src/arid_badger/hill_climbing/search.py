@@ -35,14 +35,15 @@ def expand_and_evaluate(
         current.program_code, samples_per_node, current.evaluation
     )
 
-    children: List[Node[ObservationT]] = []
-    for program in mutated_programs:
-        # Skip duplicates
-        if program in visited:
-            continue
+    # Filter visited before evaluating so duplicates don't waste evaluator calls.
+    fresh = [p for p in mutated_programs if p not in visited]
+    if not fresh:
+        return []
 
-        # Evaluate
-        evaluation = evaluation_provider.evaluate(program)
+    evaluations = evaluation_provider.batch_evaluate(fresh)
+
+    children: List[Node[ObservationT]] = []
+    for program, evaluation in zip(fresh, evaluations):
         if evaluation.reward is None:
             # Skip failed evaluations
             # NOTE: We explicitly do not store these; we may _want_ to store them simply
@@ -50,7 +51,6 @@ def expand_and_evaluate(
             # a choice we are making to keep the code simpler.
             continue
 
-        # Create child node
         child = Node(
             program_code=program,
             ancestors=[],

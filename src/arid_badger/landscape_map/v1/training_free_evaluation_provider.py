@@ -162,6 +162,13 @@ class KernelWorldModelEvaluationProvider:
 
         return Evaluation[KernelRuntimeEstimate](observation=estimate, reward=reward)
 
+    def batch_evaluate(
+        self, program_codes: list[str]
+    ) -> list[Evaluation[KernelRuntimeEstimate]]:
+        # Serial: estimator is LLM-backed and the async path
+        # (AsyncSpeedupEstimator) is intentionally out of scope here.
+        return [self.evaluate(code) for code in program_codes]
+
     def __enter__(self) -> KernelWorldModelEvaluationProvider:
         return self
 

@@ -188,29 +188,27 @@ def expand_and_evaluate(
     The mutation and evaluation providers are injected here to allow different
     implementations for testing vs. production (toy examples vs. real kernels).
     """
-    all_children: List[Node[ObservationT]] = []
-    all_parents: List[Node[ObservationT]] = []
-
+    # Step 1: collect all (parent, candidate_code) pairs. Mutation stays serial.
+    parent_of_code: List[Node[ObservationT]] = []
+    candidate_codes: List[str] = []
     for parent in parents:
-        # LLM Generation Step
-        program_candidates = mutation_provider.generate_mutations(
+        for code in mutation_provider.generate_mutations(
             parent.program_code, samples_per_parent, parent.evaluation
-        )
+        ):
+            parent_of_code.append(parent)
+            candidate_codes.append(code)
 
-        for code in program_candidates:
-            # Execution Sandbox Step — evaluation may have reward=None on failure
-            eval_result = evaluation_provider.evaluate(code)
+    # Step 2: evaluate the whole batch in one provider call. The provider
+    # decides whether that's sequential or parallelised.
+    evaluations = evaluation_provider.batch_evaluate(candidate_codes)
 
-            child: Node[ObservationT] = Node(
-                program_code=code,
-                evaluation=eval_result,
-                # ancestors set later in update_archive via set_parent_info
-                ancestors=[],
-            )
-            all_children.append(child)
-            all_parents.append(parent)
-
-    return all_children, all_parents
+    # Step 3: zip back together. Order preservation is guaranteed by the
+    # batch_evaluate contract.
+    children: List[Node[ObservationT]] = [
+        Node(program_code=code, evaluation=ev, ancestors=[])
+        for code, ev in zip(candidate_codes, evaluations)
+    ]
+    return children, parent_of_code
 
 
 def backpropagate(

@@ -1,7 +1,12 @@
 """Modal-based EvaluationProvider for KernelBench kernels.
 
 Drop-in alternative to `kernelbench.Provider` that runs compilation and
-evaluation on Modal remote GPU containers rather than locally.
+evaluation on Modal remote GPU containers rather than locally. Uses the
+split CPU-compile / GPU-benchmark pipeline (`modal_split_scoring`, ADR-002):
+nvcc runs on a CPU container and benchmarking on a GPU container, sharing
+artifacts through a persistent `modal.Volume` build cache. This keeps
+paid GPU time off the critical path for compilation — which is the main
+cost reduction `batch_evaluate`'s thread-pool fan-out relies on.
 
 Because Modal requires an open session for remote calls, `ModalProvider`
 must be used as a context manager. The session is opened on `__enter__`
@@ -16,6 +21,7 @@ local providers implement no-op enter/exit, Modal manages its session.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from loguru import logger
 import time
 from datetime import datetime, timezone
@@ -34,7 +40,8 @@ from arid_badger.kernelbench.core import (
     SuccessFeedback,
     execution_feedback_from_exec_result,
 )
-from arid_badger.kernelbench.modal_scoring import modal_scoring_session, ScoringFn
+from arid_badger.kernelbench.modal_scoring import ScoringFn
+from arid_badger.kernelbench.modal_split_scoring import modal_split_scoring_session
 from arid_badger.kernelbench.scoring import check_kernel_exec_result_valid
 from arid_badger.typing_utils import is_ok
 from ..domain import Evaluation, EvaluationProvider
@@ -68,6 +75,7 @@ class ModalProvider:
         num_correct_trials: int = 5,
         num_perf_trials: int = 100,
         invocation_sink: Optional[InvocationSink] = None,
+        max_batch_workers: int = 10,
     ) -> None:
         self._reference_kernel_code = reference_kernel_code
         self._gpu = gpu
@@ -76,11 +84,12 @@ class ModalProvider:
         self._num_correct_trials = num_correct_trials
         self._num_perf_trials = num_perf_trials
         self._invocation_sink = invocation_sink
+        self._max_batch_workers = max_batch_workers
         self._session_cm: Optional[AbstractContextManager[ScoringFn]] = None
         self._score_fn: Optional[ScoringFn] = None
 
     def __enter__(self) -> ModalProvider:
-        self._session_cm = modal_scoring_session(
+        self._session_cm = modal_split_scoring_session(
             gpu=self._gpu,
             backend=self._backend,
             precision=self._precision,
@@ -188,6 +197,19 @@ class ModalProvider:
             observation=observation,
             reward=reward,
         )
+
+    def batch_evaluate(
+        self, program_codes: list[str]
+    ) -> list[Evaluation[KernelBenchObservation]]:
+        if not program_codes:
+            return []
+        n_workers = min(len(program_codes), self._max_batch_workers)
+        # executor.map preserves input order; evaluate() already returns
+        # Evaluation(reward=None) on failure so no extra wrapping needed.
+        # Modal .remote() is thread-safe, the invocation sink is
+        # ULID-keyed per record, and loguru is thread-safe.
+        with ThreadPoolExecutor(max_workers=n_workers) as executor:
+            return list(executor.map(self.evaluate, program_codes))
 
 
 implements(EvaluationProvider[KernelBenchObservation])(ModalProvider)

@@ -79,12 +79,22 @@ class BinaryStringEvaluationProvider:
             reward = None
         return _eval(reward)
 
+    def batch_evaluate(
+        self, program_codes: list[str]
+    ) -> list[Evaluation[NoFeedback]]:
+        return [self.evaluate(code) for code in program_codes]
+
 
 class FailingEvaluationProvider:
     """Provider that always returns reward=None to test failed rollout handling."""
 
     def evaluate(self, program_code: str) -> Evaluation[NoFeedback]:
         return _eval(None)
+
+    def batch_evaluate(
+        self, program_codes: list[str]
+    ) -> list[Evaluation[NoFeedback]]:
+        return [self.evaluate(code) for code in program_codes]
 
 
 def test_binary_string_mutation_provider():

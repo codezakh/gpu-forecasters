@@ -73,6 +73,11 @@ class BinaryStringEvaluationProvider:
         except ValueError:
             return Evaluation(observation=NoFeedback(), reward=None)
 
+    def batch_evaluate(
+        self, program_codes: list[str]
+    ) -> list[Evaluation[NoFeedback]]:
+        return [self.evaluate(code) for code in program_codes]
+
 
 implements(EvaluationProvider[NoFeedback])(BinaryStringEvaluationProvider)
 
@@ -82,6 +87,11 @@ class FailingEvaluationProvider:
 
     def evaluate(self, program_code: str) -> Evaluation[NoFeedback]:
         return Evaluation(observation=NoFeedback(), reward=None)
+
+    def batch_evaluate(
+        self, program_codes: list[str]
+    ) -> list[Evaluation[NoFeedback]]:
+        return [self.evaluate(code) for code in program_codes]
 
 
 implements(EvaluationProvider[NoFeedback])(FailingEvaluationProvider)

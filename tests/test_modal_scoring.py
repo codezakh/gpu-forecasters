@@ -170,3 +170,56 @@ def test_modal_provider_evaluate() -> None:
     assert evaluation.reward is not None, "Expected a non-None reward for a correct kernel"
     assert evaluation.reward > 0, f"Expected positive speedup, got {evaluation.reward}"
     assert isinstance(evaluation.observation.feedback, SuccessFeedback)
+
+
+@pytest.mark.integration
+@pytest.mark.modal
+@pytest.mark.slow
+def test_modal_provider_batch_evaluate() -> None:
+    """ModalProvider.batch_evaluate fans out across a mixed batch and preserves order.
+
+    Exercises the full thread-pool path end-to-end against the split
+    CPU-compile / GPU-benchmark pipeline (ADR-002) that ModalProvider
+    now uses: multiple concurrent remote calls sharing one session,
+    order preservation across the input list, and per-item failure
+    surfacing as reward=None (broken kernels) alongside successful
+    evaluations. This is the exact path PUCT/hill-climbing search take
+    when driven by `ModalProvider`, so a regression here breaks both
+    batch ordering and split-scoring concurrency at once.
+    """
+    from arid_badger.kernelbench.core import SuccessFeedback
+
+    # Interleave correct/broken so a simple "first N correct, last M broken"
+    # implementation would still look right — forces order preservation to
+    # actually be checked.
+    codes = [
+        CORRECT_KERNEL_CODE,
+        BROKEN_KERNEL_CODE,
+        CORRECT_KERNEL_CODE,
+        BROKEN_KERNEL_CODE,
+    ]
+
+    with ModalProvider(
+        reference_kernel_code=REFERENCE_KERNEL_CODE,
+        gpu="L4",
+        num_correct_trials=1,
+        num_perf_trials=5,
+        max_batch_workers=4,
+    ) as provider:
+        evaluations = provider.batch_evaluate(codes)
+
+    assert len(evaluations) == len(codes)
+
+    # Positions 0 and 2 are correct kernels.
+    for i in (0, 2):
+        assert evaluations[i].reward is not None, (
+            f"Expected non-None reward at index {i}, got {evaluations[i]}"
+        )
+        assert evaluations[i].reward > 0
+        assert isinstance(evaluations[i].observation.feedback, SuccessFeedback)
+
+    # Positions 1 and 3 are broken — ModelNew can't be found, so reward is None.
+    for i in (1, 3):
+        assert evaluations[i].reward is None, (
+            f"Expected None reward at index {i}, got {evaluations[i]}"
+        )

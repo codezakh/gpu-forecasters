@@ -47,6 +47,18 @@ class EvaluationProvider(Protocol[ObservationT]):
         """Returns reward (or None if evaluation failed)."""
         ...
 
+    def batch_evaluate(
+        self, program_codes: list[str]
+    ) -> list[Evaluation[ObservationT]]:
+        """Evaluate a batch of programs, preserving input order.
+
+        Providers own their own parallelism strategy. The returned list
+        has the same length as ``program_codes``, and ``result[i]``
+        corresponds to ``program_codes[i]``. Per-item failures surface as
+        ``Evaluation(reward=None, ...)`` just like ``evaluate``.
+        """
+        ...
+
     def __enter__(self) -> Self: ...
 
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None: ...
