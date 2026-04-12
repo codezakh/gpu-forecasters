@@ -10,12 +10,17 @@ Pipeline per evaluation:
    compute capability via `nvcc` (driven by `TORCH_CUDA_ARCH_LIST` and
    `load_custom_model`'s `build_directory` injection), writing the
    resulting `.so` into a shared `modal.Volume`.
-2. A GPU container reloads the volume, re-runs `eval_kernel_against_ref`
-   with the same `build_dir`, and KernelBench's `load_inline` dlopens the
-   cached artifact instead of shelling out to nvcc.
+2. A fresh GPU container (see `max_inputs=1` on `ModalGpuBenchmarker`)
+   runs `eval_kernel_against_ref` with the same `build_dir`, and
+   KernelBench's `load_inline` dlopens the just-committed artifact
+   instead of shelling out to nvcc.
 
-This keeps paid GPU time focused on benchmarking rather than compilation
-(see ADR-002, e0017 POC).
+The volume is a one-shot CPU→GPU transfer channel per call, not a
+cross-call cache: reusing a GPU container across evaluations triggers a
+`Volume.reload()` / `dlopen` `ConflictError` once `load_inline` has held
+an `.so` open (see e0018, ADR-002). Single-input retirement is what
+makes the fresh-mount-per-call story work without any mid-lifetime
+`reload()`.
 """
 
 from __future__ import annotations
@@ -149,6 +154,14 @@ class ModalCpuCompiler:
     gpu=_DEFAULT_GPU,
     volumes={_CACHE_MOUNT: build_cache},
     timeout=600,
+    # Retire the container after one input: KernelBench's `load_inline`
+    # dlopens a `.so` from the volume, and the resulting open file handle
+    # makes `Volume.reload()` fail on subsequent calls (`ConflictError:
+    # there are open files preventing the operation`, observed in e0018).
+    # A fresh container per call mounts the volume at its latest committed
+    # state, so no mid-lifetime reload is needed.
+    single_use_containers=True,
+    scaledown_window=2,
     retries=modal.Retries(
         max_retries=3,
         backoff_coefficient=2.0,
@@ -176,9 +189,10 @@ class ModalGpuBenchmarker:
         num_correct_trials: int = 5,
         num_perf_trials: int = 100,
     ) -> KernelExecResult | None:
-        # Pick up commits made by the CPU compiler before this container started.
-        build_cache.reload()
-
+        # No `build_cache.reload()` here: `max_inputs=1` means this container
+        # is brand new, so the volume mount already reflects the latest
+        # commit from the CPU compiler. Reloading mid-lifetime would also
+        # conflict with any `.so` already dlopen'd by `load_inline`.
         import torch
         from kernelbench.eval import eval_kernel_against_ref, get_torch_dtype_from_string
         from kernelbench.utils import set_gpu_arch
