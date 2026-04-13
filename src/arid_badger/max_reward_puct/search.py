@@ -533,6 +533,75 @@ def search(
     )
 
 
+def run_or_resume(
+    *,
+    initial_program: str,
+    total_budget_steps: int,
+    batch_size: int,
+    samples_per_parent: int,
+    mutation_provider: MutationProvider[ObservationT],
+    evaluation_provider: EvaluationProvider[ObservationT],
+    checkpoint_provider: PuctCheckpointProvider[ObservationT],
+    trajectory_provider: TrajectoryProvider[ObservationT] = NoOpTrajectoryProvider(),  # type: ignore[assignment]
+) -> PuctCheckpoint[ObservationT]:
+    """Durable-search wrapper: load any existing checkpoint and do the right thing.
+
+    Three branches, in order:
+      1. `checkpoint_provider.load()` returns a checkpoint with
+         `current_step >= total_budget_steps` → the search is already complete,
+         return the loaded checkpoint as-is (no Modal/LLM calls).
+      2. `checkpoint_provider.load()` returns None → no prior run exists, call
+         `search(...)` from scratch.
+      3. `checkpoint_provider.load()` returns a partial checkpoint → call
+         `resume_search(...)` from that state.
+
+    Returns the final checkpoint, guaranteed non-None. Requires a real
+    persisting `checkpoint_provider` — the function asserts a checkpoint
+    exists after the underlying search call. `NoOpPuctCheckpointProvider`
+    will trip the assertion and is not supported here.
+
+    This wrapper exists because the load/decide/dispatch pattern is identical
+    across every durable PUCT experiment and the branching is easy to get
+    subtly wrong (see the post-mortem in gh030 for one such incident). Prefer
+    this over calling `search`/`resume_search` directly when you want
+    resumability.
+    """
+    existing = checkpoint_provider.load()
+
+    if existing is not None and existing.current_step >= total_budget_steps:
+        return existing
+
+    if existing is None:
+        _ = search(
+            initial_program=initial_program,
+            total_budget_steps=total_budget_steps,
+            batch_size=batch_size,
+            samples_per_parent=samples_per_parent,
+            mutation_provider=mutation_provider,
+            evaluation_provider=evaluation_provider,
+            checkpoint_provider=checkpoint_provider,
+            trajectory_provider=trajectory_provider,
+        )
+    else:
+        _ = resume_search(
+            checkpoint=existing,
+            total_budget_steps=total_budget_steps,
+            batch_size=batch_size,
+            samples_per_parent=samples_per_parent,
+            mutation_provider=mutation_provider,
+            evaluation_provider=evaluation_provider,
+            checkpoint_provider=checkpoint_provider,
+            trajectory_provider=trajectory_provider,
+        )
+
+    final = checkpoint_provider.load()
+    assert final is not None, (
+        "run_or_resume requires a persisting checkpoint_provider; no "
+        "checkpoint was found on disk after the search call completed."
+    )
+    return final
+
+
 def resume_search(
     checkpoint: PuctCheckpoint[ObservationT],
     total_budget_steps: int,

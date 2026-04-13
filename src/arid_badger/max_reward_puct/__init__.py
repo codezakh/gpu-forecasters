@@ -3,6 +3,7 @@
 from arid_badger.max_reward_puct.search import (
     search,
     resume_search,
+    run_or_resume,
     select_batch_of_parents,
     expand_and_evaluate,
     update_archive,
@@ -24,10 +25,18 @@ from arid_badger.max_reward_puct.checkpoint import (
     NoOpPuctCheckpointProvider,
     FilePuctCheckpointProvider,
 )
+from arid_badger.max_reward_puct.trajectory import (
+    TrajectoryRecord,
+    TrajectoryProvider,
+    NoOpTrajectoryProvider,
+    FileTrajectoryProvider,
+    load_trajectory,
+)
 
 __all__ = [
     "search",
     "resume_search",
+    "run_or_resume",
     "select_batch_of_parents",
     "expand_and_evaluate",
     "update_archive",
@@ -46,4 +55,9 @@ __all__ = [
     "PuctCheckpointProvider",
     "NoOpPuctCheckpointProvider",
     "FilePuctCheckpointProvider",
+    "TrajectoryRecord",
+    "TrajectoryProvider",
+    "NoOpTrajectoryProvider",
+    "FileTrajectoryProvider",
+    "load_trajectory",
 ]

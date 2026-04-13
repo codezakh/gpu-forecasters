@@ -25,6 +25,7 @@ from arid_badger.kernelbench.core import (
 from arid_badger.max_reward_puct.search import (
     search,
     resume_search,
+    run_or_resume,
     select_batch_of_parents,
     expand_and_evaluate,
     update_archive,
@@ -34,7 +35,11 @@ from arid_badger.max_reward_puct.search import (
     set_parent_info,
 )
 from arid_badger.max_reward_puct.checkpoint import FilePuctCheckpointProvider, PuctCheckpoint
-from arid_badger.max_reward_puct.trajectory import FileTrajectoryProvider, TrajectoryRecord
+from arid_badger.max_reward_puct.trajectory import (
+    FileTrajectoryProvider,
+    TrajectoryRecord,
+    load_trajectory,
+)
 
 
 def _eval(reward: float | None) -> Evaluation[NoFeedback]:
@@ -852,3 +857,177 @@ def test_file_trajectory_provider_writes_valid_jsonl(tmp_path: Path) -> None:
     assert rec1.best_ulid == node_b.ulid
     assert rec1.best_reward == 0.9
     assert rec1.archive_size == 2
+
+
+def test_file_trajectory_provider_records_best_node_depth(tmp_path: Path) -> None:
+    """FileTrajectoryProvider records best_node_depth from len(best_node.ancestors)."""
+    path = tmp_path / "trajectory.jsonl"
+    provider = FileTrajectoryProvider(path)
+
+    root = Node(program_code="0000", evaluation=_eval(0.0), ancestors=[], is_seed=True)
+    child = Node(program_code="0001", evaluation=_eval(1.0), ancestors=[root.ulid])
+    grandchild = Node(
+        program_code="0011", evaluation=_eval(3.0), ancestors=[child.ulid, root.ulid]
+    )
+
+    provider.record(step=0, best_node=root, archive_size=1)
+    provider.record(step=1, best_node=child, archive_size=2)
+    provider.record(step=2, best_node=grandchild, archive_size=3)
+
+    records = load_trajectory(path)
+    assert [r.best_node_depth for r in records] == [0, 1, 2]
+
+
+def test_load_trajectory_round_trip_preserves_ulid(tmp_path: Path) -> None:
+    """load_trajectory round-trips ULID as ULID, not str.
+
+    This is the bug-prevention test: a naive parser leaves best_ulid as a
+    string, and downstream equality checks against Node.ulid (a real ULID)
+    silently fail. load_trajectory must preserve the type.
+    """
+    path = tmp_path / "trajectory.jsonl"
+    provider = FileTrajectoryProvider(path)
+
+    node = Node(program_code="1010", evaluation=_eval(10.0), ancestors=[], is_seed=True)
+    provider.record(step=0, best_node=node, archive_size=1)
+
+    records = load_trajectory(path)
+    assert len(records) == 1
+    assert isinstance(records[0].best_ulid, ULID)
+    # And the comparison we actually care about works.
+    assert records[0].best_ulid == node.ulid
+
+
+def test_load_trajectory_missing_file_returns_empty(tmp_path: Path) -> None:
+    """load_trajectory on a non-existent path returns an empty list, not an error."""
+    assert load_trajectory(tmp_path / "nonexistent.jsonl") == []
+
+
+def test_load_trajectory_skips_blank_lines(tmp_path: Path) -> None:
+    """Blank lines in the jsonl file are skipped, not parsed."""
+    path = tmp_path / "trajectory.jsonl"
+    provider = FileTrajectoryProvider(path)
+    node = Node(program_code="0", evaluation=_eval(0.0), ancestors=[], is_seed=True)
+    provider.record(step=0, best_node=node, archive_size=1)
+    # Append a blank line and trailing whitespace.
+    with path.open("a") as f:
+        _ = f.write("\n   \n")
+    records = load_trajectory(path)
+    assert len(records) == 1
+
+
+# ---------------------------------------------------------------------------
+# run_or_resume — durable-search wrapper
+# ---------------------------------------------------------------------------
+
+
+def test_run_or_resume_no_existing_checkpoint_runs_fresh_search(tmp_path: Path) -> None:
+    """Branch 1: no checkpoint on disk → run_or_resume calls search() from scratch."""
+    checkpoint_path = tmp_path / "checkpoint.json"
+    provider = FilePuctCheckpointProvider[NoFeedback](
+        checkpoint_path, checkpoint_type=PuctCheckpoint[NoFeedback]
+    )
+
+    assert provider.load() is None
+
+    final = run_or_resume(
+        initial_program="0000",
+        total_budget_steps=3,
+        batch_size=1,
+        samples_per_parent=1,
+        mutation_provider=BinaryStringMutationProvider(seed=42),
+        evaluation_provider=BinaryStringEvaluationProvider(),
+        checkpoint_provider=provider,
+    )
+
+    assert final.current_step == 3
+    assert checkpoint_path.exists()
+    # The archive must contain the root + at least some children.
+    assert len(final.archive) >= 1
+
+
+def test_run_or_resume_partial_checkpoint_resumes(tmp_path: Path) -> None:
+    """Branch 2: partial checkpoint exists → run_or_resume resumes and advances it."""
+    checkpoint_path = tmp_path / "checkpoint.json"
+    provider = FilePuctCheckpointProvider[NoFeedback](
+        checkpoint_path, checkpoint_type=PuctCheckpoint[NoFeedback]
+    )
+
+    # Run 2 steps first.
+    _ = run_or_resume(
+        initial_program="0000",
+        total_budget_steps=2,
+        batch_size=1,
+        samples_per_parent=1,
+        mutation_provider=BinaryStringMutationProvider(seed=42),
+        evaluation_provider=BinaryStringEvaluationProvider(),
+        checkpoint_provider=provider,
+    )
+    mid = provider.load()
+    assert mid is not None and mid.current_step == 2
+
+    # Resume to 5 steps.
+    final = run_or_resume(
+        initial_program="0000",
+        total_budget_steps=5,
+        batch_size=1,
+        samples_per_parent=1,
+        mutation_provider=BinaryStringMutationProvider(seed=7),
+        evaluation_provider=BinaryStringEvaluationProvider(),
+        checkpoint_provider=provider,
+    )
+    assert final.current_step == 5
+
+
+def test_run_or_resume_complete_checkpoint_short_circuits(tmp_path: Path) -> None:
+    """Branch 3: checkpoint.current_step >= total_budget_steps → return as-is, no calls."""
+
+    class CountingEvaluationProvider:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def evaluate(self, program_code: str) -> Evaluation[NoFeedback]:
+            self.calls += 1
+            try:
+                reward: float | None = float(int(program_code, 2))
+            except ValueError:
+                reward = None
+            return _eval(reward)
+
+        def batch_evaluate(
+            self, program_codes: list[str]
+        ) -> list[Evaluation[NoFeedback]]:
+            return [self.evaluate(code) for code in program_codes]
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    provider = FilePuctCheckpointProvider[NoFeedback](
+        checkpoint_path, checkpoint_type=PuctCheckpoint[NoFeedback]
+    )
+
+    # Run a search to step 3 first.
+    _ = run_or_resume(
+        initial_program="0000",
+        total_budget_steps=3,
+        batch_size=1,
+        samples_per_parent=1,
+        mutation_provider=BinaryStringMutationProvider(seed=42),
+        evaluation_provider=BinaryStringEvaluationProvider(),
+        checkpoint_provider=provider,
+    )
+
+    # Now call run_or_resume with a smaller budget; it must short-circuit.
+    counting_eval = CountingEvaluationProvider()
+    final = run_or_resume(
+        initial_program="0000",
+        total_budget_steps=3,
+        batch_size=1,
+        samples_per_parent=1,
+        mutation_provider=BinaryStringMutationProvider(seed=99),
+        evaluation_provider=counting_eval,
+        checkpoint_provider=provider,
+    )
+
+    assert final.current_step == 3
+    assert counting_eval.calls == 0, (
+        "Short-circuit branch must not invoke the evaluation provider."
+    )

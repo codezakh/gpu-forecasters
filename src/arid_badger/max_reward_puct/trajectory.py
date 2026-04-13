@@ -24,6 +24,9 @@ class TrajectoryRecord(BaseModel):
     best_ulid: ULID
     best_reward: float | None
     archive_size: int
+    # best_node_depth is optional for backward compatibility with older
+    # trajectory.jsonl files that were written before this field existed.
+    best_node_depth: int | None = None
 
     model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
@@ -57,8 +60,32 @@ class FileTrajectoryProvider:
                 best_ulid=best_node.ulid,
                 best_reward=best_node.evaluation.reward,
                 archive_size=archive_size,
+                best_node_depth=len(best_node.ancestors),
             )
             with self.path.open("a") as f:
                 _ = f.write(rec.model_dump_json() + "\n")
         except Exception as exc:
             logger.warning(f"Trajectory write to {self.path} failed: {exc}")
+
+
+def load_trajectory(path: Path) -> list[TrajectoryRecord]:
+    """Read and parse a trajectory.jsonl file.
+
+    Canonical reader for trajectory files. Use this rather than rolling your
+    own JSONL parser in experiment code — it guarantees consistent ULID
+    handling across readers and avoids subtle `ULID == str` comparison bugs.
+
+    Returns records in file order (i.e. step order). Returns an empty list
+    if the file does not exist. Blank lines are skipped; malformed lines
+    raise pydantic ValidationError.
+    """
+    if not path.exists():
+        return []
+    records: list[TrajectoryRecord] = []
+    with path.open() as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            records.append(TrajectoryRecord.model_validate_json(line))
+    return records
