@@ -1,8 +1,9 @@
 """Integration tests for split CPU-compile / GPU-benchmark Modal scoring.
 
-Mirror `test_modal_scoring.py`. Require Modal auth; skipped by default —
-opt in via `uv run --env-file .env pytest -m "integration and modal" \\
-    tests/test_modal_split_scoring.py -v`.
+Mirrors `tests/kernelbench/test_modal_scoring_integration.py`. Requires Modal
+auth; skipped by default — opt in via
+``uv run --env-file .env pytest -m "integration and modal" \\
+    tests/kernelbench/test_modal_split_scoring_integration.py -v``.
 """
 
 import time
@@ -12,7 +13,7 @@ import pytest
 from arid_badger.kernelbench.modal_split_scoring import modal_split_scoring_session
 from arid_badger.typing_utils import is_err, is_ok
 
-from tests.test_modal_scoring import (
+from tests.kernelbench.test_modal_scoring_integration import (
     BROKEN_KERNEL_CODE,
     CORRECT_KERNEL_CODE,
     REFERENCE_KERNEL_CODE,
