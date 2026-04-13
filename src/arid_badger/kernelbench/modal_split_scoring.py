@@ -58,13 +58,13 @@ build_cache = modal.Volume.from_name(
 # ---------------------------------------------------------------------------
 
 COMPUTE_CAPABILITY_BY_GPU: dict[str, str] = {
-    "T4": "7.5",     # Turing
-    "A10G": "8.6",   # Ampere (AWS G5 variant of A10)
-    "A100": "8.0",   # Ampere
-    "L4": "8.9",     # Ada
-    "L40S": "8.9",   # Ada
-    "H100": "9.0",   # Hopper
-    "H200": "9.0",   # Hopper
+    "T4": "7.5",  # Turing
+    "A10G": "8.6",  # Ampere (AWS G5 variant of A10)
+    "A100": "8.0",  # Ampere
+    "L4": "8.9",  # Ada
+    "L40S": "8.9",  # Ada
+    "H100": "9.0",  # Hopper
+    "H200": "9.0",  # Hopper
 }
 
 _DEFAULT_GPU = "L4"
@@ -117,7 +117,10 @@ class ModalCpuCompiler:
         os.environ["TORCH_CUDA_ARCH_LIST"] = cc
 
         try:
-            from kernelbench.eval import load_custom_model, load_original_model_and_inputs
+            from kernelbench.eval import (
+                load_custom_model,
+                load_original_model_and_inputs,
+            )
 
             # Resolve `Model` into the exec context so `class ModelNew(Model)`
             # in the mutated source can bind its base class.
@@ -153,7 +156,7 @@ class ModalCpuCompiler:
     image=image,
     gpu=_DEFAULT_GPU,
     volumes={_CACHE_MOUNT: build_cache},
-    timeout=600,
+    timeout=120,
     # Retire the container after one input: KernelBench's `load_inline`
     # dlopens a `.so` from the volume, and the resulting open file handle
     # makes `Volume.reload()` fail on subsequent calls (`ConflictError:
@@ -194,7 +197,10 @@ class ModalGpuBenchmarker:
         # commit from the CPU compiler. Reloading mid-lifetime would also
         # conflict with any `.so` already dlopen'd by `load_inline`.
         import torch
-        from kernelbench.eval import eval_kernel_against_ref, get_torch_dtype_from_string
+        from kernelbench.eval import (
+            eval_kernel_against_ref,
+            get_torch_dtype_from_string,
+        )
         from kernelbench.utils import set_gpu_arch
 
         start = time.time()
@@ -322,7 +328,9 @@ def modal_split_scoring_session(
             cache_dir: str = compile_result["cache_dir"]
 
             try:
-                exec_result: KernelExecResult | None = benchmarker_cls().evaluate.remote(
+                exec_result: (
+                    KernelExecResult | None
+                ) = benchmarker_cls().evaluate.remote(
                     mutated_kernel_code=mutated_kernel_code,
                     reference_kernel_code=reference_kernel_code,
                     cache_dir=cache_dir,
