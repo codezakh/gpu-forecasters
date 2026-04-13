@@ -1,3 +1,16 @@
+# NOTE (2026-04-13): `k_per_parent` is a REQUIRED keyword-only parameter on
+# every public entry point here — `search`, `resume_search`, `run_or_resume`,
+# `_search_impl`, `update_archive`, and `flush_archive`. It used to default to
+# 2 on `update_archive`/`flush_archive` and was never threaded through
+# `_search_impl`, so every experiment silently ran with k=2 regardless of the
+# caller's intent (see e0020 gh030 scaling study — broad_shallow was throwing
+# away 14 of every 16 children per step). Removing the default turns any
+# stale caller into a loud `TypeError` at import/call time instead of a
+# silently-different result. If you're hitting that error after rebasing onto
+# this commit, add `k_per_parent=2` to restore the historical behavior for
+# pre-2026-04-13 experiments, or pick a value that matches the shape you
+# actually want. Do not re-introduce the default.
+
 from ulid import ULID
 from typing import List, Sequence, Set, Mapping, Tuple, Dict
 import numpy as np
@@ -289,8 +302,9 @@ def update_archive(
     children: List[Node[ObservationT]],
     parent_states: List[Node[ObservationT]],
     seed_ids: Set[ULID],
+    *,
+    k_per_parent: int,
     capacity: int = 1000,
-    k_per_parent: int = 2,
 ):
     """
     Updates the global archive with new children, enforcing:
@@ -347,8 +361,9 @@ def update_archive(
 def flush_archive(
     archive: List[Node[ObservationT]],
     seed_ids: Set[ULID],
+    *,
+    k_per_parent: int,
     capacity: int = 1000,
-    k_per_parent: int = 2,
 ):
     """
     Periodic cleanup: re-applies top-k per parent across the ENTIRE archive,
@@ -405,6 +420,8 @@ def _search_impl(
     mutation_provider: MutationProvider[ObservationT],
     evaluation_provider: EvaluationProvider[ObservationT],
     checkpoint_provider: PuctCheckpointProvider[ObservationT],
+    *,
+    k_per_parent: int,
     trajectory_provider: TrajectoryProvider[ObservationT] = NoOpTrajectoryProvider(),  # type: ignore[assignment]
 ) -> Node[ObservationT]:
     """
@@ -450,8 +467,16 @@ def _search_impl(
                 T = record_failed_rollout(parent, n, T)
 
         # D. ARCHIVE UPDATE
-        # Filter (Top-K per parent), skip None rewards, deduplicate, truncate
-        update_archive(archive, children, parent_states, seed_ids)
+        # Filter (Top-K per parent), skip None rewards, deduplicate, truncate.
+        # k_per_parent is threaded from the caller — do NOT fall back to a
+        # default here. See the module header note on this parameter.
+        update_archive(
+            archive,
+            children,
+            parent_states,
+            seed_ids,
+            k_per_parent=k_per_parent,
+        )
 
         best = max(
             archive,
@@ -498,6 +523,8 @@ def search(
     evaluation_provider: EvaluationProvider[ObservationT],
     checkpoint_provider: PuctCheckpointProvider[ObservationT] = NoOpPuctCheckpointProvider(),  # type: ignore[assignment]
     trajectory_provider: TrajectoryProvider[ObservationT] = NoOpTrajectoryProvider(),  # type: ignore[assignment]
+    *,
+    k_per_parent: int,
 ) -> Node[ObservationT]:
     # Initialization
     eval_result = evaluation_provider.evaluate(initial_program)
@@ -529,6 +556,7 @@ def search(
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
         checkpoint_provider=checkpoint_provider,
+        k_per_parent=k_per_parent,
         trajectory_provider=trajectory_provider,
     )
 
@@ -539,6 +567,7 @@ def run_or_resume(
     total_budget_steps: int,
     batch_size: int,
     samples_per_parent: int,
+    k_per_parent: int,
     mutation_provider: MutationProvider[ObservationT],
     evaluation_provider: EvaluationProvider[ObservationT],
     checkpoint_provider: PuctCheckpointProvider[ObservationT],
@@ -581,6 +610,7 @@ def run_or_resume(
             evaluation_provider=evaluation_provider,
             checkpoint_provider=checkpoint_provider,
             trajectory_provider=trajectory_provider,
+            k_per_parent=k_per_parent,
         )
     else:
         _ = resume_search(
@@ -592,6 +622,7 @@ def run_or_resume(
             evaluation_provider=evaluation_provider,
             checkpoint_provider=checkpoint_provider,
             trajectory_provider=trajectory_provider,
+            k_per_parent=k_per_parent,
         )
 
     final = checkpoint_provider.load()
@@ -611,6 +642,8 @@ def resume_search(
     evaluation_provider: EvaluationProvider[ObservationT],
     checkpoint_provider: PuctCheckpointProvider[ObservationT] = NoOpPuctCheckpointProvider(),  # type: ignore[assignment]
     trajectory_provider: TrajectoryProvider[ObservationT] = NoOpTrajectoryProvider(),  # type: ignore[assignment]
+    *,
+    k_per_parent: int,
 ) -> Node[ObservationT]:
     """
     Resume a PUCT search from a saved checkpoint.
@@ -641,5 +674,6 @@ def resume_search(
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
         checkpoint_provider=checkpoint_provider,
+        k_per_parent=k_per_parent,
         trajectory_provider=trajectory_provider,
     )

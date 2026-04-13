@@ -139,6 +139,7 @@ def test_search_converges_to_maximum():
         samples_per_parent=4,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
+        k_per_parent=2,
     )
 
     # Should find the maximum (all 1s)
@@ -158,6 +159,7 @@ def test_search_batch_size_greater_than_one():
         samples_per_parent=4,
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
+        k_per_parent=2,
     )
 
     # Should still find a high-reward solution
@@ -252,6 +254,55 @@ def test_archive_update_enforces_top_k_per_parent():
     assert len(archive) <= 3
 
 
+def test_search_threads_k_per_parent_into_archive_update():
+    """Regression: `k_per_parent` passed to `search()` must actually reach
+    `update_archive`.
+
+    Prior to 2026-04-13, `k_per_parent` was a parameter on `update_archive`
+    with a silent default of 2, and `_search_impl` never forwarded it. Every
+    search in the codebase ran with k=2 regardless of what the caller wanted,
+    which silently capped the archive intake on any experiment that tried to
+    ablate `samples_per_parent`. This test pins the threading: if someone
+    re-introduces a default or breaks the forwarding, it fails loudly here
+    rather than only in report numbers weeks later.
+
+    Setup: one step of search with spp=4 and k_per_parent=4 on a 4-bit
+    string. The mutation provider emits all 4 unique single-bit flips of
+    "0000"; all four evaluate to distinct positive rewards, so dedup/filter
+    drops nothing. With k_per_parent=4 the archive must end up with
+    1 (seed) + 4 (children) = 5 nodes. With the old hardcoded k=2 it would
+    be 3 — so this test is a direct trip-wire on the old bug.
+    """
+    saved: list[PuctCheckpoint[NoFeedback]] = []
+
+    class CapturingProvider:
+        def save(self, checkpoint: PuctCheckpoint[NoFeedback]) -> None:
+            saved.append(checkpoint)
+
+        def load(self) -> Optional[PuctCheckpoint[NoFeedback]]:
+            return None
+
+    search(
+        initial_program="0000",
+        total_budget_steps=1,
+        batch_size=1,
+        samples_per_parent=4,
+        mutation_provider=BinaryStringMutationProvider(seed=42),
+        evaluation_provider=BinaryStringEvaluationProvider(),
+        checkpoint_provider=CapturingProvider(),
+        k_per_parent=4,
+    )
+
+    assert saved, "search() should have saved at least one checkpoint"
+    final = saved[-1]
+    assert len(final.archive) == 5, (
+        f"Expected archive of 5 (1 seed + 4 children) with k_per_parent=4, "
+        f"got {len(final.archive)}. If this is 3, `k_per_parent` is being "
+        f"silently capped at the old hardcoded default of 2 — the parameter "
+        f"is not being threaded from search() → _search_impl → update_archive."
+    )
+
+
 def test_archive_update_skips_none_rewards():
     """Test that update_archive skips children with None rewards."""
     failing_provider = FailingEvaluationProvider()
@@ -274,6 +325,7 @@ def test_archive_update_skips_none_rewards():
         children=children,
         parent_states=parent_states,
         seed_ids=seed_ids,
+        k_per_parent=2,
     )
 
     # Should only have the parent (no children added)
@@ -297,6 +349,7 @@ def test_archive_deduplication():
         children=[child1, child2],
         parent_states=[parent, parent],
         seed_ids=seed_ids,
+        k_per_parent=2,
     )
 
     # Should only have parent + 1 child (duplicate removed)
@@ -375,6 +428,7 @@ def test_search_handles_all_failed_evaluations():
         samples_per_parent=4,
         mutation_provider=mutation_provider,
         evaluation_provider=failing_provider,
+        k_per_parent=2,
     )
 
     # Should return the initial program (no valid children found)
@@ -438,6 +492,7 @@ def test_checkpoint_save_called():
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
         checkpoint_provider=mock_provider,
+        k_per_parent=2,
     )
 
     assert mock_provider.save_count >= 1
@@ -473,6 +528,7 @@ def test_checkpoint_resume_produces_same_result():
         mutation_provider=mutation_provider_partial,
         evaluation_provider=evaluation_provider,
         checkpoint_provider=CapturingProvider(),
+        k_per_parent=2,
     )
 
     assert saved_checkpoints, "Expected at least one checkpoint to be saved"
@@ -493,6 +549,7 @@ def test_checkpoint_resume_produces_same_result():
         samples_per_parent=4,
         mutation_provider=mutation_provider_resume,
         evaluation_provider=evaluation_provider,
+        k_per_parent=2,
     )
 
     assert result_resumed.evaluation.reward is not None
@@ -523,6 +580,7 @@ def test_resume_idempotent_when_complete():
         mutation_provider=mutation_provider,
         evaluation_provider=evaluation_provider,
         checkpoint_provider=CapturingProvider(),
+        k_per_parent=2,
     )
 
     assert saved_checkpoints, "Expected checkpoints to be saved during search"
@@ -549,6 +607,7 @@ def test_resume_idempotent_when_complete():
         samples_per_parent=4,
         mutation_provider=TrackingMutationProvider(),
         evaluation_provider=evaluation_provider,
+        k_per_parent=2,
     )
 
     assert len(mutation_calls) == 0, "No mutations should occur when resuming a completed search"
@@ -820,6 +879,7 @@ def test_trajectory_records_one_per_step() -> None:
         mutation_provider=BinaryStringMutationProvider(seed=42),
         evaluation_provider=BinaryStringEvaluationProvider(),
         trajectory_provider=captured,
+        k_per_parent=2,
     )
 
     assert len(captured.records) == 5
@@ -935,6 +995,7 @@ def test_run_or_resume_no_existing_checkpoint_runs_fresh_search(tmp_path: Path) 
         total_budget_steps=3,
         batch_size=1,
         samples_per_parent=1,
+        k_per_parent=2,
         mutation_provider=BinaryStringMutationProvider(seed=42),
         evaluation_provider=BinaryStringEvaluationProvider(),
         checkpoint_provider=provider,
@@ -959,6 +1020,7 @@ def test_run_or_resume_partial_checkpoint_resumes(tmp_path: Path) -> None:
         total_budget_steps=2,
         batch_size=1,
         samples_per_parent=1,
+        k_per_parent=2,
         mutation_provider=BinaryStringMutationProvider(seed=42),
         evaluation_provider=BinaryStringEvaluationProvider(),
         checkpoint_provider=provider,
@@ -972,6 +1034,7 @@ def test_run_or_resume_partial_checkpoint_resumes(tmp_path: Path) -> None:
         total_budget_steps=5,
         batch_size=1,
         samples_per_parent=1,
+        k_per_parent=2,
         mutation_provider=BinaryStringMutationProvider(seed=7),
         evaluation_provider=BinaryStringEvaluationProvider(),
         checkpoint_provider=provider,
@@ -1010,6 +1073,7 @@ def test_run_or_resume_complete_checkpoint_short_circuits(tmp_path: Path) -> Non
         total_budget_steps=3,
         batch_size=1,
         samples_per_parent=1,
+        k_per_parent=2,
         mutation_provider=BinaryStringMutationProvider(seed=42),
         evaluation_provider=BinaryStringEvaluationProvider(),
         checkpoint_provider=provider,
@@ -1022,6 +1086,7 @@ def test_run_or_resume_complete_checkpoint_short_circuits(tmp_path: Path) -> Non
         total_budget_steps=3,
         batch_size=1,
         samples_per_parent=1,
+        k_per_parent=2,
         mutation_provider=BinaryStringMutationProvider(seed=99),
         evaluation_provider=counting_eval,
         checkpoint_provider=provider,
