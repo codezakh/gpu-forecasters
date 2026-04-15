@@ -1,8 +1,48 @@
+import logging
 import re
 import shutil
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
+
+from loguru import logger
+
+
+class _LoguruInterceptHandler(logging.Handler):
+    """Route stdlib logging records into loguru.
+
+    Lifted verbatim from the copy that was being duplicated across
+    e0019 and e0020. Frame-walking depth of 6 matches the stdlib
+    ``logging`` module's internal call stack so loguru reports the
+    caller's frame rather than this handler's.
+    """
+
+    def emit(self, record: logging.LogRecord) -> None:  # pyright: ignore[reportImplicitOverride]
+        try:
+            level: str | int = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+
+        frame, depth = sys._getframe(6), 6  # pyright: ignore[reportPrivateUsage]
+        while frame and frame.f_code.co_filename == logging.__file__:
+            frame = frame.f_back  # type: ignore[assignment]
+            depth += 1
+
+        logger.opt(depth=depth, exception=record.exc_info).log(
+            level, record.getMessage()
+        )
+
+
+def install_loguru_intercept(level: int = logging.WARNING) -> None:
+    """Install a stdlib-logging → loguru bridge at the root logger.
+
+    Idempotent per-process: calling it multiple times replaces the root
+    handler list (via ``force=True``) rather than stacking duplicates.
+    """
+    logging.basicConfig(
+        handlers=[_LoguruInterceptHandler()], level=level, force=True
+    )
 
 
 @dataclass(frozen=True)
