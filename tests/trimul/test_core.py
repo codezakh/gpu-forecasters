@@ -6,16 +6,18 @@ not framework behavior (per the ``tests must test real logic`` rule).
 
 from __future__ import annotations
 
+import pytest
 from pydantic import TypeAdapter
 
 from arid_badger.trimul.core import (
+    CaseSpeedup,
     CompileFailedFeedback,
     IncorrectFeedback,
     RuntimeErrorFeedback,
     SuccessFeedback,
     TriMulExecResult,
     TriMulKernelExecutionFeedback,
-    execution_feedback_from_exec_result,
+    failure_feedback_from_exec_result,
 )
 
 
@@ -29,7 +31,22 @@ def _roundtrip(fb: TriMulKernelExecutionFeedback) -> TriMulKernelExecutionFeedba
 
 
 def test_success_roundtrip() -> None:
-    fb = SuccessFeedback(runtime_ns=1_000_000.0, ref_runtime_ns=2_000_000.0, speedup=2.0)
+    fb = SuccessFeedback(
+        aggregated_speedup=1.8,
+        aggregation_method="geomean",
+        per_case_speedups=[
+            CaseSpeedup(
+                seqlen=256, bs=2, dim=128, hiddendim=128,
+                nomask=True, distribution="normal",
+                speedup=2.0, runtime_ns=1_000_000.0, ref_runtime_ns=2_000_000.0,
+            ),
+            CaseSpeedup(
+                seqlen=1024, bs=1, dim=384, hiddendim=128,
+                nomask=True, distribution="cauchy",
+                speedup=1.6, runtime_ns=3_000_000.0, ref_runtime_ns=4_800_000.0,
+            ),
+        ],
+    )
     rt = _roundtrip(fb)
     assert isinstance(rt, SuccessFeedback)
     assert rt == fb
@@ -60,16 +77,7 @@ def test_compile_failed_roundtrip() -> None:
     assert "SyntaxError" in rt.compilation_error
 
 
-def test_adapter_success() -> None:
-    result = TriMulExecResult(
-        correct=True, runtime_ns=500_000.0, ref_runtime_ns=1_000_000.0
-    )
-    fb = execution_feedback_from_exec_result(exec_result=result, speedup=2.0)
-    assert isinstance(fb, SuccessFeedback)
-    assert fb.speedup == 2.0
-
-
-def test_adapter_incorrect() -> None:
+def test_failure_adapter_incorrect() -> None:
     result = TriMulExecResult(
         correct=False,
         runtime_ns=0.0,
@@ -77,12 +85,12 @@ def test_adapter_incorrect() -> None:
         failure_kind="incorrect",
         error_message="mismatch",
     )
-    fb = execution_feedback_from_exec_result(exec_result=result, speedup=0.0)
+    fb = failure_feedback_from_exec_result(result)
     assert isinstance(fb, IncorrectFeedback)
     assert fb.error_message == "mismatch"
 
 
-def test_adapter_runtime_error() -> None:
+def test_failure_adapter_runtime_error() -> None:
     result = TriMulExecResult(
         correct=False,
         runtime_ns=0.0,
@@ -92,12 +100,12 @@ def test_adapter_runtime_error() -> None:
         runtime_error="boom",
         traceback="tb",
     )
-    fb = execution_feedback_from_exec_result(exec_result=result, speedup=0.0)
+    fb = failure_feedback_from_exec_result(result)
     assert isinstance(fb, RuntimeErrorFeedback)
     assert fb.runtime_error == "boom"
 
 
-def test_adapter_compile_failed() -> None:
+def test_failure_adapter_compile_failed() -> None:
     result = TriMulExecResult(
         correct=False,
         runtime_ns=0.0,
@@ -105,5 +113,15 @@ def test_adapter_compile_failed() -> None:
         failure_kind="compile_failed",
         compilation_error="SyntaxError",
     )
-    fb = execution_feedback_from_exec_result(exec_result=result, speedup=0.0)
+    fb = failure_feedback_from_exec_result(result)
     assert isinstance(fb, CompileFailedFeedback)
+
+
+def test_failure_adapter_raises_on_passing_result() -> None:
+    result = TriMulExecResult(
+        correct=True,
+        runtime_ns=500_000.0,
+        ref_runtime_ns=1_000_000.0,
+    )
+    with pytest.raises(ValueError, match="failure_kind='none'"):
+        failure_feedback_from_exec_result(result)

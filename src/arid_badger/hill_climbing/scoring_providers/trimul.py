@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from arid_badger.trimul.core import (
     InfrastructureFailureFeedback,
+    TriMulExecResult,
     TriMulKernelExecutionFeedback,
 )
 
@@ -30,3 +31,4 @@ class TriMulObservation(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     feedback: TriMulFeedback
+    per_case_results: list[TriMulExecResult] = []

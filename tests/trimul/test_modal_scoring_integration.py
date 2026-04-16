@@ -101,7 +101,9 @@ def test_reference_self_consistency_all_cases() -> None:
     (verbose_allclose + DisableCuDNNTF32 + ref_kernel) is internally consistent."""
     with modal_trimul_scoring_session() as score:
         for idx, case in enumerate(CORRECTNESS_CASES):
-            result = score(_REF_SELF_CANDIDATE, case)
+            results = score(_REF_SELF_CANDIDATE, [case])
+            assert len(results) == 1
+            result = results[0]
             assert is_ok(result), f"case {idx}: infrastructure failure {result}"
             exec_result = result.unwrap()
             assert exec_result.correct is True, (
@@ -112,7 +114,9 @@ def test_reference_self_consistency_all_cases() -> None:
 def test_identity_starter_kit() -> None:
     src = _load_fixture("reference_submission.py")
     with modal_trimul_scoring_session() as score:
-        result = score(src, BENCHMARK_CASES[0])
+        results = score(src, [BENCHMARK_CASES[0]])
+    assert len(results) == 1
+    result = results[0]
     assert is_ok(result)
     exec_result = result.unwrap()
     assert exec_result.correct is True
@@ -124,7 +128,9 @@ def test_identity_starter_kit() -> None:
 
 def test_wrong_output() -> None:
     with modal_trimul_scoring_session() as score:
-        result = score(_ZEROS_CANDIDATE, BENCHMARK_CASES[0])
+        results = score(_ZEROS_CANDIDATE, [BENCHMARK_CASES[0]])
+    assert len(results) == 1
+    result = results[0]
     assert is_ok(result)
     exec_result = result.unwrap()
     assert exec_result.correct is False
@@ -134,7 +140,9 @@ def test_wrong_output() -> None:
 
 def test_runtime_exception() -> None:
     with modal_trimul_scoring_session() as score:
-        result = score(_RUNTIME_ERR_CANDIDATE, BENCHMARK_CASES[0])
+        results = score(_RUNTIME_ERR_CANDIDATE, [BENCHMARK_CASES[0]])
+    assert len(results) == 1
+    result = results[0]
     assert is_ok(result)
     exec_result = result.unwrap()
     assert exec_result.correct is False
@@ -144,7 +152,9 @@ def test_runtime_exception() -> None:
 
 def test_syntax_error() -> None:
     with modal_trimul_scoring_session() as score:
-        result = score(_SYNTAX_ERR_CANDIDATE, BENCHMARK_CASES[0])
+        results = score(_SYNTAX_ERR_CANDIDATE, [BENCHMARK_CASES[0]])
+    assert len(results) == 1
+    result = results[0]
     assert is_ok(result)
     exec_result = result.unwrap()
     assert exec_result.correct is False
@@ -167,7 +177,9 @@ def test_leaderboard_kernel_correct_on_all_cases(filename: str, user: str) -> No
         for idx, case in enumerate(CORRECTNESS_CASES):
             if (user, idx) in _LEADERBOARD_KNOWN_BAD:
                 continue
-            result = score(source, case)
+            results = score(source, [case])
+            assert len(results) == 1
+            result = results[0]
             assert is_ok(result), f"{user} case {idx}: infra failure {result}"
             exec_result = result.unwrap()
             assert exec_result.correct is True, (
@@ -199,16 +211,14 @@ def test_leaderboard_kernels_ranking_geomean_nomask_true_benchmarks() -> None:
     Asserts max(top3_geomean) < min(bot2_geomean). Does NOT assert intra-top-3
     order — the 2.2/2.3/2.4ms gap is within single-case timing noise.
 
-    Runs all 5 kernels × 5 benchmark cases = 25 Modal calls in parallel via a
-    thread pool (matches the TriMulModalProvider.batch_evaluate pattern)."""
+    Each kernel scores all 5 nomask=True benchmark cases in a single Modal
+    container call. 5 kernels = 5 container calls, parallelised via thread pool."""
     import math
     from concurrent.futures import ThreadPoolExecutor
 
-    ranking_case_indices = [
-        idx for idx, case in enumerate(BENCHMARK_CASES) if case["nomask"]
-    ]
-    assert len(ranking_case_indices) == 5, (
-        f"expected 5 nomask=True benchmark cases, got {len(ranking_case_indices)}"
+    ranking_cases = [case for case in BENCHMARK_CASES if case["nomask"]]
+    assert len(ranking_cases) == 5, (
+        f"expected 5 nomask=True benchmark cases, got {len(ranking_cases)}"
     )
 
     sources = {
@@ -217,35 +227,25 @@ def test_leaderboard_kernels_ranking_geomean_nomask_true_benchmarks() -> None:
     }
 
     with modal_trimul_scoring_session() as score:
-        def score_one(arg: tuple[str, int]) -> tuple[str, int, float]:
-            name, case_idx = arg
-            result = score(sources[name], BENCHMARK_CASES[case_idx])
-            assert is_ok(result), f"{name} case {case_idx}: infra failure"
-            exec_result = result.unwrap()
-            assert exec_result.correct is True, (
-                f"{name} case {case_idx}: incorrect — "
-                f"{exec_result.error_message[:200]}"
-            )
-            return name, case_idx, exec_result.runtime_ns
+        def score_kernel(name: str) -> tuple[str, float]:
+            results = score(sources[name], ranking_cases)
+            runtimes: list[float] = []
+            for i, result in enumerate(results):
+                assert is_ok(result), f"{name} case {i}: infra failure"
+                exec_result = result.unwrap()
+                assert exec_result.correct is True, (
+                    f"{name} case {i}: incorrect — "
+                    f"{exec_result.error_message[:200]}"
+                )
+                runtimes.append(exec_result.runtime_ns)
+            geomean = math.exp(sum(math.log(r) for r in runtimes) / len(runtimes))
+            return name, geomean
 
-        jobs = [
-            (name, idx)
-            for name, _, _ in _LEADERBOARD_KERNELS
-            for idx in ranking_case_indices
-        ]
-        with ThreadPoolExecutor(max_workers=len(jobs)) as executor:
-            results = list(executor.map(score_one, jobs))
+        kernel_names = [name for name, _, _ in _LEADERBOARD_KERNELS]
+        with ThreadPoolExecutor(max_workers=len(kernel_names)) as executor:
+            results_list = list(executor.map(score_kernel, kernel_names))
 
-    runtimes_per_kernel: dict[str, list[float]] = {
-        name: [] for name, _, _ in _LEADERBOARD_KERNELS
-    }
-    for name, _idx, runtime_ns in results:
-        runtimes_per_kernel[name].append(runtime_ns)
-
-    geomeans: dict[str, float] = {
-        name: math.exp(sum(math.log(r) for r in runs) / len(runs))
-        for name, runs in runtimes_per_kernel.items()
-    }
+    geomeans = dict(results_list)
 
     top3_names = [n for n, _, _ in _LEADERBOARD_KERNELS[:3]]
     bot2_names = [n for n, _, _ in _LEADERBOARD_KERNELS[3:]]

@@ -71,15 +71,35 @@ class IncorrectFeedback(BaseModel):
     error_message: str
 
 
+class CaseSpeedup(BaseModel):
+    """Per-case speedup with the shape parameters that produced it.
+
+    Gives mutation prompts actionable signal: "fast on small shapes,
+    slow on large shapes" is only useful if the shape is attached.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    seqlen: int
+    bs: int
+    dim: int
+    hiddendim: int
+    nomask: bool
+    distribution: str
+    speedup: float
+    runtime_ns: float
+    ref_runtime_ns: float
+
+
 class SuccessFeedback(BaseModel):
-    """Candidate ran and passed correctness; timings in nanoseconds."""
+    """Candidate passed correctness on all cases; aggregated timings."""
 
     model_config = ConfigDict(frozen=True)
 
     kind: Literal["success"] = "success"
-    runtime_ns: float
-    ref_runtime_ns: float
-    speedup: float
+    aggregated_speedup: float
+    aggregation_method: str
+    per_case_speedups: list[CaseSpeedup]
 
 
 class InfrastructureFailureFeedback(BaseModel):
@@ -114,7 +134,8 @@ class TriMulExecResult(BaseModel):
     the scoring pipeline — even if the candidate itself was wrong. Only
     infrastructure failures (Modal crashes, etc.) produce ``Err``. Callers
     turn this into a reward / feedback by calling
-    ``execution_feedback_from_exec_result``.
+    ``failure_feedback_from_exec_result`` (for failures) or constructing
+    ``SuccessFeedback`` directly (for the all-correct path).
     """
 
     model_config = ConfigDict(frozen=True)
@@ -132,10 +153,23 @@ class TriMulExecResult(BaseModel):
     ] = "none"
 
 
-def execution_feedback_from_exec_result(
-    *, exec_result: TriMulExecResult, speedup: float
-) -> TriMulKernelExecutionFeedback:
-    """Adapt a raw ``TriMulExecResult`` to the feedback discriminated union."""
+TriMulFailureFeedback = Union[
+    CompileFailedFeedback,
+    RuntimeErrorFeedback,
+    IncorrectFeedback,
+]
+
+
+def failure_feedback_from_exec_result(
+    exec_result: TriMulExecResult,
+) -> TriMulFailureFeedback:
+    """Build a failure feedback from a failing ``TriMulExecResult``.
+
+    Only valid when ``exec_result.failure_kind != "none"`` (i.e. the
+    candidate did not pass).  The all-correct path builds
+    ``SuccessFeedback`` directly in the provider layer, which has the
+    full multi-case context needed for aggregation.
+    """
     match exec_result.failure_kind:
         case "compile_failed":
             return CompileFailedFeedback(
@@ -150,8 +184,8 @@ def execution_feedback_from_exec_result(
         case "incorrect":
             return IncorrectFeedback(error_message=exec_result.error_message)
         case "none":
-            return SuccessFeedback(
-                runtime_ns=exec_result.runtime_ns,
-                ref_runtime_ns=exec_result.ref_runtime_ns,
-                speedup=speedup,
+            raise ValueError(
+                "failure_feedback_from_exec_result called on a passing result "
+                "(failure_kind='none'). Use SuccessFeedback directly for the "
+                "all-correct path."
             )

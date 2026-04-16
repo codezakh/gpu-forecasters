@@ -13,6 +13,7 @@ from arid_badger.trimul.cases import (
     TriMulTestArgs,
 )
 from arid_badger.trimul.core import (
+    CaseSpeedup,
     CompileFailedFeedback,
     IncorrectFeedback,
     InfrastructureFailureFeedback,
@@ -20,8 +21,9 @@ from arid_badger.trimul.core import (
     Stats,
     SuccessFeedback,
     TriMulExecResult,
+    TriMulFailureFeedback,
     TriMulKernelExecutionFeedback,
-    execution_feedback_from_exec_result,
+    failure_feedback_from_exec_result,
 )
 
 __all__ = [
@@ -30,11 +32,13 @@ __all__ = [
     "TriMulTestArgs",
     "TriMulExecResult",
     "TriMulKernelExecutionFeedback",
+    "TriMulFailureFeedback",
+    "CaseSpeedup",
     "SuccessFeedback",
     "IncorrectFeedback",
     "RuntimeErrorFeedback",
     "CompileFailedFeedback",
     "InfrastructureFailureFeedback",
     "Stats",
-    "execution_feedback_from_exec_result",
+    "failure_feedback_from_exec_result",
 ]

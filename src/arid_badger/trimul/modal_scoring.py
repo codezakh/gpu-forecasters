@@ -1,18 +1,19 @@
 """Modal-based TriMul scoring.
 
-Runs the TriMul scoring pipeline on a Modal GPU container. Uses
-``single_use_containers=True`` / ``max_inputs=1`` per the container
-lifecycle note in project memory (cold-start between calls is acceptable
-for this port — reference-timing cache can be added later).
+Runs the TriMul scoring pipeline on a Modal GPU container. Each container
+call scores one candidate against *all* test cases — fan-out over cases
+happens sequentially inside the container, fan-out over candidates is
+handled by the provider's thread pool.
 
 Usage:
 
     from arid_badger.trimul.modal_scoring import modal_trimul_scoring_session
 
     with modal_trimul_scoring_session(gpu="L4") as score:
-        result = score(candidate_source, test_args)
-        if is_ok(result):
-            print(result.unwrap().runtime_ns)
+        results = score(candidate_source, [test_args_1, test_args_2])
+        for r in results:
+            if is_ok(r):
+                print(r.unwrap().runtime_ns)
 """
 
 from __future__ import annotations
@@ -56,13 +57,13 @@ class ModalTriMulBenchmarker:
     """
 
     @modal.method()
-    def evaluate(
+    def evaluate_candidate(
         self,
         mutated_kernel_code: str,
-        test_args: "dict[str, object]",
+        test_cases: list[dict[str, object]],
         max_repeats: int = 100,
         max_time_ns: float = 10e9,
-    ) -> Option[TriMulExecResult, ScoringError]:
+    ) -> list[Option[TriMulExecResult, ScoringError]]:
         import torch
 
         from arid_badger.trimul.scoring import score
@@ -78,30 +79,48 @@ class ModalTriMulBenchmarker:
             )
             time.sleep(delay)
 
-        try:
-            result = score(
-                mutated_kernel_code,
-                cast(TriMulTestArgs, cast(object, test_args)),
-                max_repeats=max_repeats,
-                max_time_ns=max_time_ns,
-            )
-        except (torch.cuda.CudaError, Exception) as exc:
-            exc_type = type(exc).__name__
-            if "CudaError" in exc_type or "AcceleratorError" in exc_type:
-                modal.experimental.stop_fetching_inputs()
-            return Err(
-                ScoringError(
-                    reason=f"TriMul Modal evaluate raised {exc_type}: {exc}",
-                    cause=str(exc),
+        results: list[Option[TriMulExecResult, ScoringError]] = []
+        for test_case in test_cases:
+            try:
+                result = score(
+                    mutated_kernel_code,
+                    cast(TriMulTestArgs, cast(object, test_case)),
+                    max_repeats=max_repeats,
+                    max_time_ns=max_time_ns,
                 )
-            )
+            except (torch.cuda.CudaError, Exception) as exc:
+                exc_type = type(exc).__name__
+                if "CudaError" in exc_type or "AcceleratorError" in exc_type:
+                    # GPU is poisoned — stop accepting further inputs on
+                    # this container but still return partial results.
+                    modal.experimental.stop_fetching_inputs()
+                    results.append(
+                        Err(
+                            ScoringError(
+                                reason=f"TriMul Modal evaluate raised {exc_type}: {exc}",
+                                cause=str(exc),
+                            )
+                        )
+                    )
+                    break
+                results.append(
+                    Err(
+                        ScoringError(
+                            reason=f"TriMul Modal evaluate raised {exc_type}: {exc}",
+                            cause=str(exc),
+                        )
+                    )
+                )
+                continue
 
-        torch.cuda.empty_cache()
-        return result
+            torch.cuda.empty_cache()
+            results.append(result)
+
+        return results
 
 
 TriMulScoringFn = Callable[
-    [str, TriMulTestArgs], Option[TriMulExecResult, ScoringError]
+    [str, list[TriMulTestArgs]], list[Option[TriMulExecResult, ScoringError]]
 ]
 
 
@@ -111,7 +130,7 @@ def modal_trimul_scoring_session(
     max_repeats: int = 100,
     max_time_ns: float = 10e9,
 ) -> Generator[TriMulScoringFn, None, None]:
-    """Open a Modal session and yield a ``score(src, test_args)`` callable."""
+    """Open a Modal session and yield a ``score(src, test_cases)`` callable."""
     benchmarker = ModalTriMulBenchmarker.with_options(  # ty: ignore[unresolved-attribute]  # pyright: ignore[reportAttributeAccessIssue]
         gpu=gpu
     )
@@ -120,24 +139,26 @@ def modal_trimul_scoring_session(
 
         def score_fn(
             mutated_kernel_code: str,
-            test_args: TriMulTestArgs,
-        ) -> Option[TriMulExecResult, ScoringError]:
+            test_cases: list[TriMulTestArgs],
+        ) -> list[Option[TriMulExecResult, ScoringError]]:
             try:
-                outcome: Option[TriMulExecResult, ScoringError] = (
-                    benchmarker().evaluate.remote(
+                outcome: list[Option[TriMulExecResult, ScoringError]] = (
+                    benchmarker().evaluate_candidate.remote(
                         mutated_kernel_code=mutated_kernel_code,
-                        test_args=dict(test_args),
+                        test_cases=[dict(tc) for tc in test_cases],
                         max_repeats=max_repeats,
                         max_time_ns=max_time_ns,
                     )
                 )
                 return outcome
             except Exception as exc:
-                return Err(
+                # Container-level failure — return Err for every case
+                err = Err(
                     ScoringError(
                         reason=f"Modal call failed: {type(exc).__name__}: {exc}",
                         cause=str(exc),
                     )
                 )
+                return [err] * len(test_cases)
 
         yield score_fn

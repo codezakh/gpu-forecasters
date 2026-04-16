@@ -2,12 +2,14 @@
 
 Parallel to ``kernelbench_modal.ModalProvider`` — same context-manager
 lifecycle, same thread-pool ``batch_evaluate``, same invocation-sink
-shape. Takes a ``test_args: TriMulTestArgs`` at construction (single
-case per provider instance; multi-case aggregation is client-side).
+shape. Takes a ``test_cases: list[TriMulTestArgs]`` at construction;
+each ``evaluate()`` call sends all cases to a single Modal container
+and aggregates the per-case speedups into one reward.
 """
 
 from __future__ import annotations
 
+import math
 import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import AbstractContextManager
@@ -21,12 +23,14 @@ from pydantic import BaseModel
 from arid_badger.invocation_sink import InvocationSink, code_sha256
 from arid_badger.trimul.cases import TriMulTestArgs
 from arid_badger.trimul.core import (
+    CaseSpeedup,
     CompileFailedFeedback,
     IncorrectFeedback,
     InfrastructureFailureFeedback,
     RuntimeErrorFeedback,
     SuccessFeedback,
-    execution_feedback_from_exec_result,
+    TriMulExecResult,
+    failure_feedback_from_exec_result,
 )
 from arid_badger.trimul.modal_scoring import (
     TriMulScoringFn,
@@ -38,6 +42,34 @@ from ..domain import Evaluation, EvaluationProvider
 from .trimul import TriMulObservation
 
 
+# ---------------------------------------------------------------------------
+# Aggregator
+# ---------------------------------------------------------------------------
+
+AggregationMethod = Literal["geomean", "min", "arith_mean"]
+
+
+def _aggregate_speedups(
+    speedups: list[float],
+    method: AggregationMethod,
+) -> float:
+    """Reduce per-case speedups to a single scalar reward."""
+    match method:
+        case "geomean":
+            return math.exp(sum(math.log(s) for s in speedups) / len(speedups))
+        case "min":
+            return min(speedups)
+        case "arith_mean":
+            return sum(speedups) / len(speedups)
+        case _:
+            assert_never(method)
+
+
+# ---------------------------------------------------------------------------
+# Invocation record
+# ---------------------------------------------------------------------------
+
+
 class ModalTriMulEvaluationRecord(BaseModel, frozen=True):
     """Invocation record for a single TriMul Modal scoring call."""
 
@@ -45,25 +77,38 @@ class ModalTriMulEvaluationRecord(BaseModel, frozen=True):
     code_sha256: str
     wall_clock_seconds: float
     reward: float | None
+    n_cases: int
+    n_correct: int
     timestamp_utc: str
+
+
+# ---------------------------------------------------------------------------
+# Provider
+# ---------------------------------------------------------------------------
 
 
 class TriMulModalProvider:
     """Evaluates TriMul candidates on Modal.
 
     Must be used as a context manager to manage the Modal session lifecycle.
+    Each ``evaluate()`` call sends all test cases to a single Modal
+    container and aggregates per-case speedups into one reward.
     """
 
     def __init__(
         self,
-        test_args: TriMulTestArgs,
+        test_cases: list[TriMulTestArgs],
+        aggregator: AggregationMethod = "geomean",
         gpu: str = "A100-80GB",
         max_repeats: int = 100,
         max_time_ns: float = 10e9,
         invocation_sink: Optional[InvocationSink] = None,
         max_batch_workers: int = 10,
     ) -> None:
-        self._test_args = test_args
+        if not test_cases:
+            raise ValueError("test_cases must be non-empty")
+        self._test_cases = test_cases
+        self._aggregator: AggregationMethod = aggregator
         self._gpu = gpu
         self._max_repeats = max_repeats
         self._max_time_ns = max_time_ns
@@ -104,74 +149,124 @@ class TriMulModalProvider:
         sha = code_sha256(program_code)
         logger.info("TriMul Modal eval launching: sha256={sha}", sha=sha[:8])
         start_time_s = time.perf_counter()
-        outcome = self._score_fn(program_code, self._test_args)
+        outcomes = self._score_fn(program_code, self._test_cases)
         wall_clock_seconds = time.perf_counter() - start_time_s
 
-        if not is_ok(outcome):
-            scoring_error = outcome.unwrap_err()
-            logger.warning(
-                "TriMul Modal eval failed after {elapsed:.1f}s: {reason}",
-                elapsed=wall_clock_seconds,
-                reason=scoring_error.reason,
-            )
-            observation = TriMulObservation(
-                feedback=InfrastructureFailureFeedback(reason=scoring_error.reason),
-            )
-            if self._invocation_sink is not None:
-                self._invocation_sink.record(
-                    ModalTriMulEvaluationRecord(
-                        code_sha256=sha,
-                        wall_clock_seconds=wall_clock_seconds,
-                        reward=None,
-                        timestamp_utc=datetime.now(timezone.utc).isoformat(),
-                    )
+        # Unpack results, tracking per-case exec results and failures.
+        exec_results: list[TriMulExecResult] = []
+        n_correct = 0
+
+        for i, outcome in enumerate(outcomes):
+            # Infrastructure failure (Err slot) — bail immediately.
+            if not is_ok(outcome):
+                scoring_error = outcome.unwrap_err()
+                logger.warning(
+                    "TriMul Modal eval case {i} failed after {elapsed:.1f}s: {reason}",
+                    i=i,
+                    elapsed=wall_clock_seconds,
+                    reason=scoring_error.reason,
                 )
-            return Evaluation[TriMulObservation](observation=observation, reward=None)
+                observation = TriMulObservation(
+                    feedback=InfrastructureFailureFeedback(
+                        reason=scoring_error.reason
+                    ),
+                    per_case_results=exec_results,
+                )
+                self._record(sha, wall_clock_seconds, None, len(outcomes), n_correct)
+                return Evaluation[TriMulObservation](
+                    observation=observation, reward=None
+                )
 
-        exec_result = outcome.unwrap()
-        speedup = (
-            exec_result.ref_runtime_ns / exec_result.runtime_ns
-            if exec_result.correct and exec_result.runtime_ns > 0
-            else 0.0
-        )
-        feedback = execution_feedback_from_exec_result(
-            exec_result=exec_result, speedup=speedup
-        )
-        observation = TriMulObservation(feedback=feedback)
-        reward = speedup if exec_result.correct else None
+            exec_result = outcome.unwrap()
+            exec_results.append(exec_result)
+            if exec_result.correct:
+                n_correct += 1
 
-        match feedback:
-            case SuccessFeedback():
-                outcome_name = "success"
-            case CompileFailedFeedback():
-                outcome_name = "compile_failed"
-            case RuntimeErrorFeedback(runtime_error_name=name):
-                outcome_name = f"runtime_error({name})"
-            case IncorrectFeedback():
-                outcome_name = "incorrect"
-            case _:
-                assert_never(feedback)
+        # Check for any incorrect case — first failure determines feedback.
+        for exec_result in exec_results:
+            if not exec_result.correct:
+                feedback = failure_feedback_from_exec_result(exec_result)
+                match feedback:
+                    case CompileFailedFeedback():
+                        outcome_name = "compile_failed"
+                    case RuntimeErrorFeedback(runtime_error_name=name):
+                        outcome_name = f"runtime_error({name})"
+                    case IncorrectFeedback():
+                        outcome_name = "incorrect"
+                    case _:
+                        assert_never(feedback)
+
+                logger.info(
+                    "TriMul Modal eval done: reward=None, elapsed={elapsed:.1f}s, "
+                    "sha256={sha}, outcome={outcome}, n_correct={n_correct}/{n_cases}",
+                    elapsed=wall_clock_seconds,
+                    sha=sha[:8],
+                    outcome=outcome_name,
+                    n_correct=n_correct,
+                    n_cases=len(exec_results),
+                )
+                observation = TriMulObservation(
+                    feedback=feedback,
+                    per_case_results=exec_results,
+                )
+                self._record(
+                    sha, wall_clock_seconds, None, len(exec_results), n_correct
+                )
+                return Evaluation[TriMulObservation](
+                    observation=observation, reward=None
+                )
+
+        # All correct — compute per-case speedups and aggregate.
+        per_case_speedups: list[CaseSpeedup] = []
+        raw_speedups: list[float] = []
+        for exec_result, test_case in zip(exec_results, self._test_cases):
+            speedup = (
+                exec_result.ref_runtime_ns / exec_result.runtime_ns
+                if exec_result.runtime_ns > 0
+                else 0.0
+            )
+            raw_speedups.append(speedup)
+            per_case_speedups.append(
+                CaseSpeedup(
+                    seqlen=test_case["seqlen"],
+                    bs=test_case["bs"],
+                    dim=test_case["dim"],
+                    hiddendim=test_case["hiddendim"],
+                    nomask=test_case["nomask"],
+                    distribution=test_case["distribution"],
+                    speedup=speedup,
+                    runtime_ns=exec_result.runtime_ns,
+                    ref_runtime_ns=exec_result.ref_runtime_ns,
+                )
+            )
+
+        aggregated_speedup = _aggregate_speedups(raw_speedups, self._aggregator)
+
+        feedback = SuccessFeedback(
+            aggregated_speedup=aggregated_speedup,
+            aggregation_method=self._aggregator,
+            per_case_speedups=per_case_speedups,
+        )
+        observation = TriMulObservation(
+            feedback=feedback,
+            per_case_results=exec_results,
+        )
 
         logger.info(
             "TriMul Modal eval done: reward={reward}, elapsed={elapsed:.1f}s, "
-            "sha256={sha}, outcome={outcome}",
-            reward=f"{reward:.4f}" if reward is not None else "None",
+            "sha256={sha}, outcome=success, n_cases={n_cases}",
+            reward=f"{aggregated_speedup:.4f}",
             elapsed=wall_clock_seconds,
             sha=sha[:8],
-            outcome=outcome_name,
+            n_cases=len(exec_results),
         )
 
-        if self._invocation_sink is not None:
-            self._invocation_sink.record(
-                ModalTriMulEvaluationRecord(
-                    code_sha256=sha,
-                    wall_clock_seconds=wall_clock_seconds,
-                    reward=reward,
-                    timestamp_utc=datetime.now(timezone.utc).isoformat(),
-                )
-            )
-
-        return Evaluation[TriMulObservation](observation=observation, reward=reward)
+        self._record(
+            sha, wall_clock_seconds, aggregated_speedup, len(exec_results), n_correct
+        )
+        return Evaluation[TriMulObservation](
+            observation=observation, reward=aggregated_speedup
+        )
 
     def batch_evaluate(
         self, program_codes: list[str]
@@ -181,6 +276,26 @@ class TriMulModalProvider:
         n_workers = min(len(program_codes), self._max_batch_workers)
         with ThreadPoolExecutor(max_workers=n_workers) as executor:
             return list(executor.map(self.evaluate, program_codes))
+
+    def _record(
+        self,
+        sha: str,
+        wall_clock_seconds: float,
+        reward: float | None,
+        n_cases: int,
+        n_correct: int,
+    ) -> None:
+        if self._invocation_sink is not None:
+            self._invocation_sink.record(
+                ModalTriMulEvaluationRecord(
+                    code_sha256=sha,
+                    wall_clock_seconds=wall_clock_seconds,
+                    reward=reward,
+                    n_cases=n_cases,
+                    n_correct=n_correct,
+                    timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                )
+            )
 
 
 implements(EvaluationProvider[TriMulObservation])(TriMulModalProvider)
