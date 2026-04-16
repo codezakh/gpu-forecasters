@@ -86,6 +86,31 @@ class ExperimentIdentifier:
 
 
 class ExperimentWorkspaceManager:
+    """Manages the on-disk output directory for a single experiment.
+
+    Each experiment gets a deterministic output path under ``workspace/``
+    derived from its number and description::
+
+        workspace/experiments__0042_my_experiment/
+
+    Note the **double underscore** and **no ``e`` prefix** — this is
+    intentional and differs from the source directory name
+    (``experiments/e0042_my_experiment/``).
+
+    **Canonical usage** — declare once in the experiment's ``__init__.py``::
+
+        from arid_badger.experiment_utils import ExperimentWorkspaceManager
+
+        WORKSPACE = ExperimentWorkspaceManager.from_module_name(__name__)
+
+    Then access from other modules in the same experiment::
+
+        from . import WORKSPACE
+
+        WORKSPACE.setup()          # creates the directory (idempotent)
+        out = WORKSPACE.output_dir # Path to workspace/experiments__0042_.../
+    """
+
     def __init__(
         self,
         identifier: ExperimentIdentifier,
@@ -96,18 +121,22 @@ class ExperimentWorkspaceManager:
 
     @property
     def output_dir_name(self) -> str:
+        """Directory basename, e.g. ``experiments__0042_my_experiment``."""
         return (
             f"experiments__{self.identifier.number:04d}_{self.identifier.description}"
         )
 
     @property
     def output_dir(self) -> Path:
+        """Full path to the experiment's output directory (may not exist yet)."""
         return self.workspace_path / self.output_dir_name
 
     def setup(self) -> None:
+        """Create the output directory if it doesn't already exist."""
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def reset(self) -> None:
+        """Delete the output directory and all its contents."""
         if self.output_dir.exists():
             shutil.rmtree(self.output_dir)
 
