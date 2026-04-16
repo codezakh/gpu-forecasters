@@ -1,18 +1,27 @@
 """TriMul mutation provider conditioned on execution feedback.
 
-Mirrors ``kernel_execution_feedback.py`` for the TriMul benchmark.
 Uses the fixed ``_TRIMUL_BASE_PROMPT`` (vendored from ttt-discover rather
 than imported) instead of a per-problem parameterised prompt, because the
 TriMul task is fixed across all search runs.
 
-Issues a single ``litellm.completion(..., n=num_mutations)`` call. One
-top-up attempt is made if the primary call delivers fewer parseable
-candidates than requested. Token usage is aggregated across both calls
-in the invocation record.
+Fans out ``num_mutations`` independent ``litellm.acompletion(..., n=1)``
+calls concurrently, gated by an ``asyncio.Semaphore``. The shape mirrors
+the canonical approach adopted by ``WakePhaseMutationProvider`` (used in
+e0019/e0020) and the standalone candidate pool in e0021 — both arrived
+at ``n=1`` fan-out independently because Gemini (our default model)
+rejects ``n>1`` via litellm with a 400 ``"Multiple candidates is not
+enabled for this model"`` error.
+
+Robustness knobs (``num_retries``, ``request_timeout_s``) are litellm-
+native and absorb transient rate-limit / timeout failures before a call
+surfaces as a failure to the provider. The library ``kernel_execution_
+feedback.py`` still exists with its original ``n=num_mutations`` design
+and should be considered unused against Gemini until rewritten.
 """
 
 from __future__ import annotations
 
+import asyncio
 import re
 import time
 import traceback
@@ -375,9 +384,12 @@ def format_trimul_feedback_mutation_prompt(
 class TriMulFeedbackMutationRecord(BaseModel, frozen=True):
     """Invocation record for one ``generate_mutations`` call.
 
-    A single call may issue up to two underlying LLM requests: the primary
-    ``n=num_mutations`` request and an optional top-up for any shortfall.
-    The totals aggregate across both.
+    One call issues ``num_mutations_requested`` independent async LLM
+    requests (each with implicit ``n=1``). ``num_llm_requests`` equals
+    ``num_mutations_requested`` — every requested candidate corresponds
+    to exactly one outbound call. ``num_mutations_produced`` may be
+    smaller if some calls failed or their responses had no extractable
+    code block.
     """
 
     kind: Literal["trimul_feedback_mutation"] = "trimul_feedback_mutation"
@@ -406,10 +418,18 @@ class TriMulFeedbackMutationProvider:
     Unlike the KernelBench provider there is no ``reference_kernel_code``
     constructor argument — the TriMul task is fixed so the base prompt is
     a module-level constant.
+
+    Parallelism is bounded by ``max_llm_concurrency``. Each outbound
+    request inherits ``num_retries`` and ``request_timeout_s`` from
+    litellm, so transient rate-limit and timeout failures are absorbed
+    before they ever reach the provider.
     """
 
     _model_slug: str
     _base_prompt: str
+    _max_llm_concurrency: int
+    _num_retries: int
+    _request_timeout_s: float
     _invocation_sink: InvocationSink | None
 
     def __init__(
@@ -418,12 +438,20 @@ class TriMulFeedbackMutationProvider:
         model_slug: str,
         gpu_name: str,
         triton_version: str = "3.3.1",
+        max_llm_concurrency: int = 8,
+        num_retries: int = 4,
+        request_timeout_s: float = 300.0,
         invocation_sink: InvocationSink | None = None,
     ) -> None:
+        if max_llm_concurrency < 1:
+            raise ValueError("max_llm_concurrency must be >= 1")
         self._model_slug = model_slug
         self._base_prompt = _build_base_prompt(
             gpu_name=gpu_name, triton_version=triton_version
         )
+        self._max_llm_concurrency = max_llm_concurrency
+        self._num_retries = num_retries
+        self._request_timeout_s = request_timeout_s
         self._invocation_sink = invocation_sink
 
     def generate_mutations(
@@ -443,26 +471,9 @@ class TriMulFeedbackMutationProvider:
             )
 
         start_time_s = time.perf_counter()
-        codes, input_tokens, output_tokens, num_requests = self._request_candidates(
-            prompt=prompt, n=num_mutations
+        codes, input_tokens, output_tokens = asyncio.run(
+            self._generate_async(prompt=prompt, n=num_mutations)
         )
-
-        if len(codes) < num_mutations:
-            deficit = num_mutations - len(codes)
-            logger.info(
-                "Primary call produced {got}/{want} candidates; topping up {deficit}.",
-                got=len(codes),
-                want=num_mutations,
-                deficit=deficit,
-            )
-            more_codes, more_in, more_out, more_requests = self._request_candidates(
-                prompt=prompt, n=deficit
-            )
-            codes.extend(more_codes)
-            input_tokens += more_in
-            output_tokens += more_out
-            num_requests += more_requests
-
         wall_clock_seconds = time.perf_counter() - start_time_s
 
         if self._invocation_sink is not None:
@@ -475,7 +486,7 @@ class TriMulFeedbackMutationProvider:
                     total_output_tokens=output_tokens,
                     num_mutations_requested=num_mutations,
                     num_mutations_produced=len(codes),
-                    num_llm_requests=num_requests,
+                    num_llm_requests=num_mutations,
                     wall_clock_seconds=wall_clock_seconds,
                     timestamp_utc=datetime.now(timezone.utc).isoformat(),
                 )
@@ -483,47 +494,62 @@ class TriMulFeedbackMutationProvider:
 
         return codes
 
-    def _request_candidates(
+    async def _generate_async(
         self, *, prompt: str, n: int
-    ) -> tuple[list[str], int, int, int]:
-        """Issue a single ``completion(..., n=n)`` call and extract code blocks.
+    ) -> tuple[list[str], int, int]:
+        """Fan out ``n`` independent ``acompletion(..., n=1)`` calls.
 
-        Returns ``(codes, input_tokens, output_tokens, num_requests)``. On a
-        complete failure of the request itself, returns an empty code list
-        with ``num_requests=1`` so callers can still account for the attempt.
+        Concurrency is bounded by ``self._max_llm_concurrency``. Each
+        call's failure is logged and swallowed — the caller treats missing
+        results as a shortfall rather than an error (PUCT handles fewer
+        children than requested gracefully).
+
+        Returns ``(codes, total_input_tokens, total_output_tokens)``.
+        Token totals sum over all calls (including failed ones where
+        token counts are 0).
         """
-        try:
-            response = litellm.completion(
-                model=self._model_slug,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=1.0,
-                n=n,
-            )
-        except Exception:
-            logger.warning(
-                "LLM completion(n={n}) failed:\n{tb}",
-                n=n,
-                tb=traceback.format_exc(),
-            )
-            return [], 0, 0, 1
+        semaphore = asyncio.Semaphore(self._max_llm_concurrency)
 
-        raw_usage = response.usage  # pyright: ignore[reportAttributeAccessIssue]
-        input_tokens = raw_usage.prompt_tokens if raw_usage is not None else 0
-        output_tokens = raw_usage.completion_tokens if raw_usage is not None else 0
+        async def _single_call(index: int) -> tuple[str | None, int, int]:
+            async with semaphore:
+                try:
+                    response = await litellm.acompletion(
+                        model=self._model_slug,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=1.0,
+                        num_retries=self._num_retries,
+                        timeout=self._request_timeout_s,
+                    )
+                except Exception:
+                    logger.warning(
+                        "LLM call {index} failed:\n{tb}",
+                        index=index,
+                        tb=traceback.format_exc(),
+                    )
+                    return None, 0, 0
 
-        codes: list[str] = []
-        for index, choice in enumerate(response.choices):  # pyright: ignore[reportAttributeAccessIssue]
-            content = choice.message.content
-            code = _extract_last_python_codeblock(content) if content else None
-            if not code:
-                logger.warning(
-                    "LLM choice {index}: no code block extracted.",
-                    index=index,
+                raw_usage = response.usage  # pyright: ignore[reportAttributeAccessIssue]
+                input_tokens = (
+                    raw_usage.prompt_tokens if raw_usage is not None else 0
                 )
-                continue
-            codes.append(code)
+                output_tokens = (
+                    raw_usage.completion_tokens if raw_usage is not None else 0
+                )
+                content = response.choices[0].message.content  # pyright: ignore[reportAttributeAccessIssue]
+                code = _extract_last_python_codeblock(content) if content else None
+                if not code:
+                    logger.warning(
+                        "LLM call {index}: no code block extracted.",
+                        index=index,
+                    )
+                    return None, input_tokens, output_tokens
+                return code, input_tokens, output_tokens
 
-        return codes, input_tokens, output_tokens, 1
+        results = await asyncio.gather(*[_single_call(i) for i in range(n)])
+        codes = [code for code, _, _ in results if code is not None]
+        total_input_tokens = sum(inp for _, inp, _ in results)
+        total_output_tokens = sum(out for _, _, out in results)
+        return codes, total_input_tokens, total_output_tokens
 
 
 implements(MutationProvider[TriMulObservation])(TriMulFeedbackMutationProvider)

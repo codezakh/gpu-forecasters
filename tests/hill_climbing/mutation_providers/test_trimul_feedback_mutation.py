@@ -8,7 +8,10 @@ calls and then benchmark the resulting kernel on a Modal GPU.
 
 from __future__ import annotations
 
+import asyncio
 import time
+from typing import Any
+from unittest.mock import patch
 
 import pytest
 from loguru import logger
@@ -300,6 +303,174 @@ def test_extract_last_python_codeblock_returns_none_when_missing() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Unit tests — fan-out shape (no real LLM)
+# ---------------------------------------------------------------------------
+
+
+class _FakeUsage:
+    def __init__(self, prompt: int, completion: int) -> None:
+        self.prompt_tokens = prompt
+        self.completion_tokens = completion
+
+
+class _FakeMessage:
+    def __init__(self, content: str | None) -> None:
+        self.content = content
+
+
+class _FakeChoice:
+    def __init__(self, content: str | None) -> None:
+        self.message = _FakeMessage(content)
+
+
+class _FakeResponse:
+    def __init__(self, content: str | None) -> None:
+        self.choices = [_FakeChoice(content)]
+        self.usage = _FakeUsage(prompt=10, completion=20)
+
+
+def test_fanout_issues_one_call_per_mutation_with_n1() -> None:
+    """num_mutations independent acompletion calls, each with no ``n=`` param.
+
+    Guards against a regression that would reintroduce ``n=num_mutations``
+    on the wire — which Gemini rejects with HTTP 400. The fan-out pattern
+    must stay one-call-per-candidate.
+    """
+    provider = TriMulFeedbackMutationProvider(
+        model_slug=_MODEL_SLUG,
+        gpu_name="A100-80GB",
+        max_llm_concurrency=2,
+    )
+
+    fake_code = "```python\ndef custom_kernel(data):\n    return data\n```"
+    call_kwargs: list[dict[str, Any]] = []
+
+    async def fake_acompletion(**kwargs: Any) -> _FakeResponse:
+        call_kwargs.append(kwargs)
+        return _FakeResponse(fake_code)
+
+    with patch(
+        "arid_badger.hill_climbing.mutation_providers.trimul_feedback_mutation.litellm.acompletion",
+        side_effect=fake_acompletion,
+    ):
+        codes = provider.generate_mutations(
+            program_code=_STARTER_KERNEL,
+            num_mutations=3,
+            evaluation=_infra_failure_eval(),
+        )
+
+    assert len(codes) == 3
+    assert len(call_kwargs) == 3
+    for kwargs in call_kwargs:
+        assert "n" not in kwargs, (
+            "acompletion must be called with implicit n=1 — Gemini rejects n>1"
+        )
+        assert kwargs["model"] == _MODEL_SLUG
+        assert kwargs["num_retries"] == 4
+        assert kwargs["timeout"] == 300.0
+
+
+def test_fanout_respects_concurrency_limit() -> None:
+    """Semaphore caps in-flight acompletion calls to max_llm_concurrency."""
+    provider = TriMulFeedbackMutationProvider(
+        model_slug=_MODEL_SLUG,
+        gpu_name="A100-80GB",
+        max_llm_concurrency=2,
+    )
+
+    fake_code = "```python\ndef custom_kernel(data):\n    return data\n```"
+    in_flight = 0
+    peak_in_flight = 0
+    lock = asyncio.Lock()
+
+    async def fake_acompletion(**_kwargs: Any) -> _FakeResponse:
+        nonlocal in_flight, peak_in_flight
+        async with lock:
+            in_flight += 1
+            peak_in_flight = max(peak_in_flight, in_flight)
+        # Yield so other coroutines can run and hit the semaphore.
+        await asyncio.sleep(0.01)
+        async with lock:
+            in_flight -= 1
+        return _FakeResponse(fake_code)
+
+    with patch(
+        "arid_badger.hill_climbing.mutation_providers.trimul_feedback_mutation.litellm.acompletion",
+        side_effect=fake_acompletion,
+    ):
+        codes = provider.generate_mutations(
+            program_code=_STARTER_KERNEL,
+            num_mutations=8,
+            evaluation=_infra_failure_eval(),
+        )
+
+    assert len(codes) == 8
+    assert peak_in_flight <= 2, f"peak in-flight {peak_in_flight} exceeded cap 2"
+
+
+def test_fanout_tolerates_partial_failures() -> None:
+    """Failed calls are logged and swallowed; surviving calls produce codes."""
+    provider = TriMulFeedbackMutationProvider(
+        model_slug=_MODEL_SLUG,
+        gpu_name="A100-80GB",
+        max_llm_concurrency=4,
+    )
+
+    fake_code = "```python\ndef custom_kernel(data):\n    return data\n```"
+    call_index = 0
+    index_lock = asyncio.Lock()
+
+    async def fake_acompletion(**_kwargs: Any) -> _FakeResponse:
+        nonlocal call_index
+        async with index_lock:
+            this_index = call_index
+            call_index += 1
+        if this_index % 2 == 0:
+            raise RuntimeError(f"simulated failure on call {this_index}")
+        return _FakeResponse(fake_code)
+
+    sink = _ListSink()
+    provider_with_sink = TriMulFeedbackMutationProvider(
+        model_slug=_MODEL_SLUG,
+        gpu_name="A100-80GB",
+        max_llm_concurrency=4,
+        invocation_sink=sink,
+    )
+
+    with patch(
+        "arid_badger.hill_climbing.mutation_providers.trimul_feedback_mutation.litellm.acompletion",
+        side_effect=fake_acompletion,
+    ):
+        codes = provider_with_sink.generate_mutations(
+            program_code=_STARTER_KERNEL,
+            num_mutations=4,
+            evaluation=_infra_failure_eval(),
+        )
+
+    # 2 of 4 calls failed (indices 0 and 2 under the toy counter). We don't
+    # rely on that exact count because asyncio scheduling can interleave,
+    # but we do require strictly fewer produced than requested and > 0.
+    assert 0 < len(codes) < 4
+    assert len(sink.records) == 1
+    record = sink.records[0]
+    assert isinstance(record, TriMulFeedbackMutationRecord)
+    assert record.num_mutations_requested == 4
+    assert record.num_mutations_produced == len(codes)
+    assert record.num_llm_requests == 4
+    # Silence unused-import warning now that we no longer reference `provider`.
+    del provider
+
+
+def test_rejects_concurrency_below_one() -> None:
+    with pytest.raises(ValueError, match="max_llm_concurrency"):
+        TriMulFeedbackMutationProvider(
+            model_slug=_MODEL_SLUG,
+            gpu_name="A100-80GB",
+            max_llm_concurrency=0,
+        )
+
+
+# ---------------------------------------------------------------------------
 # Integration tests — real LLM calls, no GPU
 # ---------------------------------------------------------------------------
 
@@ -342,7 +513,8 @@ def test_generate_mutations_success_feedback() -> None:
     assert record.total_input_tokens > 0
     assert record.total_output_tokens > 0
     assert record.wall_clock_seconds > 0
-    assert record.num_llm_requests in (1, 2)
+    # One outbound call per requested candidate (n=1 fan-out).
+    assert record.num_llm_requests == 2
 
 
 @pytest.mark.integration
