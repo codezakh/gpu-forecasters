@@ -146,6 +146,9 @@ class TriMulModalProvider:
                 "calling evaluate(). Use `with TriMulModalProvider(...) as p: ...`"
             )
 
+        # Reward policy: any single incorrect or infrastructure-failed case
+        # means reward=None for the whole candidate.  Only candidates that
+        # pass every case get an aggregated speedup reward.
         sha = code_sha256(program_code)
         logger.info("TriMul Modal eval launching: sha256={sha}", sha=sha[:8])
         start_time_s = time.perf_counter()

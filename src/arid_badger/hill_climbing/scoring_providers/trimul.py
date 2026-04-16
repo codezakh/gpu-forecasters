@@ -30,5 +30,10 @@ class TriMulObservation(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
+    # Structured summary used for reward computation and mutation prompts.
     feedback: TriMulFeedback
+    # Raw per-case wire-format results for downstream inspection.  Overlaps
+    # with SuccessFeedback.per_case_speedups on the success path, but carries
+    # the full TriMulExecResult (error messages, tracebacks, etc.) which the
+    # feedback summary intentionally does not.
     per_case_results: list[TriMulExecResult] = []
