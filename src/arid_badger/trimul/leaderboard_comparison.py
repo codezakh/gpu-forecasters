@@ -2,8 +2,10 @@
 
 Public entrypoint is :func:`compare_to_leaderboard`. The 5 leaderboard
 fixtures in ``tests/trimul/fixtures/leaderboard/`` are pre-scored once per
-GPU via :func:`bootstrap_leaderboard_baselines` and stored as JSON next to
-this module under ``_leaderboard_baselines/{gpu}/{kernel_id}.json``.
+GPU via :func:`bootstrap_leaderboard_baselines` and stored as JSON at
+``15-arid-badger/leaderboard_baselines/{gpu}/{kernel_id}.json``. The
+directory lives outside ``src/`` so writes during a bootstrap run don't
+land inside the package tree that Modal automounts on app start.
 
 Container-to-container timing variance affects cached and freshly-measured
 runs symmetrically (each Modal scoring call gets its own container regardless
@@ -40,6 +42,9 @@ class GpuKind(StrEnum):
     exactly so they pass through ``.with_options(gpu=...)`` unchanged."""
 
     A100_80GB = "A100-80GB"
+    H100 = "H100"
+    B200 = "B200"
+    L40S = "L40S"
 
 
 class LeaderboardKernelId(StrEnum):
@@ -170,18 +175,14 @@ class LeaderboardComparison(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-_BASELINES_ROOT = Path(__file__).parent / "_leaderboard_baselines"
-_FIXTURES_ROOT = (
-    Path(__file__).resolve().parents[3]  # src/arid_badger/trimul → repo root of 15-arid-badger
-    / "tests"
-    / "trimul"
-    / "fixtures"
-    / "leaderboard"
-)
+# src/arid_badger/trimul → 15-arid-badger repo root
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+LEADERBOARD_BASELINES_DIR = _REPO_ROOT / "leaderboard_baselines"
+_FIXTURES_ROOT = _REPO_ROOT / "tests" / "trimul" / "fixtures" / "leaderboard"
 
 
 def _baseline_path(gpu: GpuKind, kernel_id: LeaderboardKernelId) -> Path:
-    return _BASELINES_ROOT / gpu.value / f"{kernel_id.value}.json"
+    return LEADERBOARD_BASELINES_DIR / gpu.value / f"{kernel_id.value}.json"
 
 
 def _fixture_source(kernel_id: LeaderboardKernelId) -> str:
@@ -343,8 +344,16 @@ def compare_to_leaderboard(
 
 def bootstrap_leaderboard_baselines(gpus: list[GpuKind]) -> None:
     """Score every leaderboard fixture on every GPU and write baseline JSONs.
-    Idempotent: existing baselines are overwritten."""
+    Idempotent: existing baselines are overwritten.
+
+    Writes happen *after* the Modal session for a given GPU closes.
+    Modal rejects subsequent builds if files it tracks were modified
+    mid-run, so even though ``leaderboard_baselines/`` lives outside the
+    automounted package tree we still buffer per-session and flush at
+    the end — belt-and-braces and cheap.
+    """
     for gpu in gpus:
+        scorecards: list[KernelScorecard] = []
         with modal_trimul_scoring_session(gpu=gpu.value) as score:
             for kid, entry in LEADERBOARD_REGISTRY.items():
                 source = _fixture_source(kid)
@@ -355,7 +364,9 @@ def bootstrap_leaderboard_baselines(gpus: list[GpuKind]) -> None:
                     score_fn=score,
                     published_geomean_us=entry.published_geomean_us,
                 )
-                _write_baseline(scorecard, gpu)
+                scorecards.append(scorecard)
+        for scorecard in scorecards:
+            _write_baseline(scorecard, gpu)
 
 
 # ---------------------------------------------------------------------------
@@ -410,7 +421,7 @@ def _cli() -> None:
         prog="bootstrap-trimul-leaderboard",
         description=(
             "Score every leaderboard fixture on each --gpu via Modal and write "
-            "baseline JSONs into _leaderboard_baselines/{gpu}/. Idempotent: "
+            "baseline JSONs into leaderboard_baselines/{gpu}/. Idempotent: "
             "existing baselines are overwritten. Required before "
             "compare_to_leaderboard() can be used on a new GPU."
         ),

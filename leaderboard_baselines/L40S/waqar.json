@@ -1,0 +1,58 @@
+{
+  "name": "Waqar",
+  "leaderboard_id": "waqar",
+  "source_sha256": "986eec97b3d1b294e5241954a44f007a74deaccdc7eabcef5aaf34474a2379e2",
+  "measured_at": "2026-04-17T01:04:46.276304+00:00",
+  "published_geomean_us": 4919.0,
+  "case_results": [
+    {
+      "case_index": 0,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 19779914.85595703,
+      "failure_kind": null
+    },
+    {
+      "case_index": 1,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 87582578.02327473,
+      "failure_kind": null
+    },
+    {
+      "case_index": 2,
+      "nomask": false,
+      "correct": true,
+      "runtime_ns": 51078446.338051245,
+      "failure_kind": null
+    },
+    {
+      "case_index": 3,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 38953582.085503474,
+      "failure_kind": null
+    },
+    {
+      "case_index": 4,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 156135187.59987572,
+      "failure_kind": null
+    },
+    {
+      "case_index": 5,
+      "nomask": false,
+      "correct": true,
+      "runtime_ns": 232993334.73488137,
+      "failure_kind": null
+    },
+    {
+      "case_index": 6,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 415703912.09920245,
+      "failure_kind": null
+    }
+  ]
+}

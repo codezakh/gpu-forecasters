@@ -1,0 +1,58 @@
+{
+  "name": "TTT",
+  "leaderboard_id": "ttt",
+  "source_sha256": "66d6e43e62f860af63064304f8ca74e4b3d868e3e6a475a0bcc028e8b84c6e6c",
+  "measured_at": "2026-04-17T01:02:21.038492+00:00",
+  "published_geomean_us": 2198.19,
+  "case_results": [
+    {
+      "case_index": 0,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 899243.8393831253,
+      "failure_kind": null
+    },
+    {
+      "case_index": 1,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 4816833.888783175,
+      "failure_kind": null
+    },
+    {
+      "case_index": 2,
+      "nomask": false,
+      "correct": false,
+      "runtime_ns": null,
+      "failure_kind": "incorrect"
+    },
+    {
+      "case_index": 3,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 2181401.687008994,
+      "failure_kind": null
+    },
+    {
+      "case_index": 4,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 8702345.657348633,
+      "failure_kind": null
+    },
+    {
+      "case_index": 5,
+      "nomask": false,
+      "correct": false,
+      "runtime_ns": null,
+      "failure_kind": "incorrect"
+    },
+    {
+      "case_index": 6,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 19292063.71307373,
+      "failure_kind": null
+    }
+  ]
+}

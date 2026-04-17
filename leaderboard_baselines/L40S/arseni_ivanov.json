@@ -1,0 +1,58 @@
+{
+  "name": "Arseni Ivanov",
+  "leaderboard_id": "arseni_ivanov",
+  "source_sha256": "388a2da8607fc5cd2a074857482cb4afd58522e94316de161d4717bcd0e98bb9",
+  "measured_at": "2026-04-17T01:04:03.923638+00:00",
+  "published_geomean_us": 4532.0,
+  "case_results": [
+    {
+      "case_index": 0,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 1294782.7279567719,
+      "failure_kind": null
+    },
+    {
+      "case_index": 1,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 5611743.995121547,
+      "failure_kind": null
+    },
+    {
+      "case_index": 2,
+      "nomask": false,
+      "correct": true,
+      "runtime_ns": 2277370.0952529907,
+      "failure_kind": null
+    },
+    {
+      "case_index": 3,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 2215443.172454834,
+      "failure_kind": null
+    },
+    {
+      "case_index": 4,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 10639123.153686523,
+      "failure_kind": null
+    },
+    {
+      "case_index": 5,
+      "nomask": false,
+      "correct": true,
+      "runtime_ns": 10295397.109985352,
+      "failure_kind": null
+    },
+    {
+      "case_index": 6,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 19067671.383128446,
+      "failure_kind": null
+    }
+  ]
+}

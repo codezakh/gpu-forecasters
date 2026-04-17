@@ -181,7 +181,7 @@ def test_load_leaderboard_baseline_raises_when_missing(tmp_path, monkeypatch) ->
     a hint to run bootstrap."""
     import arid_badger.trimul.leaderboard_comparison as mod
 
-    monkeypatch.setattr(mod, "_BASELINES_ROOT", tmp_path / "missing")
+    monkeypatch.setattr(mod, "LEADERBOARD_BASELINES_DIR", tmp_path / "missing")
     with pytest.raises(FileNotFoundError, match="bootstrap"):
         load_leaderboard_baseline(GpuKind.A100_80GB)
 

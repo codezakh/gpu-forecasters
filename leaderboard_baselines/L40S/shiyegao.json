@@ -1,0 +1,58 @@
+{
+  "name": "shiyegao",
+  "leaderboard_id": "shiyegao",
+  "source_sha256": "facde58954fab840461c9b826c56e9132535615007ba3dd49ed6812f55f6ec8c",
+  "measured_at": "2026-04-17T01:03:21.778182+00:00",
+  "published_geomean_us": 2273.0,
+  "case_results": [
+    {
+      "case_index": 0,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 1262023.1458481322,
+      "failure_kind": null
+    },
+    {
+      "case_index": 1,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 6681168.031692505,
+      "failure_kind": null
+    },
+    {
+      "case_index": 2,
+      "nomask": false,
+      "correct": true,
+      "runtime_ns": 2448748.8055229187,
+      "failure_kind": null
+    },
+    {
+      "case_index": 3,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 2895637.607574463,
+      "failure_kind": null
+    },
+    {
+      "case_index": 4,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 11879726.703350361,
+      "failure_kind": null
+    },
+    {
+      "case_index": 5,
+      "nomask": false,
+      "correct": true,
+      "runtime_ns": 12344399.690628052,
+      "failure_kind": null
+    },
+    {
+      "case_index": 6,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 20902915.516415156,
+      "failure_kind": null
+    }
+  ]
+}
