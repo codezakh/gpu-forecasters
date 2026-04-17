@@ -470,16 +470,33 @@ class TriMulFeedbackMutationProvider:
                 feedback=feedback,
             )
 
+        parent_sha = code_sha256(program_code)
+        logger.info(
+            "TriMul mutation phase starting: parent_sha={parent}, n={n}, concurrency={c}",
+            parent=parent_sha[:8],
+            n=num_mutations,
+            c=self._max_llm_concurrency,
+        )
         start_time_s = time.perf_counter()
         codes, input_tokens, output_tokens = asyncio.run(
             self._generate_async(prompt=prompt, n=num_mutations)
         )
         wall_clock_seconds = time.perf_counter() - start_time_s
+        logger.info(
+            "TriMul mutation phase done: parent_sha={parent}, produced={produced}/{n}, "
+            "elapsed={elapsed:.1f}s, in_tok={inp}, out_tok={out}",
+            parent=parent_sha[:8],
+            produced=len(codes),
+            n=num_mutations,
+            elapsed=wall_clock_seconds,
+            inp=input_tokens,
+            out=output_tokens,
+        )
 
         if self._invocation_sink is not None:
             self._invocation_sink.record(
                 TriMulFeedbackMutationRecord(
-                    parent_code_sha256=code_sha256(program_code),
+                    parent_code_sha256=parent_sha,
                     child_code_sha256s=[code_sha256(c) for c in codes],
                     model_slug=self._model_slug,
                     total_input_tokens=input_tokens,
@@ -512,6 +529,8 @@ class TriMulFeedbackMutationProvider:
 
         async def _single_call(index: int) -> tuple[str | None, int, int]:
             async with semaphore:
+                logger.info("LLM call {index}/{n}: starting", index=index, n=n)
+                call_start_s = time.perf_counter()
                 try:
                     response = await litellm.acompletion(
                         model=self._model_slug,
@@ -521,13 +540,17 @@ class TriMulFeedbackMutationProvider:
                         timeout=self._request_timeout_s,
                     )
                 except Exception:
+                    elapsed = time.perf_counter() - call_start_s
                     logger.warning(
-                        "LLM call {index} failed:\n{tb}",
+                        "LLM call {index}/{n} failed after {elapsed:.1f}s:\n{tb}",
                         index=index,
+                        n=n,
+                        elapsed=elapsed,
                         tb=traceback.format_exc(),
                     )
                     return None, 0, 0
 
+                elapsed = time.perf_counter() - call_start_s
                 raw_usage = response.usage  # pyright: ignore[reportAttributeAccessIssue]
                 input_tokens = (
                     raw_usage.prompt_tokens if raw_usage is not None else 0
@@ -539,10 +562,23 @@ class TriMulFeedbackMutationProvider:
                 code = _extract_last_python_codeblock(content) if content else None
                 if not code:
                     logger.warning(
-                        "LLM call {index}: no code block extracted.",
+                        "LLM call {index}/{n}: no code block extracted (elapsed={elapsed:.1f}s, in_tok={inp}, out_tok={out}).",
                         index=index,
+                        n=n,
+                        elapsed=elapsed,
+                        inp=input_tokens,
+                        out=output_tokens,
                     )
                     return None, input_tokens, output_tokens
+                logger.info(
+                    "LLM call {index}/{n}: done (elapsed={elapsed:.1f}s, in_tok={inp}, out_tok={out}, code_chars={chars})",
+                    index=index,
+                    n=n,
+                    elapsed=elapsed,
+                    inp=input_tokens,
+                    out=output_tokens,
+                    chars=len(code),
+                )
                 return code, input_tokens, output_tokens
 
         results = await asyncio.gather(*[_single_call(i) for i in range(n)])
