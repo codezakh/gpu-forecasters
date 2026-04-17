@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from arid_badger.trimul.cases import BENCHMARK_CASES, CORRECTNESS_CASES
+from arid_badger.trimul.leaderboard_comparison import LEADERBOARD_REGISTRY
 from arid_badger.trimul.modal_scoring import modal_trimul_scoring_session
 from arid_badger.typing_utils import is_ok
 
@@ -25,12 +26,10 @@ _LEADERBOARD = _FIXTURES / "leaderboard"
 # A100 leaderboard ranking (problem 496) at the time the kernels were
 # scraped. Runtimes are the site-reported geometric-mean across 7 benchmark
 # cases, in microseconds. Order is load-bearing for the ranking test.
+# Sourced from the canonical registry in arid_badger.trimul.leaderboard_comparison.
 _LEADERBOARD_KERNELS: list[tuple[str, str, float]] = [
-    ("ttt-discover.py", "TTT", 2198.190),
-    ("shiyegao.py", "shiyegao", 2273.0),
-    ("emmet-bicker.py", "Emmett Bicker", 2370.0),
-    ("areseni_ivanov.py", "Arseni Ivanov", 4532.0),
-    ("waqar.py", "Waqar", 4919.0),
+    (entry.fixture_filename, entry.display_name, entry.published_geomean_us)
+    for entry in LEADERBOARD_REGISTRY.values()
 ]
 
 

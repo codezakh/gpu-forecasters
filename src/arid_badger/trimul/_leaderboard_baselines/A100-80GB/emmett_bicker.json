@@ -1,0 +1,58 @@
+{
+  "name": "Emmett Bicker",
+  "leaderboard_id": "emmett_bicker",
+  "source_sha256": "4635f00365e00c824e21d458d32768a274503cd99b89fc0625388464c5927fb4",
+  "measured_at": "2026-04-17T00:17:45.992551+00:00",
+  "published_geomean_us": 2370.0,
+  "case_results": [
+    {
+      "case_index": 0,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 936331.8365812302,
+      "failure_kind": null
+    },
+    {
+      "case_index": 1,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 3001482.613881429,
+      "failure_kind": null
+    },
+    {
+      "case_index": 2,
+      "nomask": false,
+      "correct": true,
+      "runtime_ns": 1426227.5099754333,
+      "failure_kind": null
+    },
+    {
+      "case_index": 3,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 1443681.2806129456,
+      "failure_kind": null
+    },
+    {
+      "case_index": 4,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 5429887.962341309,
+      "failure_kind": null
+    },
+    {
+      "case_index": 5,
+      "nomask": false,
+      "correct": true,
+      "runtime_ns": 5839391.867319743,
+      "failure_kind": null
+    },
+    {
+      "case_index": 6,
+      "nomask": true,
+      "correct": true,
+      "runtime_ns": 10510357.538859049,
+      "failure_kind": null
+    }
+  ]
+}

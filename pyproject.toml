@@ -29,6 +29,7 @@ dependencies = [
 
 [project.scripts]
 15-arid-badger = "arid_badger:main"
+bootstrap-trimul-leaderboard = "arid_badger.trimul.leaderboard_comparison:_cli"
 
 [build-system]
 requires = ["hatchling"]
