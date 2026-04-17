@@ -44,6 +44,8 @@ _GPU_WAIT_MAX_DELAY_S = 8.0
     gpu=_DEFAULT_GPU,
     timeout=1200,
     max_containers=40,
+    single_use_containers=True,
+    scaledown_window=2,
     retries=modal.Retries(
         max_retries=3,
         backoff_coefficient=2.0,
@@ -142,13 +144,13 @@ def modal_trimul_scoring_session(
             test_cases: list[TriMulTestArgs],
         ) -> list[Option[TriMulExecResult, ScoringError]]:
             try:
-                outcome: list[Option[TriMulExecResult, ScoringError]] = (
-                    benchmarker().evaluate_candidate.remote(
-                        mutated_kernel_code=mutated_kernel_code,
-                        test_cases=[dict(tc) for tc in test_cases],
-                        max_repeats=max_repeats,
-                        max_time_ns=max_time_ns,
-                    )
+                outcome: list[
+                    Option[TriMulExecResult, ScoringError]
+                ] = benchmarker().evaluate_candidate.remote(
+                    mutated_kernel_code=mutated_kernel_code,
+                    test_cases=[dict(tc) for tc in test_cases],
+                    max_repeats=max_repeats,
+                    max_time_ns=max_time_ns,
                 )
                 return outcome
             except Exception as exc:
