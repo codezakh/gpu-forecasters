@@ -46,7 +46,6 @@ def test_run_experiment_end_to_end(tmp_path: Path) -> None:
     result = run_experiment(config, run_dir)
 
     assert isinstance(result, TrimulRunResult)
-    assert result.config == config
     assert result.elapsed_s > 0
 
     result_path = run_dir / RESULT_FILENAME

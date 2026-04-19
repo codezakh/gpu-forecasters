@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+from arid_badger.agentic_variation.gemini_cli.v1 import (
+    ExperimentConfig,
+    PromptContext,
+    default_system_prompt_renderer,
+    default_user_prompt_renderer,
+)
 from arid_badger.agentic_variation.gemini_cli.v1.prompts import (
     format_feedback_summary,
     render_system_prompt,
@@ -106,3 +112,76 @@ def test_render_user_prompt_embeds_seed_and_verdict() -> None:
     assert "3.3.1" in out
     assert "custom_kernel" in out
     assert "Aggregated speedup: 1.000x" in out
+
+
+# ---------------------------------------------------------------------------
+# Renderer Protocol wiring — proves that the ``ExperimentConfig``-level
+# indirection reaches the same text as the template-backed functions, and
+# that a custom renderer is honoured.
+# ---------------------------------------------------------------------------
+
+
+def _sample_context() -> PromptContext:
+    return PromptContext(
+        mcp_tool_name="mcp_trimul_score_trimul",
+        benchmark_budget=7,
+        gpu_name="H100",
+        triton_version="3.3.1",
+        seed_source="def kernel(): ...\n",
+        seed_feedback=SuccessFeedback(
+            aggregated_speedup=1.0,
+            aggregation_method="geomean",
+            per_case_speedups=[_case(1.0, 256)],
+        ),
+    )
+
+
+def _sample_config() -> ExperimentConfig:
+    return ExperimentConfig(
+        model_slug="gemini-3-flash-preview",
+        gpu="H100",
+        triton_version="3.3.1",
+        max_session_turns=7,
+        aggregator="geomean",
+    )
+
+
+def test_default_system_renderer_matches_template_function() -> None:
+    ctx = _sample_context()
+    cfg = _sample_config()
+    assert default_system_prompt_renderer(ctx, cfg) == render_system_prompt(
+        mcp_tool_name=ctx.mcp_tool_name,
+        benchmark_budget=ctx.benchmark_budget,
+    )
+
+
+def test_default_user_renderer_matches_template_function() -> None:
+    ctx = _sample_context()
+    cfg = _sample_config()
+    assert default_user_prompt_renderer(ctx, cfg) == render_user_prompt(
+        gpu_name=ctx.gpu_name,
+        triton_version=ctx.triton_version,
+        seed_source=ctx.seed_source,
+        seed_feedback=ctx.seed_feedback,
+        benchmark_budget=ctx.benchmark_budget,
+    )
+
+
+def test_custom_renderer_is_respected_via_config() -> None:
+    sentinel = "CUSTOM-PROMPT-TEXT"
+
+    def custom(ctx: PromptContext, cfg: ExperimentConfig) -> str:
+        del ctx, cfg
+        return sentinel
+
+    cfg = ExperimentConfig(
+        model_slug="gemini-3-flash-preview",
+        gpu="H100",
+        triton_version="3.3.1",
+        max_session_turns=7,
+        aggregator="geomean",
+        user_prompt_renderer=custom,
+    )
+    assert cfg.user_prompt_renderer(_sample_context(), cfg) == sentinel
+    # System renderer unchanged — still the default adapter.
+    assert cfg.system_prompt_renderer is default_system_prompt_renderer

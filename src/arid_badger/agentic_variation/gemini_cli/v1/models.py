@@ -1,25 +1,125 @@
 from __future__ import annotations
 
-from typing import Literal
+import shutil
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Callable, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
 from arid_badger.trimul.core import TriMulKernelExecutionFeedback
 
+from .prompts import render_system_prompt, render_user_prompt
+
 
 ThinkingLevel = Literal["LOW", "MEDIUM", "HIGH"]
 
 
-class ExperimentConfig(BaseModel):
-    """All tunable knobs for one run of the Gemini CLI agentic variation operator.
+# ---------------------------------------------------------------------------
+# Interface types for the config's pluggable behaviour surface.
+#
+# Kept alongside :class:`ExperimentConfig` so the config can reference
+# them without importing the concrete defaults (which live in
+# :mod:`prompts` and :mod:`hooks`). Concrete defaults are bound via
+# ``default_factory`` lambdas with local imports to avoid an import cycle.
+# ---------------------------------------------------------------------------
 
-    Treated as the single source of truth at runtime and as the persisted
-    provenance field on ``TrimulRunResult`` — the same object that drove
-    the run is what lands in ``result.json``, so the record cannot drift
-    from the configuration it claims to describe.
+
+@dataclass(frozen=True)
+class PromptContext:
+    """Fields available to a :class:`PromptRenderer`.
+
+    Superset of what either the system or user prompt renderer needs;
+    each renderer may consult any subset. ``seed_feedback`` is populated
+    from the baseline priming step, so callers building a context
+    outside of ``run_experiment`` must have a feedback object on hand.
     """
 
-    model_config = ConfigDict(frozen=True, protected_namespaces=())
+    mcp_tool_name: str
+    benchmark_budget: int
+    gpu_name: str
+    triton_version: str
+    seed_source: str
+    seed_feedback: TriMulKernelExecutionFeedback
+
+
+class PromptRenderer(Protocol):
+    def __call__(self, ctx: PromptContext, cfg: ExperimentConfig) -> str: ...
+
+
+@dataclass(frozen=True)
+class PostRunContext:
+    """Everything a post-run hook may need to read from or write to.
+
+    ``scratch`` is the container's working directory on the host — where
+    the agent wrote ``kernel.py`` and any other artifacts it was asked
+    to produce. ``run_artifacts_dir`` is the persistent destination
+    (the caller-supplied ``run_dir``). ``config`` is passed so hooks
+    that consult experiment knobs don't need to close over it.
+    """
+
+    scratch: Path
+    run_artifacts_dir: Path
+    config: ExperimentConfig
+
+
+PostRunHook = Callable[[PostRunContext], None]
+
+
+def default_system_prompt_renderer(
+    ctx: PromptContext, cfg: ExperimentConfig
+) -> str:
+    """Adapter: render the package's built-in system prompt template.
+
+    Ignores ``cfg`` and the data-only fields of ``ctx`` beyond
+    ``mcp_tool_name`` / ``benchmark_budget``.
+    """
+    del cfg
+    return render_system_prompt(
+        mcp_tool_name=ctx.mcp_tool_name,
+        benchmark_budget=ctx.benchmark_budget,
+    )
+
+
+def default_user_prompt_renderer(
+    ctx: PromptContext, cfg: ExperimentConfig
+) -> str:
+    """Adapter: render the package's built-in user prompt template."""
+    del cfg
+    return render_user_prompt(
+        gpu_name=ctx.gpu_name,
+        triton_version=ctx.triton_version,
+        seed_source=ctx.seed_source,
+        seed_feedback=ctx.seed_feedback,
+        benchmark_budget=ctx.benchmark_budget,
+    )
+
+
+def copy_kernel_files(ctx: PostRunContext) -> None:
+    """Copy every ``kernel*.py`` from the scratch dir into artifacts.
+
+    The versioned-file discipline (``kernel.py``, ``kernel_v1.py``, ...)
+    lets a human browse candidates without parsing JSONL. The server-side
+    trajectory log is still the source of truth; this is a convenience.
+    """
+    for src in sorted(ctx.scratch.glob("kernel*.py")):
+        _ = shutil.copy2(src, ctx.run_artifacts_dir / src.name)
+
+
+@dataclass(frozen=True)
+class ExperimentConfig:
+    """All tunable knobs for one run of the Gemini CLI agentic variation operator.
+
+    Holds the experiment constants (model, gpu, budgets, …) alongside
+    the pluggable behaviour hooks — prompt renderers and post-run hooks
+    — so a caller can swap in a different prompt or add a hook that
+    extracts extra artifacts (``memory.md``, ``learnings.md``, …) from
+    the agent's scratch dir without touching the orchestrator.
+
+    Not round-tripped to disk: each experiment declares its own
+    ``CONFIG`` constant in ``__main__.py``, which is the authoritative
+    provenance record. ``result.json`` carries the *runtime* outcome only.
+    """
 
     model_slug: str
     gpu: str
@@ -32,6 +132,11 @@ class ExperimentConfig(BaseModel):
     # does not support thinking (``thinking: false`` in the CLI's model
     # registry), so this field is only meaningful for Pro-family models.
     thinking_level: ThinkingLevel | None = None
+    system_prompt_renderer: PromptRenderer = default_system_prompt_renderer
+    user_prompt_renderer: PromptRenderer = default_user_prompt_renderer
+    post_run_hooks: tuple[PostRunHook, ...] = field(
+        default_factory=lambda: (copy_kernel_files,)
+    )
 
 
 class TrajectoryRecord(BaseModel):
@@ -107,7 +212,6 @@ class TrimulRunResult(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    config: ExperimentConfig
     exit_code: int
     elapsed_s: float
     final_kernel_source: str | None

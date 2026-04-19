@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from arid_badger.agentic_variation.gemini_cli.v1.models import (
-    ExperimentConfig,
     TrajectoryRecord,
     TrimulRunResult,
 )
@@ -83,13 +82,6 @@ def _write_result(
 ) -> None:
     run_dir.mkdir(parents=True, exist_ok=True)
     result = TrimulRunResult(
-        config=ExperimentConfig(
-            model_slug="gemini-3-flash-preview",
-            gpu="H100",
-            triton_version="3.3.1",
-            max_session_turns=10,
-            aggregator="geomean",
-        ),
         exit_code=0,
         elapsed_s=1.0,
         final_kernel_source=None,

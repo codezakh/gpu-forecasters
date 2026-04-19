@@ -43,8 +43,13 @@ from fastmcp import Client
 from loguru import logger
 from pydantic import TypeAdapter
 
-from .models import BaselineFeedbackEntry, ExperimentConfig, TrimulRunResult
-from .prompts import render_system_prompt, render_user_prompt
+from .models import (
+    BaselineFeedbackEntry,
+    ExperimentConfig,
+    PostRunContext,
+    PromptContext,
+    TrimulRunResult,
+)
 from .results import RESULT_FILENAME, RUN_DIR_PREFIX, best_record, load_trajectory
 
 
@@ -620,15 +625,21 @@ def _get_or_prime_baseline(
     return feedback
 
 
-def _copy_kernel_files(scratch: Path, run_artifacts_dir: Path) -> None:
-    """Copy every ``kernel*.py`` from the scratch dir into artifacts.
+def dispatch_post_run_hooks(
+    config: ExperimentConfig, scratch: Path, run_artifacts_dir: Path
+) -> None:
+    """Run every configured post-run hook against one ``PostRunContext``.
 
-    The versioned-file discipline (``kernel.py``, ``kernel_v1.py``, ...)
-    lets a human browse candidates without parsing JSONL. The server-side
-    trajectory log is still the source of truth; this is a convenience.
+    The context is built once per run and passed to every hook in
+    declaration order. Hooks are free to read from ``scratch`` and
+    write to ``run_artifacts_dir``; exceptions propagate (a hook that
+    fails aborts the run before ``result.json`` is written).
     """
-    for src in sorted(scratch.glob("kernel*.py")):
-        _ = shutil.copy2(src, run_artifacts_dir / src.name)
+    ctx = PostRunContext(
+        scratch=scratch, run_artifacts_dir=run_artifacts_dir, config=config
+    )
+    for hook in config.post_run_hooks:
+        hook(ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -673,12 +684,7 @@ def run_experiment(config: ExperimentConfig, run_dir: Path) -> TrimulRunResult:
     mcp_port = _pick_free_port()
     mcp_url = mcp_url_for(mcp_port)
 
-    system_prompt_text = render_system_prompt(
-        mcp_tool_name=MCP_TOOL_NAME,
-        benchmark_budget=config.max_session_turns,
-    )
     system_prompt_path = run_dir / "system_prompt.md"
-    _ = system_prompt_path.write_text(system_prompt_text)
 
     build_image(docker_client)
 
@@ -731,13 +737,20 @@ def run_experiment(config: ExperimentConfig, run_dir: Path) -> TrimulRunResult:
             _ = (run_dir / "baseline_feedback.json").write_text(
                 baseline_feedback.model_dump_json(indent=2)
             )
-            user_prompt_text = render_user_prompt(
+            # Build the shared context once baseline is primed, then
+            # render both prompts through the config's renderers (default
+            # adapters delegate to the package's Jinja templates).
+            prompt_ctx = PromptContext(
+                mcp_tool_name=MCP_TOOL_NAME,
+                benchmark_budget=config.max_session_turns,
                 gpu_name=config.gpu,
                 triton_version=config.triton_version,
                 seed_source=SEED_KERNEL_CODE,
                 seed_feedback=baseline_feedback,
-                benchmark_budget=config.max_session_turns,
             )
+            system_prompt_text = config.system_prompt_renderer(prompt_ctx, config)
+            _ = system_prompt_path.write_text(system_prompt_text)
+            user_prompt_text = config.user_prompt_renderer(prompt_ctx, config)
             _ = (run_dir / "user_prompt.md").write_text(user_prompt_text)
             exit_code, elapsed = run_agent(
                 docker_client=docker_client,
@@ -759,7 +772,7 @@ def run_experiment(config: ExperimentConfig, run_dir: Path) -> TrimulRunResult:
             # Clean shutdown — the PID file has served its purpose.
             pid_file.unlink(missing_ok=True)
 
-        _copy_kernel_files(scratch, run_dir)
+        dispatch_post_run_hooks(config, scratch, run_dir)
         kernel_path = scratch / "kernel.py"
         final_source = kernel_path.read_text() if kernel_path.exists() else None
 
@@ -779,7 +792,6 @@ def run_experiment(config: ExperimentConfig, run_dir: Path) -> TrimulRunResult:
     )
 
     result = TrimulRunResult(
-        config=config,
         exit_code=exit_code,
         elapsed_s=elapsed,
         final_kernel_source=final_source,
