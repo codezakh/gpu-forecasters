@@ -48,6 +48,7 @@ from .models import (
     ExperimentConfig,
     PostRunContext,
     PromptContext,
+    ToolCallContext,
     TrimulRunResult,
 )
 from .results import RESULT_FILENAME, RUN_DIR_PREFIX, best_record, load_trajectory
@@ -456,6 +457,46 @@ def _stream_container_logs(container: Container, raw_log_path: Path) -> Iterator
 # ---------------------------------------------------------------------------
 
 
+def dispatch_per_tool_call_hooks(
+    config: ExperimentConfig,
+    layout: RunLayout,
+    use_event: dict[str, Any],
+    result_event: dict[str, Any],
+) -> None:
+    """Fire every per-tool-call hook against one correlated tool call.
+
+    Built from a matched ``tool_use`` + ``tool_result`` pair — by the
+    time this runs, the tool has finished executing and the scratch dir
+    reflects whatever side-effects it had. Exceptions propagate: a
+    failing hook aborts the run before ``result.json`` is written,
+    matching the end-of-run dispatch policy.
+
+    ``tool_name`` and ``parameters`` are lifted from the ``tool_use``
+    side because ``tool_result`` only carries ``tool_id`` + ``status``;
+    missing / non-dict parameters fall back to ``{}`` so hooks can
+    ``.get()`` without guarding.
+    """
+    raw_parameters = use_event.get("parameters")
+    parameters: dict[str, Any] = (
+        raw_parameters if isinstance(raw_parameters, dict) else {}
+    )
+    ctx = ToolCallContext(
+        scratch=layout.scratch,
+        run_artifacts_dir=layout.run_artifacts_dir,
+        config=config,
+        tool_name=str(use_event.get("tool_name", "")),
+        parameters=parameters,
+        tool_id=str(use_event.get("tool_id", "")),
+        status=str(result_event.get("status", "")),
+        started_at=str(use_event.get("timestamp", "")),
+        finished_at=str(result_event.get("timestamp", "")),
+        use_event=use_event,
+        result_event=result_event,
+    )
+    for hook in config.per_tool_call_hooks:
+        hook(ctx)
+
+
 def run_agent(
     docker_client: docker.DockerClient,
     config: ExperimentConfig,
@@ -506,12 +547,39 @@ def run_agent(
 
     raw_log_path = layout.run_artifacts_dir / "agent_raw.log"
     try:
+        # Keyed by ``tool_id``: the ``tool_use`` event we've seen whose
+        # matching ``tool_result`` hasn't arrived yet. Populated on
+        # ``tool_use``, popped + dispatched on ``tool_result``. In
+        # ``--yolo`` mode tool calls are serial so this holds at most
+        # one entry, but keying on ``tool_id`` keeps us correct if that
+        # ever changes. Unmatched entries at end-of-run (container
+        # crashed mid-call) drop silently — per-tool-call hooks are for
+        # *completed* calls; the post-run hooks own end-state capture.
+        pending_tool_uses: dict[str, dict[str, Any]] = {}
         for line in _stream_container_logs(container, raw_log_path):
             try:
-                _ = json.loads(line)
-                logger.info("[agent] {s}", s=_summarize_agent_event(line))
+                event = json.loads(line)
             except json.JSONDecodeError:
                 logger.info("[agent] {line}", line=line[:400])
+                continue
+            logger.info("[agent] {s}", s=_summarize_agent_event(line))
+            if not isinstance(event, dict):
+                continue
+            event_type = event.get("type")
+            tool_id = event.get("tool_id")
+            if event_type == "tool_use" and isinstance(tool_id, str):
+                pending_tool_uses[tool_id] = event
+            elif event_type == "tool_result" and isinstance(tool_id, str):
+                use_event = pending_tool_uses.pop(tool_id, None)
+                if use_event is None:
+                    # Defensive: tool_result without a matching tool_use
+                    # shouldn't happen, but don't fail the run over it.
+                    logger.warning(
+                        "[agent] tool_result for unknown tool_id={tid}",
+                        tid=tool_id,
+                    )
+                    continue
+                dispatch_per_tool_call_hooks(config, layout, use_event, event)
         wait_result = container.wait()
         exit_code = int(wait_result["StatusCode"])
     finally:

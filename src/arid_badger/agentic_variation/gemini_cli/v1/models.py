@@ -3,7 +3,7 @@ from __future__ import annotations
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Literal, Protocol
+from typing import Any, Callable, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
@@ -64,6 +64,41 @@ class PostRunContext:
 
 
 PostRunHook = Callable[[PostRunContext], None]
+
+
+@dataclass(frozen=True)
+class ToolCallContext:
+    """Everything a per-tool-call hook needs to react to a completed tool call.
+
+    Fires once per correlated ``tool_use`` + ``tool_result`` pair from
+    the Gemini CLI container's NDJSON stream. The library owns the
+    correlation machinery (matching on ``tool_id``), so hooks never
+    touch the raw event ordering — they see one logical "tool call
+    finished" event with both sides in hand, and the on-disk state in
+    ``scratch`` already reflects whatever the tool did.
+
+    Match on ``tool_name`` and/or ``parameters`` to pick the calls you
+    care about; check ``status`` before reading files the tool was
+    supposed to write, since a failed write leaves the on-disk state
+    unreliable. ``use_event`` / ``result_event`` are kept alongside the
+    extracted fields for hooks that need schema-specific extras the
+    library hasn't promoted.
+    """
+
+    scratch: Path
+    run_artifacts_dir: Path
+    config: ExperimentConfig
+    tool_name: str
+    parameters: dict[str, Any]
+    tool_id: str
+    status: str
+    started_at: str
+    finished_at: str
+    use_event: dict[str, Any]
+    result_event: dict[str, Any]
+
+
+PerToolCallHook = Callable[[ToolCallContext], None]
 
 
 def default_system_prompt_renderer(
@@ -137,6 +172,14 @@ class ExperimentConfig:
     post_run_hooks: tuple[PostRunHook, ...] = field(
         default_factory=lambda: (copy_kernel_files,)
     )
+    # Fires synchronously inside the container-log consumption loop once
+    # per correlated ``tool_use`` + ``tool_result`` pair — i.e. after a
+    # tool call has finished executing, with the on-disk scratch state
+    # reflecting whatever the tool did. Empty by default; an experiment
+    # opts in by passing a tuple of :data:`PerToolCallHook`s. A slow
+    # hook blocks log consumption — fine for quick file I/O, a problem
+    # for anything doing network / GPU work.
+    per_tool_call_hooks: tuple[PerToolCallHook, ...] = ()
 
 
 class TrajectoryRecord(BaseModel):
