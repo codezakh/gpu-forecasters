@@ -20,3 +20,9 @@ class SearchConfig(BaseModel):
     k_per_parent: int
     archive_capacity: int = 1000
     c_puct: float = 1.0
+    # Maximum wall time a single provider request may spend in flight
+    # before the driver gives up on its future and emits a ``*Failed``
+    # terminal with reason ``"timeout"``. ``None`` disables the timeout.
+    # A stuck request that times out keeps the log consistent — the
+    # failure is terminal, so recovery will not re-dispatch it.
+    per_request_timeout_s: float | None = None

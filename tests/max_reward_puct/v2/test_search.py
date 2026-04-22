@@ -375,6 +375,97 @@ def test_crash_midstep_redispatches_rather_than_dropping(tmp_path: Path):
         e.request_id
         for e in resumed_events
         if isinstance(e, MutationCompleted)
-        or e.__class__.__name__ == "MutationFailed"
+        or isinstance(e, MutationFailed)
     }
     assert original_mut_req.request_id in terminal_ids
+
+
+def test_wedged_evaluation_times_out_and_step_finishes(tmp_path: Path):
+    """A provider call that never resolves must not hang the driver.
+
+    ``per_request_timeout_s`` bounds how long a single in-flight future
+    may sit in ``wait`` before the driver emits ``EvaluationFailed`` for
+    it and the step continues with whatever siblings did complete.
+    """
+    log_path = tmp_path / "log.jsonl"
+    timeout_s = 0.5
+
+    class WedgedEvaluator:
+        """Evaluator that returns immediately for the seed program
+        (so the synchronous root-eval path doesn't hang) and wedges
+        on every other code. ``__exit__`` releases the gate so the
+        pool can shut down cleanly."""
+
+        def __init__(self, seed_program: str) -> None:
+            self._seed_program = seed_program
+            self._executor: ThreadPoolExecutor | None = None
+            self.gate = threading.Event()
+
+        def submit(self, program_code: str) -> Future[Evaluation[NoFeedback]]:
+            assert self._executor is not None
+            return self._executor.submit(self._evaluate, program_code)
+
+        def _evaluate(self, program_code: str) -> Evaluation[NoFeedback]:
+            if program_code == self._seed_program:
+                return _eval(float(int(program_code, 2)))
+            # Non-seed: wedge. Capped so a runaway test doesn't hang
+            # pytest; the driver's timeout should fire long before this.
+            self.gate.wait(timeout=30.0)
+            return _eval(0.0)
+
+        def __enter__(self) -> Self:
+            self._executor = ThreadPoolExecutor(max_workers=4)
+            return self
+
+        def __exit__(
+            self, exc_type: object, exc_val: object, exc_tb: object
+        ) -> None:
+            self.gate.set()
+            if self._executor is not None:
+                self._executor.shutdown(wait=True)
+                self._executor = None
+
+    config = SearchConfig(
+        total_budget_steps=1,
+        batch_size=1,
+        samples_per_parent=2,
+        k_per_parent=2,
+        per_request_timeout_s=timeout_s,
+    )
+    started = time.perf_counter()
+    with BinaryStringMutationProvider(seed=0) as mp, WedgedEvaluator(
+        seed_program="0000"
+    ) as ep:
+        driver = SearchDriver[NoFeedback](
+            config,
+            mutation_provider=mp,
+            evaluation_provider=ep,
+            event_log=FileEventLog(log_path, observation_type=NoFeedback),
+            observation_type=NoFeedback,
+        )
+        _ = driver.run(initial_program="0000")
+    elapsed = time.perf_counter() - started
+
+    # The step must finish; the driver cannot sit in wait() forever.
+    # We allow generous slack above the configured timeout for
+    # ThreadPoolExecutor scheduling and bootstrap overhead.
+    assert elapsed < timeout_s * 10, (
+        f"driver took {elapsed:.2f}s with timeout={timeout_s}s — looks wedged"
+    )
+
+    events = FileEventLog[NoFeedback](
+        log_path, observation_type=NoFeedback
+    ).read_all()
+    # Every evaluation dispatched inside the step must have a terminal,
+    # and at least one must be an EvaluationFailed whose reason
+    # mentions the timeout.
+    eval_requests = [e for e in events if isinstance(e, EvaluationRequested)]
+    eval_failures = [
+        e
+        for e in events
+        if isinstance(e, EvaluationFailed) and "timeout" in e.reason
+    ]
+    assert len(eval_requests) >= config.samples_per_parent, (
+        "step should have dispatched at least samples_per_parent evals"
+    )
+    assert eval_failures, "expected at least one EvaluationFailed(reason~timeout)"

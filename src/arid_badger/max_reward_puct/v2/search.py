@@ -39,6 +39,7 @@ Durability cases:
 
 from __future__ import annotations
 
+import time
 from concurrent.futures import FIRST_COMPLETED, Future, wait
 from typing import Any, Generic
 
@@ -128,6 +129,7 @@ class SearchDriver(Generic[ObservationT]):
             event,
             k_per_parent=self.config.k_per_parent,
             archive_capacity=self.config.archive_capacity,
+            observation_type=self._observation_type,
         )
 
     # --- Top-level run -------------------------------------------------
@@ -141,6 +143,7 @@ class SearchDriver(Generic[ObservationT]):
                 event,
                 k_per_parent=self.config.k_per_parent,
                 archive_capacity=self.config.archive_capacity,
+                observation_type=self._observation_type,
             )
 
         # 2. Bootstrap if empty.
@@ -213,19 +216,19 @@ class SearchDriver(Generic[ObservationT]):
     ) -> None:
         """Dispatch ``k`` mutations per parent; stream evaluations as
         each mutation lands; drain to completion."""
-        active: dict[Future[object], tuple[str, str, Node[ObservationT]]] = {}
+        active: dict[Future[Any], tuple[str, str, Node[ObservationT], float]] = {}
 
         for parent in parents:
             for _ in range(self.config.samples_per_parent):
                 request_id = str(ULID())
                 fut = self._dispatch_mutation(state, request_id, parent)
-                active[fut] = (_MUTATION, request_id, parent)
+                active[fut] = (_MUTATION, request_id, parent, time.monotonic())
 
         self._drain(state, active)
 
     def _recover_step(self, state: SearchState[ObservationT]) -> None:
         """Re-dispatch un-terminated requests after a crash."""
-        active: dict[Future[object], tuple[str, str, Node[ObservationT]]] = {}
+        active: dict[Future[Any], tuple[str, str, Node[ObservationT], float]] = {}
         archive_by_ulid = {n.ulid: n for n in state.archive}
 
         # In-flight mutations split into two cases by ``code``:
@@ -248,7 +251,12 @@ class SearchDriver(Generic[ObservationT]):
                     parent_code=parent_node.program_code,
                     evaluation=parent_node.evaluation,
                 )
-                active[fut] = (_MUTATION, mutation_request_id, parent_node)
+                active[fut] = (
+                    _MUTATION,
+                    mutation_request_id,
+                    parent_node,
+                    time.monotonic(),
+                )
             else:
                 eval_request_id, eval_fut = self._dispatch_evaluation(
                     state,
@@ -256,7 +264,12 @@ class SearchDriver(Generic[ObservationT]):
                     entry.code,
                     from_mutation_request_id=mutation_request_id,
                 )
-                active[eval_fut] = (_EVALUATION, eval_request_id, parent_node)
+                active[eval_fut] = (
+                    _EVALUATION,
+                    eval_request_id,
+                    parent_node,
+                    time.monotonic(),
+                )
 
         # Re-dispatch in-flight evaluations (EvaluationRequested logged
         # but no terminal yet).
@@ -274,27 +287,92 @@ class SearchDriver(Generic[ObservationT]):
                 )
                 continue
             fut = self.evaluation_provider.submit(pending.code)
-            active[fut] = (_EVALUATION, request_id, parent_node)
+            active[fut] = (_EVALUATION, request_id, parent_node, time.monotonic())
 
         self._drain(state, active)
 
     def _drain(
         self,
         state: SearchState[ObservationT],
-        active: dict[Future[object], tuple[str, str, Node[ObservationT]]],
+        active: dict[Future[Any], tuple[str, str, Node[ObservationT], float]],
     ) -> None:
         """Completion loop: route each finished future to its handler
-        until none remain."""
+        until none remain.
+
+        If ``per_request_timeout_s`` is set, ``wait`` is bounded by the
+        earliest remaining per-future deadline. When a future crosses
+        its deadline we emit a terminal ``*Failed`` for it (so the log
+        is consistent and recovery won't retry it) and attempt to
+        cancel the underlying future. A future that cannot be cancelled
+        is abandoned; it may still complete eventually, but the search
+        has already moved on and its result is ignored.
+        """
+        timeout = self.config.per_request_timeout_s
         while active:
-            done, _ = wait(list(active.keys()), return_when=FIRST_COMPLETED)
-            for fut in done:
-                kind, request_id, parent = active.pop(fut)
-                if kind == _MUTATION:
-                    self._handle_mutation_completion(
-                        state, request_id, parent, fut, active
-                    )
-                else:
-                    self._handle_evaluation_completion(state, request_id, fut)
+            if timeout is None:
+                wait_timeout: float | None = None
+            else:
+                now = time.monotonic()
+                # Earliest deadline across every in-flight future.
+                wait_timeout = max(
+                    0.0,
+                    min(
+                        submit_time + timeout - now
+                        for (_k, _r, _p, submit_time) in active.values()
+                    ),
+                )
+            done, _ = wait(
+                list(active.keys()),
+                return_when=FIRST_COMPLETED,
+                timeout=wait_timeout,
+            )
+            if done:
+                for fut in done:
+                    kind, request_id, parent, _submit_time = active.pop(fut)
+                    if kind == _MUTATION:
+                        self._handle_mutation_completion(
+                            state, request_id, parent, fut, active
+                        )
+                    else:
+                        self._handle_evaluation_completion(state, request_id, fut)
+            else:
+                # No future completed within the deadline. Expire every
+                # future whose per-request budget has elapsed — typically
+                # one, but batched if many share the same start tick.
+                self._expire_timed_out(state, active)
+
+    def _expire_timed_out(
+        self,
+        state: SearchState[ObservationT],
+        active: dict[Future[Any], tuple[str, str, Node[ObservationT], float]],
+    ) -> None:
+        timeout = self.config.per_request_timeout_s
+        assert timeout is not None, (
+            "_expire_timed_out called with no configured timeout; "
+            "this is a driver bug"
+        )
+        now = time.monotonic()
+        expired = [
+            fut
+            for fut, (_k, _r, _p, submit_time) in active.items()
+            if now - submit_time >= timeout
+        ]
+        assert expired, (
+            "drain loop entered the timeout branch but no future was "
+            "actually past its deadline; this is a driver bug"
+        )
+        for fut in expired:
+            kind, request_id, _parent, _submit_time = active.pop(fut)
+            fut.cancel()
+            reason = f"timeout after {timeout:.1f}s"
+            if kind == _MUTATION:
+                self._emit(
+                    state, MutationFailed(request_id=request_id, reason=reason)
+                )
+            else:
+                self._emit(
+                    state, EvaluationFailed(request_id=request_id, reason=reason)
+                )
 
     # --- Dispatch helpers ---------------------------------------------
 
@@ -343,8 +421,8 @@ class SearchDriver(Generic[ObservationT]):
         state: SearchState[ObservationT],
         request_id: str,
         parent: Node[ObservationT],
-        fut: Future[object],
-        active: dict[Future[object], tuple[str, str, Node[ObservationT]]],
+        fut: Future[Any],
+        active: dict[Future[Any], tuple[str, str, Node[ObservationT], float]],
     ) -> None:
         try:
             code = fut.result()
@@ -375,13 +453,13 @@ class SearchDriver(Generic[ObservationT]):
             code,
             from_mutation_request_id=request_id,
         )
-        active[eval_fut] = (_EVALUATION, eval_request_id, parent)
+        active[eval_fut] = (_EVALUATION, eval_request_id, parent, time.monotonic())
 
     def _handle_evaluation_completion(
         self,
         state: SearchState[ObservationT],
         request_id: str,
-        fut: Future[object],
+        fut: Future[Any],
     ) -> None:
         try:
             evaluation = fut.result()
