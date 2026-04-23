@@ -25,6 +25,7 @@ name = "15-arid-badger"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "chz" },
     { name = "docker" },
     { name = "fastmcp" },
     { name = "ipdb" },
@@ -37,10 +38,14 @@ dependencies = [
     { name = "pydantic-ai" },
     { name = "pytest" },
     { name = "python-ulid" },
+    { name = "safetensors" },
     { name = "scipy" },
     { name = "seaborn" },
+    { name = "termcolor" },
     { name = "textual", extra = ["syntax"] },
     { name = "textualize" },
+    { name = "tiktoken" },
+    { name = "tinker" },
     { name = "torch", version = "2.9.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
     { name = "torch", version = "2.9.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'linux'" },
     { name = "transformers" },
@@ -49,6 +54,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "chz", specifier = ">=0.4.0" },
     { name = "docker", specifier = ">=7.1.0" },
     { name = "fastmcp", specifier = ">=3.2.4" },
     { name = "ipdb", specifier = ">=0.13.13" },
@@ -61,10 +67,14 @@ requires-dist = [
     { name = "pydantic-ai", specifier = ">=1.0" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "python-ulid", specifier = ">=3.1.0" },
+    { name = "safetensors", specifier = ">=0.7.0" },
     { name = "scipy", specifier = ">=1.17.1" },
     { name = "seaborn", specifier = ">=0.13.2" },
+    { name = "termcolor", specifier = ">=3.3.0" },
     { name = "textual", extras = ["syntax"], specifier = ">=6.2.1" },
     { name = "textualize", specifier = ">=0.1" },
+    { name = "tiktoken", specifier = ">=0.12.0" },
+    { name = "tinker", specifier = ">=0.18.1" },
     { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.5.1" },
     { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.5.1", index = "https://download.pytorch.org/whl/cu128" },
     { name = "transformers", specifier = ">=4.57.3" },
@@ -558,6 +568,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/4b/51/8ade005e5ca5b0d80fb4aff72a3775b325bdc3d27408c8113811a7cbe640/charset_normalizer-3.4.4-cp314-cp314-win_amd64.whl", hash = "sha256:8a6562c3700cce886c5be75ade4a5db4214fda19fede41d9792d100288d8f94c", size = 107104, upload-time = "2025-10-14T04:41:51.051Z" },
     { url = "https://files.pythonhosted.org/packages/da/5f/6b8f83a55bb8278772c5ae54a577f3099025f9ade59d0136ac24a0df4bde/charset_normalizer-3.4.4-cp314-cp314-win_arm64.whl", hash = "sha256:de00632ca48df9daf77a2c65a484531649261ec9f25489917f09e455cb09ddb2", size = 100743, upload-time = "2025-10-14T04:41:52.122Z" },
     { url = "https://files.pythonhosted.org/packages/0a/4c/925909008ed5a988ccbb72dcc897407e5d6d3bd72410d69e051fc0c14647/charset_normalizer-3.4.4-py3-none-any.whl", hash = "sha256:7a32c560861a02ff789ad905a2fe94e3f840803362c84fecf1851cb4cf3dc37f", size = 53402, upload-time = "2025-10-14T04:42:31.76Z" },
+]
+
+[[package]]
+name = "chz"
+version = "0.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3a/6c/09c8ca50c40e18be211f25ad6dcdb81f8110ba2d611cd0375f5fb65fb762/chz-0.4.0.tar.gz", hash = "sha256:5380039e6970a1056c2140288aafa41a33f26d5e4c685117be80f7e260c8d679", size = 82473, upload-time = "2025-11-24T00:55:10.634Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3c/eb/77789ad6f1807328a61c205881580546af597f60334f1f96fd4f3bb6e929/chz-0.4.0-py3-none-any.whl", hash = "sha256:5db5ffe42f6be38f1c37e1b18f0d5559572ee8a8dc941116e67f1bd5396e2a9b", size = 56277, upload-time = "2025-11-24T00:55:09.381Z" },
 ]
 
 [[package]]
@@ -1465,6 +1487,11 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b1/df/48c586a5fe32a0f01324ee087459e112ebb7224f646c0b5023f5e79e9956/httpx-0.28.1.tar.gz", hash = "sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc", size = 141406, upload-time = "2024-12-06T15:37:23.222Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl", hash = "sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad", size = 73517, upload-time = "2024-12-06T15:37:21.509Z" },
+]
+
+[package.optional-dependencies]
+http2 = [
+    { name = "h2" },
 ]
 
 [[package]]
@@ -4340,6 +4367,15 @@ wheels = [
 ]
 
 [[package]]
+name = "termcolor"
+version = "3.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/46/79/cf31d7a93a8fdc6aa0fbb665be84426a8c5a557d9240b6239e9e11e35fc5/termcolor-3.3.0.tar.gz", hash = "sha256:348871ca648ec6a9a983a13ab626c0acce02f515b9e1983332b17af7979521c5", size = 14434, upload-time = "2025-12-29T12:55:21.882Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/33/d1/8bb87d21e9aeb323cc03034f5eaf2c8f69841e40e4853c2627edf8111ed3/termcolor-3.3.0-py3-none-any.whl", hash = "sha256:cf642efadaf0a8ebbbf4bc7a31cec2f9b5f21a9f726f4ccbb08192c9c26f43a5", size = 7734, upload-time = "2025-12-29T12:55:20.718Z" },
+]
+
+[[package]]
 name = "textual"
 version = "6.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -4443,6 +4479,28 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a2/ab/d57227b10a05ff38c9827276a22e21b2cdcd5f66793d959b884d9ed4f09b/tilelang-0.1.7.post3-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:09358dabef3ee9fb181d379b820d47e555e4cba6cbd37733fb3282ff1ef55184", size = 39098743, upload-time = "2026-01-18T09:23:29.407Z" },
     { url = "https://files.pythonhosted.org/packages/ec/e4/73cfc9debdc1378656ed10d8ab573adbefb5f4c91b7e67b26b35d7486027/tilelang-0.1.7.post3-cp38-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:91b62df85c6fe96f17492c1b988bbc1126f983e7ea60ae4954b7767573b26c92", size = 48294560, upload-time = "2026-01-18T09:23:42.626Z" },
     { url = "https://files.pythonhosted.org/packages/fa/12/bf23e40dc48e7e49d0943a3ac081aceb5e4f385c5b69bff89f8bea1298cd/tilelang-0.1.7.post3-cp38-abi3-manylinux_2_34_aarch64.whl", hash = "sha256:9d41ef6f9ee5c704ba9e2a9c5478c546163ee0147d2868d1741a2605a0efe72a", size = 44649569, upload-time = "2026-01-18T09:24:28.891Z" },
+]
+
+[[package]]
+name = "tinker"
+version = "0.18.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "click" },
+    { name = "distro" },
+    { name = "httpx", extra = ["http2"] },
+    { name = "numpy" },
+    { name = "protobuf" },
+    { name = "pydantic" },
+    { name = "rich" },
+    { name = "sniffio" },
+    { name = "transformers" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8b/71/e3e13507efdad44dfa3efab13c84df8a7dc3d072550812a9ed6470c6c96e/tinker-0.18.1.tar.gz", hash = "sha256:309019db9052531c32563263168088d32cd56106390679083467dd5539da5236", size = 217135, upload-time = "2026-04-17T00:45:36.002Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4f/98/34361893addb9aee69c58b8c52b7b5161149c569082070cde82e7d0eb7a4/tinker-0.18.1-py3-none-any.whl", hash = "sha256:52faf06f06a87159fefbe73ae178b31bf78b2503820cf4b968f5480e5b0db66d", size = 202525, upload-time = "2026-04-17T00:45:34.69Z" },
 ]
 
 [[package]]
