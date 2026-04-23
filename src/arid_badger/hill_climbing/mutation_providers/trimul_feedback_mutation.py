@@ -430,6 +430,7 @@ class TriMulFeedbackMutationProvider:
     _max_llm_concurrency: int
     _num_retries: int
     _request_timeout_s: float
+    _max_tokens: int | None
     _invocation_sink: InvocationSink | None
 
     def __init__(
@@ -441,10 +442,24 @@ class TriMulFeedbackMutationProvider:
         max_llm_concurrency: int = 8,
         num_retries: int = 4,
         request_timeout_s: float = 300.0,
+        max_tokens: int | None = None,
         invocation_sink: InvocationSink | None = None,
     ) -> None:
+        """
+        ``max_tokens`` is the per-call output-token cap forwarded to
+        ``litellm.acompletion`` when set. Leave as ``None`` (the default)
+        for Gemini and other Google models — Gemini's generous default
+        output budget is exactly what we want, and passing an explicit
+        cap has historically interacted poorly with Gemini's thinking
+        budget. Set explicitly (e.g. ``max_tokens=32000``) for gpt-oss
+        via Together AI, where the provider default truncates at 4096
+        and gpt-oss's analysis-channel reasoning alone consumes most of
+        that before a final kernel is emitted.
+        """
         if max_llm_concurrency < 1:
             raise ValueError("max_llm_concurrency must be >= 1")
+        if max_tokens is not None and max_tokens < 1:
+            raise ValueError("max_tokens must be >= 1 when set")
         self._model_slug = model_slug
         self._base_prompt = _build_base_prompt(
             gpu_name=gpu_name, triton_version=triton_version
@@ -452,6 +467,7 @@ class TriMulFeedbackMutationProvider:
         self._max_llm_concurrency = max_llm_concurrency
         self._num_retries = num_retries
         self._request_timeout_s = request_timeout_s
+        self._max_tokens = max_tokens
         self._invocation_sink = invocation_sink
 
     def generate_mutations(
@@ -532,13 +548,26 @@ class TriMulFeedbackMutationProvider:
                 logger.info("LLM call {index}/{n}: starting", index=index, n=n)
                 call_start_s = time.perf_counter()
                 try:
-                    response = await litellm.acompletion(
-                        model=self._model_slug,
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=1.0,
-                        num_retries=self._num_retries,
-                        timeout=self._request_timeout_s,
-                    )
+                    # Only forward ``max_tokens`` when the caller set one —
+                    # Gemini runs historically rely on litellm's default
+                    # (unbounded) behaviour here.
+                    if self._max_tokens is None:
+                        response = await litellm.acompletion(
+                            model=self._model_slug,
+                            messages=[{"role": "user", "content": prompt}],
+                            temperature=1.0,
+                            num_retries=self._num_retries,
+                            timeout=self._request_timeout_s,
+                        )
+                    else:
+                        response = await litellm.acompletion(
+                            model=self._model_slug,
+                            messages=[{"role": "user", "content": prompt}],
+                            temperature=1.0,
+                            num_retries=self._num_retries,
+                            timeout=self._request_timeout_s,
+                            max_tokens=self._max_tokens,
+                        )
                 except Exception:
                     elapsed = time.perf_counter() - call_start_s
                     logger.warning(
