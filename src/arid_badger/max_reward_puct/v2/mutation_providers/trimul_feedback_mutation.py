@@ -61,9 +61,18 @@ class TriMulFeedbackMutationProvider:
         num_retries: int = 4,
         request_timeout_s: float = 300.0,
         temperature: float = 1.0,
+        max_tokens: int | None = None,
     ) -> None:
+        # ``max_tokens`` is the per-call output-token cap. ``None`` (the
+        # default) leaves litellm's behaviour untouched — required for
+        # Gemini, where an explicit cap historically interacts poorly
+        # with the thinking budget. Set explicitly (e.g. 32000) for
+        # Together-hosted gpt-oss, where the provider's default ~4-8K
+        # cap truncates mid-kernel.
         if max_llm_concurrency < 1:
             raise ValueError("max_llm_concurrency must be >= 1")
+        if max_tokens is not None and max_tokens < 1:
+            raise ValueError("max_tokens must be >= 1 when set")
         self._model_slug = model_slug
         self._base_prompt = _build_base_prompt(
             gpu_name=gpu_name, triton_version=triton_version
@@ -72,6 +81,7 @@ class TriMulFeedbackMutationProvider:
         self._num_retries = num_retries
         self._request_timeout_s = request_timeout_s
         self._temperature = temperature
+        self._max_tokens = max_tokens
 
         self._loop: asyncio.AbstractEventLoop | None = None
         self._loop_thread: threading.Thread | None = None
@@ -146,13 +156,23 @@ class TriMulFeedbackMutationProvider:
         assert self._semaphore is not None
         async with self._semaphore:
             try:
-                response = await litellm.acompletion(
-                    model=self._model_slug,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=self._temperature,
-                    num_retries=self._num_retries,
-                    timeout=self._request_timeout_s,
-                )
+                if self._max_tokens is None:
+                    response = await litellm.acompletion(
+                        model=self._model_slug,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=self._temperature,
+                        num_retries=self._num_retries,
+                        timeout=self._request_timeout_s,
+                    )
+                else:
+                    response = await litellm.acompletion(
+                        model=self._model_slug,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=self._temperature,
+                        num_retries=self._num_retries,
+                        timeout=self._request_timeout_s,
+                        max_tokens=self._max_tokens,
+                    )
             except Exception as exc:
                 logger.warning(
                     "TriMul mutation LLM call failed: {exc}\n{tb}",
