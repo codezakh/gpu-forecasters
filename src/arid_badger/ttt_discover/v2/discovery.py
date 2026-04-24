@@ -22,12 +22,16 @@ from arid_badger.trimul.cases import BENCHMARK_CASES
 from arid_badger.ttt_discover.v1.rl.train import Config as V1TrainConfig
 from arid_badger.ttt_discover.v1.rl.train import main as v1_train_main
 from arid_badger.ttt_discover.v1.tinker_utils import misc_utils as v1_misc_utils
+from arid_badger.ttt_discover.v2.admission_policies.success_only import (
+    SuccessOnlyAdmissionPolicy,
+)
 from arid_badger.ttt_discover.v2.archive.puct import PUCTCandidateArchive
 from arid_badger.ttt_discover.v2.domain.problem import TriMulProblem
 from arid_badger.ttt_discover.v2.evaluator.modal_trimul import ModalTriMulEvaluator
 from arid_badger.ttt_discover.v2.extractors.python_block import (
     LastPythonBlockExtractor,
 )
+from arid_badger.ttt_discover.v2.interfaces.admission_policy import AdmissionPolicy
 from arid_badger.ttt_discover.v2.renderers.feedback_trimul import (
     TriMulFeedbackPromptRenderer,
 )
@@ -70,11 +74,17 @@ def build_default_components(
     *,
     log_path: Path,
     problem: TriMulProblem | None = None,
+    admission_policy: AdmissionPolicy | None = None,
 ) -> V2Components:
     """Factory for the default v2 component wiring.
 
     The archive snapshot directory is ``log_path``; the event log file is
     ``log_path/rollouts.jsonl``. Both are created lazily on first write.
+
+    ``admission_policy`` defaults to ``SuccessOnlyAdmissionPolicy`` —
+    i.e. v1 parity (only successes enter the live search tree). Swap in
+    ``InsertAllAdmissionPolicy`` (or a custom concrete) to let failures
+    participate as parents in subsequent rollouts.
     """
     problem = problem or build_default_problem()
     archive = PUCTCandidateArchive(directory=log_path)
@@ -91,6 +101,7 @@ def build_default_components(
         scalarizer=ScaleByTargetUs(target_us=problem.target_runtime_us),
         extractor=LastPythonBlockExtractor(),
         archive=archive,
+        admission_policy=admission_policy or SuccessOnlyAdmissionPolicy(),
         sink=sink,
     )
 

@@ -21,6 +21,9 @@ from arid_badger.trimul.core import (
     IncorrectFeedback,
     SuccessFeedback,
 )
+from arid_badger.ttt_discover.v2.admission_policies.success_only import (
+    SuccessOnlyAdmissionPolicy,
+)
 from arid_badger.ttt_discover.v2.archive.puct import PUCTCandidateArchive
 from arid_badger.ttt_discover.v2.domain.outcome import TriMulRLOutcome
 from arid_badger.ttt_discover.v2.domain.problem import TriMulProblem
@@ -50,11 +53,21 @@ class FakeEvaluator:
 
 class FakeTinkerRenderer:
     """Minimal renderer — round-trips ``build_generation_prompt`` +
-    ``parse_response`` without invoking a real tokenizer."""
+    ``parse_response`` without invoking a real tokenizer. The
+    ``prompt_token_count`` knob drives the length of the ``ModelInput``
+    returned by ``build_generation_prompt`` so tests can assert that the
+    env records the real tokenized prompt length rather than a character
+    count of the pre-chat-template string."""
 
-    def __init__(self, response_text: str, parse_success: bool = True) -> None:
+    def __init__(
+        self,
+        response_text: str,
+        parse_success: bool = True,
+        prompt_token_count: int = 0,
+    ) -> None:
         self._response_text = response_text
         self._parse_success = parse_success
+        self._prompt_token_count = prompt_token_count
         self.last_messages: list[dict[str, object]] | None = None
 
     def get_stop_sequences(self) -> list[str]:
@@ -64,7 +77,13 @@ class FakeTinkerRenderer:
         self, messages, role: str = "assistant", prefill: str | None = None
     ) -> tinker.ModelInput:
         self.last_messages = list(messages)
-        return tinker.ModelInput.empty()
+        if self._prompt_token_count <= 0:
+            return tinker.ModelInput.empty()
+        return tinker.ModelInput(
+            chunks=[
+                tinker.types.EncodedTextChunk(tokens=[0] * self._prompt_token_count)
+            ]
+        )
 
     def parse_response(self, action):
         # The action is list[int]; we ignore it and return our canned response.
@@ -107,13 +126,16 @@ def _make_env(
     response_text: str,
     outcome: TriMulRLOutcome,
     parse_success: bool = True,
+    prompt_token_count: int = 0,
 ) -> tuple[TriMulRLEnvironment, ListRolloutSink, PUCTCandidateArchive, FakeEvaluator]:
     problem = _problem()
     archive = PUCTCandidateArchive(directory=tmp_path)
     sink = ListRolloutSink()
     evaluator = FakeEvaluator(outcome=outcome)
     tinker_renderer = FakeTinkerRenderer(
-        response_text=response_text, parse_success=parse_success
+        response_text=response_text,
+        parse_success=parse_success,
+        prompt_token_count=prompt_token_count,
     )
     env = TriMulRLEnvironment(
         problem=problem,
@@ -124,6 +146,7 @@ def _make_env(
         scalarizer=ScaleByTargetUs(target_us=2500.0),
         extractor=LastPythonBlockExtractor(),
         archive=archive,
+        admission_policy=SuccessOnlyAdmissionPolicy(),
         sink=sink,
         parent=None,
         timestep=7,
@@ -194,3 +217,29 @@ def test_failed_rollout_skips_archive_insert_but_logs_record(tmp_path: Path) -> 
 
     assert sink.records[0].outcome.kind == "incorrect"
     assert sink.records[0].reward == 0.0
+
+
+def test_prompt_tokens_reflects_tokenized_model_input_length(tmp_path: Path) -> None:
+    """``RolloutRecord.prompt_tokens`` must be the tokenized prompt
+    length reported by ``tinker.ModelInput.length``, not a character
+    count of the rendered-string task + feedback prompts. With a fake
+    renderer that stamps a known token count on the ``ModelInput``, the
+    env should record exactly that count, and ``response_tokens`` should
+    match ``len(action)``."""
+    response = "here's the kernel\n```python\ndef custom_kernel(data): return data[0]\n```"
+    env, sink, _archive, _evaluator = _make_env(
+        tmp_path=tmp_path,
+        response_text=response,
+        outcome=_success_outcome(),
+        prompt_token_count=12345,
+    )
+
+    async def _go() -> None:
+        _ = await env.initial_observation()
+        _ = await env.step([7, 7, 7, 7, 7])
+
+    asyncio.run(_go())
+
+    record = sink.records[0]
+    assert record.prompt_tokens == 12345
+    assert record.response_tokens == 5

@@ -193,30 +193,29 @@ class PUCTCandidateArchive:
                     break
             return picked
 
-    def insert(
-        self, candidate: Candidate, parent: Candidate | None
+    def credit_rollout(
+        self, *, parent: Candidate | None, child: Candidate | None
     ) -> None:
+        """Account for one completed rollout.
+
+        If ``child`` is provided, it is registered as a new node in the
+        tree and the parent's ``best_value`` is updated. In either case
+        (child or no child), the parent's subtree visit counts and the
+        global expansion counter advance by exactly one. When
+        ``parent is None`` (cold-start rollout), there is no subtree to
+        credit and the visit-count walk is skipped; the child, if any,
+        is still registered.
+        """
         with self._lock:
-            if candidate.id in self._by_id:
+            if child is not None and child.id not in self._by_id:
+                self._register(child)
+            if parent is None:
                 return
-            self._register(candidate)
-            if parent is not None:
-                # Back-prop: update ancestor visit counts + parent best value.
+            if child is not None:
                 self._best_value[parent.id] = max(
                     self._best_value.get(parent.id, parent.reward),
-                    candidate.reward,
+                    child.reward,
                 )
-                cursor: CandidateId | None = parent.id
-                while cursor is not None:
-                    self._visits[cursor] = self._visits.get(cursor, 0) + 1
-                    cand = self._by_id.get(cursor)
-                    cursor = cand.parent_id if cand is not None else None
-                self._total_visits += 1
-
-    def record_failed_attempt(self, parent: Candidate | None) -> None:
-        if parent is None:
-            return
-        with self._lock:
             cursor: CandidateId | None = parent.id
             while cursor is not None:
                 self._visits[cursor] = self._visits.get(cursor, 0) + 1

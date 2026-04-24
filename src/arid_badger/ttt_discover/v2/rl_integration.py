@@ -37,6 +37,7 @@ from arid_badger.ttt_discover.v1.tinker_utils import renderers as v1_renderers
 from arid_badger.ttt_discover.v2.domain.candidate import Candidate
 from arid_badger.ttt_discover.v2.domain.problem import TriMulProblem
 from arid_badger.ttt_discover.v2.env import TriMulRLEnvironment
+from arid_badger.ttt_discover.v2.interfaces.admission_policy import AdmissionPolicy
 from arid_badger.ttt_discover.v2.interfaces.archive import CandidateArchive
 from arid_badger.ttt_discover.v2.interfaces.evaluator import KernelEvaluator
 from arid_badger.ttt_discover.v2.interfaces.extractor import CodeExtractor
@@ -57,6 +58,7 @@ class V2Components:
     scalarizer: RewardScalarizer
     extractor: CodeExtractor
     archive: CandidateArchive
+    admission_policy: AdmissionPolicy
     sink: RolloutSink
 
 
@@ -82,6 +84,7 @@ class V2ProblemGroupBuilder(EnvGroupBuilder):
                 scalarizer=self.components.scalarizer,
                 extractor=self.components.extractor,
                 archive=self.components.archive,
+                admission_policy=self.components.admission_policy,
                 sink=self.components.sink,
                 parent=self.parent,
                 timestep=self.timestep,

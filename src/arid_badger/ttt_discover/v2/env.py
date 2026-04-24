@@ -28,12 +28,14 @@ from arid_badger.ttt_discover.v2.domain.context import (
     FeedbackPromptContext,
     TaskPromptContext,
 )
+from arid_badger.ttt_discover.v2.domain.admission_decision import AdmitChild
 from arid_badger.ttt_discover.v2.domain.outcome import (
     ParseFailureFeedback,
     TriMulRLOutcome,
 )
 from arid_badger.ttt_discover.v2.domain.problem import TriMulProblem
 from arid_badger.ttt_discover.v2.domain.records import RolloutRecord
+from arid_badger.ttt_discover.v2.interfaces.admission_policy import AdmissionPolicy
 from arid_badger.ttt_discover.v2.interfaces.archive import CandidateArchive
 from arid_badger.ttt_discover.v2.interfaces.evaluator import KernelEvaluator
 from arid_badger.ttt_discover.v2.interfaces.extractor import CodeExtractor
@@ -61,6 +63,7 @@ class TriMulRLEnvironment:
     _scalarizer: RewardScalarizer
     _extractor: CodeExtractor
     _archive: CandidateArchive
+    _admission_policy: AdmissionPolicy
     _sink: RolloutSink
     _parent: Candidate | None
     _timestep: int
@@ -68,9 +71,12 @@ class TriMulRLEnvironment:
     _rollout_index: int
 
     # Populated by initial_observation() so step() can record them on the
-    # RolloutRecord without re-rendering.
+    # RolloutRecord without re-rendering. ``_prompt_tokens`` is the real
+    # tokenized prompt length reported by ``tinker.ModelInput.length`` —
+    # not a character count of the pre-chat-template str.
     _task_prompt: str
     _feedback_prompt: str
+    _prompt_tokens: int
     _sampling_start_s: float
 
     def __init__(
@@ -84,6 +90,7 @@ class TriMulRLEnvironment:
         scalarizer: RewardScalarizer,
         extractor: CodeExtractor,
         archive: CandidateArchive,
+        admission_policy: AdmissionPolicy,
         sink: RolloutSink,
         parent: Candidate | None,
         timestep: int,
@@ -98,6 +105,7 @@ class TriMulRLEnvironment:
         self._scalarizer = scalarizer
         self._extractor = extractor
         self._archive = archive
+        self._admission_policy = admission_policy
         self._sink = sink
         self._parent = parent
         self._timestep = timestep
@@ -106,6 +114,7 @@ class TriMulRLEnvironment:
 
         self._task_prompt = ""
         self._feedback_prompt = ""
+        self._prompt_tokens = 0
         self._sampling_start_s = 0.0
 
     @property
@@ -135,11 +144,12 @@ class TriMulRLEnvironment:
         ]
         self._sampling_start_s = time.time()
         model_input = self._tinker_renderer.build_generation_prompt(convo)
+        self._prompt_tokens = model_input.length
         return model_input, self.stop_condition
 
     async def step(self, action: Action, *args: object, **kwargs: object) -> StepResult:
         sampling_time_s = time.time() - self._sampling_start_s
-        prompt_tokens = len(self._task_prompt) + len(self._feedback_prompt)
+        prompt_tokens = self._prompt_tokens
         response_tokens = len(action)
 
         message, parse_success = self._tinker_renderer.parse_response(action)
@@ -164,28 +174,21 @@ class TriMulRLEnvironment:
 
         reward = self._scalarizer.scalarize(outcome)
 
-        # Archive update + candidate creation.
-        if parsed_code is not None and outcome.kind == "success":
-            candidate = build_candidate(
-                code=parsed_code,
-                timestep=self._timestep,
-                parent_id=self._parent.id if self._parent is not None else None,
-                outcome=outcome,
-                reward=reward,
-            )
-            self._archive.insert(candidate, self._parent)
-        else:
-            # Failed rollouts: still need a candidate_id for the record
-            # (so downstream joins can key off it) but we don't insert
-            # them into the archive (they aren't useful search state).
-            candidate = build_candidate(
-                code=parsed_code or "",
-                timestep=self._timestep,
-                parent_id=self._parent.id if self._parent is not None else None,
-                outcome=outcome,
-                reward=reward,
-            )
-            self._archive.record_failed_attempt(self._parent)
+        # Build the candidate unconditionally — every rollout produces
+        # one event, and the record needs a ``candidate_id`` regardless
+        # of whether the archive admits the child. The admission policy
+        # then decides whether this candidate enters the live search
+        # tree; the archive accounts for the rollout either way.
+        candidate = build_candidate(
+            code=parsed_code if parsed_code is not None else "",
+            timestep=self._timestep,
+            parent_id=self._parent.id if self._parent is not None else None,
+            outcome=outcome,
+            reward=reward,
+        )
+        decision = self._admission_policy.decide(candidate, self._parent)
+        admitted_child = candidate if isinstance(decision, AdmitChild) else None
+        self._archive.credit_rollout(parent=self._parent, child=admitted_child)
 
         record = RolloutRecord(
             step=self._timestep,
