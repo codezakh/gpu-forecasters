@@ -94,7 +94,8 @@ generalities about GPUs.
 
 
 _EXPLANATION_RULES = """\
-An explanation MUST have three load-bearing parts:
+An explanation MUST have three load-bearing parts, emitted in your
+FIRST response:
 
 * `<gap>` — where the prediction and the observation diverged (or
   converged). One short paragraph. Quote concrete numbers from the
@@ -103,11 +104,10 @@ An explanation MUST have three load-bearing parts:
   was confirmed, state *why* the intervention worked (and what that
   rules out). If it failed, propose what the bottleneck actually was.
 * `<belief_update>` — the specific update to the world model. This is
-  the prose version; you also emit one or more SEARCH/REPLACE diffs
-  below to apply the update structurally.
+  the prose version; you commit it structurally below by emitting
+  SEARCH/REPLACE edits.
 
-Then emit one or more SEARCH/REPLACE blocks to update the world model.
-Format:
+After the three tags, emit at most ONE SEARCH/REPLACE edit. Format:
 
     <<<<<<< SEARCH
     ...exact text from the current world model to find...
@@ -115,20 +115,26 @@ Format:
     ...replacement text...
     >>>>>>> REPLACE
 
-Rules for diffs:
+You will then be shown the updated document and asked for the next
+edit. **Emit edits one at a time, not in a batch.** This is the only
+way to reliably reference text that earlier edits may have rewritten.
 
-* The SEARCH side must match exactly ONE location in the current
-  world model. Choose enough surrounding context to make it unique.
-* Use an empty SEARCH side to APPEND a new section/bullet to the
-  end of the document. (This is how you seed a section that doesn't
-  exist yet.)
-* Multiple diffs are allowed and applied in order.
-* You MAY emit zero diffs if the experiment confirmed the existing
-  world model with no update needed.
-* Always update the source hypothesis's `Status:` line — to
-  `closed` (rejected by evidence), `established` (confirmed by
-  evidence), or leave it as `under_investigation` if more evidence
-  is needed.
+Rules for each edit:
+
+* The SEARCH side must match exactly ONE location in the *current*
+  world model (which you will see after each successful edit). Choose
+  enough surrounding context to make it unique.
+* Use an empty SEARCH side to APPEND a new section/bullet to the end
+  of the document. (This is how you seed a section that doesn't exist
+  yet.)
+* Always update the source hypothesis's `Status:` line — to `closed`
+  (rejected by evidence), `established` (confirmed by evidence), or
+  leave it as `under_investigation` if more evidence is needed.
+
+When the world model reflects everything you want to record from this
+experiment, emit `<done/>` on its own line. You MAY emit `<done/>` in
+your first response (with zero edits) if the experiment confirmed the
+existing world model with no update needed.
 
 Explanations that just restate the result ("the kernel got 2.3x
 because the optimization worked") add nothing. Identify where the
@@ -202,12 +208,70 @@ def explanation_user_prompt(
 
 ---
 
-Read the experiment result and emit (a) the structured explanation in
-tagged spans, (b) SEARCH/REPLACE diffs to update the world model
-appropriately. Update the hypothesis's `Status:` to either `closed` or
-`established`, or leave as `under_investigation` if the evidence is
-inconclusive.
+Read the experiment result and emit:
+
+1. The three tagged spans (`<gap>`, `<mechanism>`, `<belief_update>`).
+2. At most ONE SEARCH/REPLACE edit, OR `<done/>` if no edits are
+   needed.
+
+You will then be shown the updated document and asked for the next
+edit, until you signal `<done/>`. Update the hypothesis's `Status:`
+to either `closed` or `established`, or leave as `under_investigation`
+if the evidence is inconclusive.
 """
+
+
+def next_edit_message(current_world_model_text: str) -> str:
+    """User message after a successful single-edit apply: shows the
+    updated document and asks for the next edit (or ``<done/>``)."""
+    body = current_world_model_text or "*(world model is empty)*"
+    return f"""\
+Edit applied. Current world model:
+
+{body}
+
+Emit your next SEARCH/REPLACE edit, or `<done/>` on its own line if
+no further edits are needed.
+"""
+
+
+def apply_failed_message(
+    error: str, current_world_model_text: str
+) -> str:
+    """User message after a failed single-edit apply: shows the error
+    and the (still-unchanged) current document."""
+    body = current_world_model_text or "*(world model is empty)*"
+    return f"""\
+Your last edit could not be applied: {error}
+
+The world model has NOT changed. Current world model:
+
+{body}
+
+Try again — make sure the SEARCH side matches exactly one location in
+the document above. Or emit `<done/>` if you want to abandon this
+edit.
+"""
+
+
+def missing_diff_message() -> str:
+    """User message when a turn after the first emits neither a
+    SEARCH/REPLACE block nor ``<done/>``."""
+    return (
+        "Your last response contained no SEARCH/REPLACE edit and no "
+        "`<done/>` signal. Emit one edit, or `<done/>` if you want to "
+        "stop editing."
+    )
+
+
+def missing_explanation_tags_message(error: str) -> str:
+    """User message when the FIRST turn is missing one of the required
+    explanation tags."""
+    return (
+        f"Your first response is missing required tags: {error}. "
+        "Emit `<gap>`, `<mechanism>`, and `<belief_update>` in your "
+        "next response, followed by your first edit (or `<done/>`)."
+    )
 
 
 __all__ = [
@@ -215,4 +279,8 @@ __all__ = [
     "EXPLANATION_SYSTEM_PROMPT",
     "hypothesis_user_prompt",
     "explanation_user_prompt",
+    "next_edit_message",
+    "apply_failed_message",
+    "missing_diff_message",
+    "missing_explanation_tags_message",
 ]

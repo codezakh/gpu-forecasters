@@ -131,6 +131,35 @@ def parse_explanation(response: str, hypothesis_id: ULID) -> Explanation:
     Diff blocks (``<<<<<<< SEARCH ... ======= ... >>>>>>> REPLACE``)
     are parsed by ``diff.parse_diff_blocks``; zero diffs is allowed.
     """
+    tags = parse_explanation_tags(response)
+    diffs: list[WorldModelDiff] = parse_diff_blocks(response)
+    return Explanation(
+        hypothesis_id=hypothesis_id,
+        gap=tags.gap,
+        mechanism=tags.mechanism,
+        belief_update=tags.belief_update,
+        diffs=diffs,
+    )
+
+
+@dataclass(frozen=True)
+class ParsedExplanationTags:
+    """The three explanation tags only — no diffs.
+
+    Used by the iterative-editing builder, which collects diffs across
+    multiple turns rather than parsing them out of a single response."""
+
+    gap: str
+    mechanism: str
+    belief_update: str
+
+
+def parse_explanation_tags(response: str) -> ParsedExplanationTags:
+    """Pull the three required explanation tags out of a response.
+
+    Raises ``ParseError`` if any tag is missing or empty. Diff blocks
+    in the response are ignored — that's the iterative builder's job
+    to handle one turn at a time."""
     gap = extract_tag(response, "gap")
     mechanism = extract_tag(response, "mechanism")
     belief_update = extract_tag(response, "belief_update")
@@ -140,23 +169,32 @@ def parse_explanation(response: str, hypothesis_id: ULID) -> Explanation:
         raise ParseError("<mechanism> was empty")
     if not belief_update:
         raise ParseError("<belief_update> was empty")
-    diffs: list[WorldModelDiff] = parse_diff_blocks(response)
-    return Explanation(
-        hypothesis_id=hypothesis_id,
-        gap=gap,
-        mechanism=mechanism,
-        belief_update=belief_update,
-        diffs=diffs,
+    return ParsedExplanationTags(
+        gap=gap, mechanism=mechanism, belief_update=belief_update
     )
+
+
+# Permissive: <done/>, <done />, or <done></done>; case-insensitive.
+_DONE_RE = re.compile(r"<\s*done\s*/?\s*>", re.IGNORECASE)
+
+
+def has_done_signal(response: str) -> bool:
+    """True if ``response`` contains a ``<done/>``-style termination
+    signal. The iterative explanation loop treats this as "I have no
+    further edits to emit; commit what's been applied."""
+    return _DONE_RE.search(response) is not None
 
 
 __all__ = [
     "ParseError",
     "ParsedHypothesis",
+    "ParsedExplanationTags",
     "extract_tag",
     "extract_optional_tag",
     "extract_list_tag",
     "parse_hypothesis",
     "parse_hypothesis_into_domain",
     "parse_explanation",
+    "parse_explanation_tags",
+    "has_done_signal",
 ]
