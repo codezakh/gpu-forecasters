@@ -1,5 +1,5 @@
 import pytest
-from arid_badger.local_code_execution import (
+from arid_badger.exec_with_limited_namespace import (
     ExecWithLimitedNamespace,
     SecurityException,
 )
@@ -15,24 +15,24 @@ class TestExecWithLimitedNamespace:
             "from numpy import *",
         ],
     )
-    def test_imports_are_restricted(self, import_statement):
+    def test_imports_are_restricted(self, import_statement: str):
         with pytest.raises(SecurityException):
-            executor = ExecWithLimitedNamespace()
-            executor(import_statement)
+            ExecWithLimitedNamespace()(import_statement)
 
-    def test_allowed_names_are_usable(self):
+    def test_scope_names_are_usable(self):
         class ImagePatch:
             pass
 
-        executor = ExecWithLimitedNamespace()
         with pytest.raises(NameError):
-            executor("ImagePatch")
-        executor = ExecWithLimitedNamespace(allowed_names={"ImagePatch"})
+            ExecWithLimitedNamespace()("ImagePatch")
+
+        executor = ExecWithLimitedNamespace(scope={"ImagePatch": ImagePatch})
+        executor("x = ImagePatch()")
+        assert isinstance(executor.namespace["x"], ImagePatch)
 
     def test_cannot_open_files(self):
         with pytest.raises(SecurityException):
-            executor = ExecWithLimitedNamespace()
-            executor("open('file.txt', 'w')")
+            ExecWithLimitedNamespace()("open('file.txt', 'w')")
 
     def test_cannot_access_locals_or_globals(self):
         executor = ExecWithLimitedNamespace()
@@ -43,19 +43,32 @@ class TestExecWithLimitedNamespace:
 
     def test_cannot_access_subprocess(self):
         with pytest.raises(SecurityException):
-            executor = ExecWithLimitedNamespace()
-            executor("import subprocess")
+            ExecWithLimitedNamespace()("import subprocess")
 
-    def test_cannot_access_restricted_names(self):
+    def test_scope_name_can_be_called(self):
         def get_ipython():
-            pass
+            return "ok"
+
+        executor = ExecWithLimitedNamespace(scope={"get_ipython": get_ipython})
+        executor("result = get_ipython()")
+        assert executor.namespace["result"] == "ok"
+
+    def test_forbidden_names_are_rejected(self):
+        def get_ipython():
+            return "ok"
 
         executor = ExecWithLimitedNamespace(
-            inherited_scope=locals(), allowed_names={"get_ipython"}
+            scope={"get_ipython": get_ipython},
+            forbidden_names={"get_ipython"},
         )
-        executor("get_ipython()")
         with pytest.raises(SecurityException):
-            executor = ExecWithLimitedNamespace(
-                inherited_scope=locals(), restricted_names={"get_ipython"}
-            )
             executor("get_ipython()")
+
+    def test_serialize_excludes_builtins(self):
+        executor = ExecWithLimitedNamespace()
+        executor("x = 42")
+        executor("y = 'hello'")
+        import json
+
+        serialized = json.loads(executor.serialize())
+        assert serialized == {"x": "42", "y": "'hello'"}

@@ -1,9 +1,9 @@
 import ast
 import builtins
 import json
-from typing import Optional
+from typing import Any, final
 
-DEFAULT_RESTRICTED_BUILTINS = {
+DEFAULT_FORBIDDEN_NAMES = {
     "compile",
     "exec",
     "eval",
@@ -19,78 +19,51 @@ DEFAULT_RESTRICTED_BUILTINS = {
 }
 
 
-def find_imports(code: str) -> list:
+def find_violations(
+    code: str, forbidden_names: set[str]
+) -> tuple[list[str], list[str]]:
     """
-    Identify import statements in the given Python code.
-
-    Args:
-        code (str): The Python code to analyze.
+    Walk the AST once, collecting both imports and forbidden function calls.
 
     Returns:
-        list: A list of import statements found in the code.
+        (imports, forbidden_calls)
     """
-    import_statements = []
+    imports: list[str] = []
+    forbidden_calls: list[str] = []
 
-    # Parse the code into an abstract syntax tree (AST)
     tree = ast.parse(code)
-
-    # Traverse the AST to find import statements
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                import_statements.append(alias.name)
+                imports.append(alias.name)
         elif isinstance(node, ast.ImportFrom):
-            module_name = node.module
-            if module_name:
+            if node.module:
                 for alias in node.names:
-                    import_statements.append(f"{module_name}.{alias.name}")
-
-    return import_statements
-
-
-def find_not_allowed_functions(code: str, restricted_functions: set) -> list:
-    """
-    Identify not allowed function calls in the given Python code.
-
-    Args:
-        code (str): The Python code to analyze.
-        restricted_functions (list): A list of functions not allowed to be called.
-
-    Returns:
-        list: A list of not allowed function calls found in the code.
-    """
-    not_allowed_functions = []
-
-    # Parse the code into an abstract syntax tree (AST)
-    tree = ast.parse(code)
-
-    # Traverse the AST to find function calls
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call):
-            function_name = None
+                    imports.append(f"{node.module}.{alias.name}")
+        elif isinstance(node, ast.Call):
+            name = None
             if isinstance(node.func, ast.Name):
-                function_name = node.func.id
+                name = node.func.id
             elif isinstance(node.func, ast.Attribute) and isinstance(
                 node.func.value, ast.Name
             ):
-                function_name = f"{node.func.value.id}.{node.func.attr}"
-            if function_name and function_name in restricted_functions:
-                not_allowed_functions.append(function_name)
+                name = f"{node.func.value.id}.{node.func.attr}"
+            if name and name in forbidden_names:
+                forbidden_calls.append(name)
 
-    return not_allowed_functions
+    return imports, forbidden_calls
 
 
 class SecurityException(Exception):
     pass
 
 
+@final
 class ExecWithLimitedNamespace:
     def __init__(
         self,
-        allowed_names: Optional[set[str]] = None,
-        restricted_names: Optional[set[str]] = None,
-        restricted_builtins: set[str] = DEFAULT_RESTRICTED_BUILTINS,
-        inherited_scope: Optional[dict] = None,
+        scope: dict[str, Any] | None = None,
+        forbidden_names: set[str] = DEFAULT_FORBIDDEN_NAMES,
     ):
         """
         This is a very janky way to get some security for the code we're running
@@ -99,54 +72,32 @@ class ExecWithLimitedNamespace:
 
         Parameters
         -----------
-        allowed_names: set[str]
-            These are names that will explicitly be allowed in the namespace. For the
-            visual programming environment, you want to give the agent access to `image`,
-            `ImagePatch`, `bool_to_yesno`, and so on.
-        restricted_names: set[str]
-            These are function calls that are not allowed. We already have a mechanism to prevent using
-            anything but allowed builtins and the whitelisted names in allowed_names, but this
-            is an extra layer of security. We will check the ast to make sure none of these functions
-            are called. The one I specifically want to disable is stuff like `get_ipython`, because it
-            allows you to run shell commands.
-        restricted_builtins: set[str]
-            I've already given a reasonable set in DEFAULT_RESTRICTED_BUILTINS. This set is still "unsafe"
-            because you can do stuff with getattr that will let you exec stuff. But I don't think the LLM
-            will be doing anything like this.
-        inherited_scope: Optional[dict]
-            These are the variables from the enclosing scope. Anything from `allowed_names` will be inherited from
-            the enclosing scope, while everything else will be inaccessible.
+        scope: dict[str, Any]
+            Names exposed to the executed code on top of the (filtered) builtins.
+            For the visual programming environment, this is where you put `image`,
+            `ImagePatch`, `bool_to_yesno`, and so on. Filter at the call site —
+            don't pass `locals()` blindly.
+        forbidden_names: set[str]
+            Names that are stripped from builtins AND rejected by an AST scan
+            (so the LLM gets a SecurityException with a useful message instead
+            of a NameError). The default covers the obvious filesystem / eval /
+            import escape hatches. This is still "unsafe" — getattr tricks can
+            still reach exec — but the LLM isn't an adversary here.
         """
-
-        if restricted_names is None:
-            self.restricted_names: set[str] = set()
-        else:
-            self.restricted_names = restricted_names
-
-        self.restricted_builtins = restricted_builtins
-
-        self.inherited_scope = inherited_scope or {}
+        self.forbidden_names = forbidden_names
         self.builtins = {
-            k: v
-            for k, v in builtins.__dict__.items()
-            if k not in self.restricted_builtins
+            k: v for k, v in builtins.__dict__.items() if k not in forbidden_names
         }
-        self.namespace = {}
+        self.namespace: dict[str, Any] = {}
         self.namespace.update(self.builtins)
-
-        if allowed_names is not None:
-            self.namespace.update(
-                {k: v for k, v in self.inherited_scope.items() if k in allowed_names}
-            )
+        if scope is not None:
+            self.namespace.update(scope)
 
     def __call__(self, code: str):
-        imports = find_imports(code)
-        not_allowed_functions = find_not_allowed_functions(
-            code, self.restricted_builtins | self.restricted_names
-        )
-        if not_allowed_functions:
+        imports, forbidden_calls = find_violations(code, self.forbidden_names)
+        if forbidden_calls:
             raise SecurityException(
-                f"""Your code used the following not allowed functions: {not_allowed_functions}.
+                f"""Your code used the following not allowed functions: {forbidden_calls}.
 Do not attempt to access the filesystem or network."""
             )
         if imports:
