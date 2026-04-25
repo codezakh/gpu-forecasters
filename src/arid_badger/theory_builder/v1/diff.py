@@ -99,10 +99,13 @@ def _apply_one(text: str, diff: WorldModelDiff) -> str:
     if diff.search == "":
         # Append-mode: seed a new section. Separate from prior content
         # with a blank line iff the document already has content.
-        if text and not text.endswith("\n\n"):
-            sep = "\n\n" if text.endswith("\n") else "\n\n"
-            return text + sep + diff.replace
-        return text + diff.replace
+        if not text:
+            return diff.replace
+        if text.endswith("\n\n"):
+            return text + diff.replace
+        if text.endswith("\n"):
+            return text + "\n" + diff.replace
+        return text + "\n\n" + diff.replace
     occurrences = text.count(diff.search)
     if occurrences == 0:
         raise DiffApplyError(
