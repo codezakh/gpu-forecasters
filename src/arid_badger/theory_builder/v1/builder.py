@@ -93,6 +93,8 @@ class LLMWorldModelBuilder(Generic[ObservationT]):
         model_slug: str,
         result_renderer: ExperimentResultRenderer[ObservationT],
         world_model_renderer: WorldModelRenderer | None = None,
+        hypothesis_system_prompt: str = HYPOTHESIS_SYSTEM_PROMPT,
+        explanation_system_prompt: str = EXPLANATION_SYSTEM_PROMPT,
         max_retries: int = 3,
         max_turns: int = 12,
         max_apply_failures: int = 3,
@@ -112,6 +114,8 @@ class LLMWorldModelBuilder(Generic[ObservationT]):
         self._world_model_renderer = (
             world_model_renderer or MarkdownWorldModelRenderer()
         )
+        self._hypothesis_system_prompt = hypothesis_system_prompt
+        self._explanation_system_prompt = explanation_system_prompt
         self._max_retries = max_retries
         self._max_turns = max_turns
         self._max_apply_failures = max_apply_failures
@@ -134,7 +138,7 @@ class LLMWorldModelBuilder(Generic[ObservationT]):
         wm_str = self._world_model_renderer.render(world_model)
         user = hypothesis_user_prompt(wm_str)
         messages: list[dict[str, str]] = [
-            {"role": "system", "content": HYPOTHESIS_SYSTEM_PROMPT},
+            {"role": "system", "content": self._hypothesis_system_prompt},
             {"role": "user", "content": user},
         ]
 
@@ -204,7 +208,7 @@ class LLMWorldModelBuilder(Generic[ObservationT]):
         result_str = self._result_renderer.render(result)
         user = explanation_user_prompt(wm_str, hypothesis, result_str)
         messages: list[dict[str, str]] = [
-            {"role": "system", "content": EXPLANATION_SYSTEM_PROMPT},
+            {"role": "system", "content": self._explanation_system_prompt},
             {"role": "user", "content": user},
         ]
 
