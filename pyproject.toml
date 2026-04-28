@@ -32,6 +32,7 @@ dependencies = [
     "tiktoken>=0.12.0",
     "safetensors>=0.7.0",
     "termcolor>=3.3.0",
+    "tinker-cookbook",
 ]
 
 [project.scripts]
@@ -80,6 +81,7 @@ torch = [
 # `REPO_TOP_PATH` from `__file__`, which points inside `.venv` for non-editable
 # installs, causing `source="local"` dataset loads to fail.
 kernelbench = { workspace = true, editable = true }
+tinker-cookbook = { path = "../workspace/tinker-cookbook", editable = true }
 
 [tool.ty.src]
 exclude = [
