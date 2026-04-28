@@ -76,7 +76,7 @@ requires-dist = [
     { name = "textualize", specifier = ">=0.1" },
     { name = "tiktoken", specifier = ">=0.12.0" },
     { name = "tinker", specifier = ">=0.18.1" },
-    { name = "tinker-cookbook", editable = "../workspace/tinker-cookbook" },
+    { name = "tinker-cookbook", editable = "third_party/tinker-cookbook" },
     { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.5.1" },
     { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.5.1", index = "https://download.pytorch.org/whl/cu128" },
     { name = "transformers", specifier = ">=4.57.3" },
@@ -4613,7 +4613,7 @@ wheels = [
 
 [[package]]
 name = "tinker-cookbook"
-source = { editable = "../workspace/tinker-cookbook" }
+source = { editable = "third_party/tinker-cookbook" }
 dependencies = [
     { name = "aiohttp" },
     { name = "anyio" },

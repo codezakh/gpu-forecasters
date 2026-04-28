@@ -4,3 +4,6 @@
 [submodule "third_party/caesar"]
 	path = third_party/caesar
 	url = git@github.com:ScalingIntelligence/caesar.git
+[submodule "third_party/tinker-cookbook"]
+	path = third_party/tinker-cookbook
+	url = https://github.com/thinking-machines-lab/tinker-cookbook.git

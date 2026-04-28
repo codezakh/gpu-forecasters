@@ -80,8 +80,14 @@ torch = [
 # at `third_party/KernelBench/KernelBench/level*`. The upstream package computes
 # `REPO_TOP_PATH` from `__file__`, which points inside `.venv` for non-editable
 # installs, causing `source="local"` dataset loads to fail.
+# tinker-cookbook is a third-party submodule we consume directly; it is NOT a
+# workspace member because its `[all]`/`[eval]`/`[inspect]`/... extras pull
+# transitive deps (inspect-ai -> litellm[proxy] -> boto3 pins) that conflict
+# with our litellm/textual constraints. Workspace membership would force
+# universal resolution to satisfy every extra jointly; path-style sidesteps
+# that since we don't request any extras.
+tinker-cookbook = { path = "third_party/tinker-cookbook", editable = true }
 kernelbench = { workspace = true, editable = true }
-tinker-cookbook = { path = "../workspace/tinker-cookbook", editable = true }
 
 [tool.ty.src]
 exclude = [
