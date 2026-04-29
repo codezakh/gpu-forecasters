@@ -1,0 +1,73 @@
+{# Goal-conditioned kernel mutation prompt — pack-generic.
+
+   Composition:
+     1. Goal-conditioning preamble (target band, midpoint, "not max-speed").
+     2. ``base_prompt`` slot — the pack's kernel description body plus the
+        standard rules block, produced by
+        ``arid_badger.gpu_mode_kernel.prompts.build_base_prompt(pack, …)``.
+        Pack-specific narrative lives there, not here.
+     3. Per-arm feedback block (when a parent + evaluation are present).
+     4. Reminder footer reiterating the target band.
+#}You are writing a Triton kernel that must land in a *specific performance band*, not maximize raw speed.
+
+**Target performance band**: aggregated speedup of {{ target_display }} relative to the PyTorch reference (target midpoint: ~{{ "%.3f"|format(target_mid) }}×).
+
+A kernel whose measured speedup falls *outside* this band — even one that is much faster than the upper bound — is **not useful** for this task. Your goal is to land inside the band, ideally near the midpoint.
+
+---
+
+{{ base_prompt }}
+{% if parent_code %}
+
+Here is your latest implementation:
+```python
+{{ parent_code }}
+```
+
+Your custom_kernel was evaluated on GPU.
+
+Here is the evaluation result:
+{% if feedback_kind == "success" %}
+Your kernel is correct. Aggregated speedup over the reference: {{ "%.3f"|format(aggregated_speedup) }}× (aggregation method: {{ aggregation_method }}).
+
+Your **target band** is {{ target_display }} (midpoint ~{{ "%.3f"|format(target_mid) }}×). Your current measured speedup is {{ "%.3f"|format(aggregated_speedup) }}×, which is {{ delta_description }}.
+
+Per-case breakdown (sorted by distance from the target midpoint):
+{% for line in per_case_lines -%}
+  {{ line }}
+{% endfor %}
+Rewrite the entire kernel so its aggregated speedup lands inside the target band {{ target_display }}.
+
+**Correctness is still required.** Do *not* optimize for raw speed. Adjust the kernel until its measured speedup matches the target band:
+- If your current kernel is *faster* than the upper bound, slow it down (e.g. reduce parallelism, use less efficient memory access patterns, fall back to PyTorch for parts of the op, or remove fusions).
+- If your current kernel is *slower* than the lower bound, optimize specific bottlenecks until you cross into the band — but stop once you are inside.
+{% elif feedback_kind == "compile_failed" %}
+Your kernel failed to compile.
+
+Compilation error:
+{{ compilation_error }}
+
+Please fix the errors and try again. Aim for a kernel whose measured speedup will land in the target band {{ target_display }} (midpoint ~{{ "%.3f"|format(target_mid) }}×).
+{% elif feedback_kind == "runtime_error" %}
+Your kernel raised an exception at runtime.
+
+Error type: {{ runtime_error_name }}
+
+Error message:
+{{ runtime_error }}
+
+Traceback:
+{{ traceback }}
+
+Please fix the errors and try again. Aim for a kernel whose measured speedup will land in the target band {{ target_display }} (midpoint ~{{ "%.3f"|format(target_mid) }}×).
+{% elif feedback_kind == "incorrect" %}
+Your kernel produced incorrect output compared to the reference.
+
+Correctness issue:
+{{ error_message }}
+
+Please fix the correctness issues and try again. Aim for a kernel whose measured speedup will land in the target band {{ target_display }} (midpoint ~{{ "%.3f"|format(target_mid) }}×).
+{% endif %}
+{% endif %}
+
+Reminder: aim for a kernel whose aggregated speedup lands in the target band {{ target_display }} (midpoint ~{{ "%.3f"|format(target_mid) }}×). Faster is *not* better.
