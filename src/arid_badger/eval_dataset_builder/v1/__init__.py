@@ -41,6 +41,7 @@ from arid_badger.eval_dataset_builder.v1.summary import (
     compute_run_summary_from_event_log,
     extract_in_target_kernels_from_event_log,
 )
+from arid_badger.eval_dataset_builder.v1.v2_checkpoint_source import V2CheckpointSource
 
 
 __all__ = [
@@ -62,6 +63,7 @@ __all__ = [
     "RunSummary",
     "SelectedSeed",
     "SpeedupBand",
+    "V2CheckpointSource",
     "build_eval_dataset",
     "build_render_context",
     "compute_run_summary_from_event_log",
