@@ -41,6 +41,7 @@ from arid_badger.gpu_mode_kernel.providers.v2_feedback_mutation import (
 from arid_badger.gpu_mode_kernel.providers.v2_modal_scoring import (
     GpuModeKernelModalProvider,
 )
+from arid_badger.invocation_sink import FilesystemInvocationSink
 from arid_badger.max_reward_puct.v2.config import SearchConfig as V2SearchConfig
 from arid_badger.max_reward_puct.v2.event_log import FileEventLog
 from arid_badger.max_reward_puct.v2.events import (
@@ -77,10 +78,16 @@ class ProviderConfig(BaseModel, frozen=True):
 
 
 class RunConfig(BaseModel, frozen=True):
-    """One PUCT search worth of config: search shape + provider knobs."""
+    """One PUCT search worth of config: search shape + provider knobs.
+
+    ``track_invocations`` enables per-evaluation cost/result records via a
+    ``FilesystemInvocationSink`` written to ``run_dir/invocations/*.json``.
+    Off by default to preserve byte-for-byte parity with prior runs.
+    """
 
     search: V2SearchConfig
     provider: ProviderConfig
+    track_invocations: bool = False
 
 
 class ExperimentConfig(BaseModel, frozen=True):
@@ -199,11 +206,17 @@ def _run_single(
         request_timeout_s=provider.request_timeout_s,
         max_tokens=provider.max_tokens,
     )
+    invocation_sink = (
+        FilesystemInvocationSink(run_dir / "invocations")
+        if run_config.track_invocations
+        else None
+    )
     evaluation_provider = GpuModeKernelModalProvider(
         pack_runtime=pack_runtime,
         aggregator=provider.aggregator,
         gpu=provider.gpu,
         max_in_flight=provider.max_llm_concurrency,
+        invocation_sink=invocation_sink,
     )
 
     logger.info(
