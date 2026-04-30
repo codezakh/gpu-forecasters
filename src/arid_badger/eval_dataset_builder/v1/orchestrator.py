@@ -34,6 +34,7 @@ from arid_badger.max_reward_puct.v2.providers import AsyncEvaluationProvider
 from .bin_filler import BinFiller
 from .domain import (
     BinFillRequest,
+    EvalDataset,
     EvaluationProviderSpec,
     EvalSet,
     EvalSetManifest,
@@ -206,6 +207,26 @@ def write_eval_set(
     _ = manifest_tmp.replace(manifest_path)
 
     return jsonl_path, manifest_path
+
+
+def read_eval_dataset(output_dir: Path) -> EvalDataset:
+    """Read the on-disk artifact ``write_eval_set`` produced.
+
+    Reciprocal of ``write_eval_set``: parses ``eval_dataset.jsonl`` +
+    ``eval_dataset_manifest.json`` from ``output_dir`` and returns the
+    loaded value. Raises if either file is missing or malformed —
+    eval datasets are an internal contract, not user input.
+    """
+    jsonl_path = output_dir / "eval_dataset.jsonl"
+    manifest_path = output_dir / "eval_dataset_manifest.json"
+
+    comparisons = [
+        KernelRuntimeComparison.model_validate_json(line)
+        for line in jsonl_path.read_text().splitlines()
+        if line.strip()
+    ]
+    manifest = EvalSetManifest.model_validate_json(manifest_path.read_text())
+    return EvalDataset(comparisons=comparisons, manifest=manifest)
 
 
 # ---------------------------------------------------------------------------

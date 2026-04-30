@@ -183,6 +183,25 @@ class EvalSetManifest(BaseModel, frozen=True):
     generated_at: datetime
 
 
+class EvalDataset(BaseModel, frozen=True):
+    """A loaded eval dataset: rows + the manifest produced alongside them.
+
+    The reciprocal of ``write_eval_set``: anything that function writes
+    can be read back into one of these via ``read_eval_dataset``. The
+    two halves of the on-disk artifact are bundled here so callers that
+    want both don't have to assemble them.
+    """
+
+    comparisons: list[KernelRuntimeComparison]
+    manifest: EvalSetManifest
+
+    def by_bin(self) -> EvalSet:
+        out: dict[SpeedupBin, list[KernelRuntimeComparison]] = {}
+        for row in self.comparisons:
+            out.setdefault(row.true_bin, []).append(row)
+        return out
+
+
 # ---------------------------------------------------------------------------
 # Harvest seam.
 # ---------------------------------------------------------------------------

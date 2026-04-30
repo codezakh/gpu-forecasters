@@ -7,6 +7,7 @@ from arid_badger.eval_dataset_builder.v1.bin_filler import BinFiller
 from arid_badger.eval_dataset_builder.v1.domain import (
     BinFillRequest,
     BinFillResult,
+    EvalDataset,
     EvalSet,
     EvalSetManifest,
     EvaluationProviderSpec,
@@ -34,6 +35,7 @@ from arid_badger.eval_dataset_builder.v1.orchestrator import (
     build_eval_dataset,
     fill_via_generation,
     harvest_into_eval_set,
+    read_eval_dataset,
     write_eval_set,
 )
 from arid_badger.eval_dataset_builder.v1.seed_selection import SelectedSeed, select_seed
@@ -48,6 +50,7 @@ __all__ = [
     "BinFillRequest",
     "BinFillResult",
     "BinFiller",
+    "EvalDataset",
     "EvalSet",
     "EvalSetManifest",
     "EvaluationProviderSpec",
@@ -70,6 +73,7 @@ __all__ = [
     "extract_in_target_kernels_from_event_log",
     "fill_via_generation",
     "harvest_into_eval_set",
+    "read_eval_dataset",
     "render_prompt",
     "score_evaluation_against_target_bin",
     "select_seed",

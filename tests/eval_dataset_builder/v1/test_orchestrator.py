@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Self, final
 
 from arid_badger.eval_dataset_builder.v1.domain import (
+    EvalDataset,
     EvalSet,
     EvalSetManifest,
     KernelRuntimeComparison,
@@ -24,6 +25,7 @@ from arid_badger.eval_dataset_builder.v1.domain import (
 from arid_badger.eval_dataset_builder.v1.orchestrator import (
     fill_via_generation,
     harvest_into_eval_set,
+    read_eval_dataset,
     write_eval_set,
 )
 from arid_badger.gpu_mode_kernel.core import (
@@ -232,3 +234,59 @@ def test_write_eval_set_round_trips(tmp_path: Path) -> None:
     # Manifest is valid JSON.
     manifest_data = json.loads(manifest_path.read_text())
     assert manifest_data["source_search_tag"] == "test"
+
+
+# --- read_eval_dataset ------------------------------------------------------
+
+
+def test_read_eval_dataset_round_trips_write_eval_set(tmp_path: Path) -> None:
+    eval_set: EvalSet = {
+        SpeedupBin.MINOR_SPEEDUP: [
+            _comparison(candidate_code="A", speedup=1.6, source_id="src/a"),
+        ],
+        SpeedupBin.SIGNIFICANT_SPEEDUP: [
+            _comparison(candidate_code="B", speedup=2.0, source_id="src/b"),
+            _comparison(candidate_code="C", speedup=2.5, source_id="src/c"),
+        ],
+    }
+    manifest = EvalSetManifest(
+        source_search_tag="round-trip",
+        hardware=_HARDWARE,
+        harvested_per_bin={SpeedupBin.MINOR_SPEEDUP: 1, SpeedupBin.SIGNIFICANT_SPEEDUP: 2},
+        generated_per_bin={},
+        attempts_per_bin={},
+        generated_at=datetime(2026, 4, 29, tzinfo=timezone.utc),
+    )
+    _ = write_eval_set(tmp_path, eval_set, manifest)
+
+    loaded = read_eval_dataset(tmp_path)
+
+    assert isinstance(loaded, EvalDataset)
+    assert loaded.manifest == manifest
+    assert [r.candidate_code for r in loaded.comparisons] == ["A", "B", "C"]
+    # by_bin reconstructs the original grouping (modulo dict ordering).
+    by_bin = loaded.by_bin()
+    assert set(by_bin.keys()) == set(eval_set.keys())
+    assert [r.candidate_code for r in by_bin[SpeedupBin.SIGNIFICANT_SPEEDUP]] == ["B", "C"]
+
+
+def test_read_eval_dataset_skips_blank_lines(tmp_path: Path) -> None:
+    # write_eval_set produces no blank lines, but tolerate them defensively
+    # since the JSONL is line-oriented.
+    jsonl = tmp_path / "eval_dataset.jsonl"
+    row = _comparison(candidate_code="A", speedup=1.6, source_id="src/a")
+    _ = jsonl.write_text(row.model_dump_json() + "\n\n")
+
+    manifest_path = tmp_path / "eval_dataset_manifest.json"
+    manifest = EvalSetManifest(
+        source_search_tag="blank-line",
+        hardware=_HARDWARE,
+        harvested_per_bin={SpeedupBin.MINOR_SPEEDUP: 1},
+        generated_per_bin={},
+        attempts_per_bin={},
+        generated_at=datetime(2026, 4, 29, tzinfo=timezone.utc),
+    )
+    _ = manifest_path.write_text(manifest.model_dump_json())
+
+    loaded = read_eval_dataset(tmp_path)
+    assert len(loaded.comparisons) == 1
