@@ -22,6 +22,7 @@ Shape decisions (iteration 2):
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated, Generic, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
@@ -58,18 +59,21 @@ class MutationRequested(_Frozen):
     kind: Literal["mutation_requested"] = "mutation_requested"
     request_id: str
     parent_ulid: ULID
+    started_at: datetime | None = None
 
 
 class MutationCompleted(_Frozen):
     kind: Literal["mutation_completed"] = "mutation_completed"
     request_id: str
     code: str
+    completed_at: datetime | None = None
 
 
 class MutationFailed(_Frozen):
     kind: Literal["mutation_failed"] = "mutation_failed"
     request_id: str
     reason: str
+    completed_at: datetime | None = None
 
 
 class EvaluationRequested(_Frozen):
@@ -91,18 +95,21 @@ class EvaluationRequested(_Frozen):
     parent_ulid: ULID
     code: str
     from_mutation_request_id: str | None = None
+    started_at: datetime | None = None
 
 
 class EvaluationCompleted(_Frozen, Generic[ObservationT]):
     kind: Literal["evaluation_completed"] = "evaluation_completed"
     request_id: str
     evaluation: Evaluation[ObservationT]
+    completed_at: datetime | None = None
 
 
 class EvaluationFailed(_Frozen):
     kind: Literal["evaluation_failed"] = "evaluation_failed"
     request_id: str
     reason: str
+    completed_at: datetime | None = None
 
 
 class StepCompleted(_Frozen):

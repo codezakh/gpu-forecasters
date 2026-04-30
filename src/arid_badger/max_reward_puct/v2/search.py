@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, wait
+from datetime import UTC, datetime
 from typing import Any, Generic
 
 from loguru import logger
@@ -243,6 +244,7 @@ class SearchDriver(Generic[ObservationT]):
                     MutationFailed(
                         request_id=mutation_request_id,
                         reason="parent evicted from archive before recovery",
+                        completed_at=datetime.now(UTC),
                     ),
                 )
                 continue
@@ -283,6 +285,7 @@ class SearchDriver(Generic[ObservationT]):
                     EvaluationFailed(
                         request_id=request_id,
                         reason="parent evicted from archive before recovery",
+                        completed_at=datetime.now(UTC),
                     ),
                 )
                 continue
@@ -365,13 +368,20 @@ class SearchDriver(Generic[ObservationT]):
             kind, request_id, _parent, _submit_time = active.pop(fut)
             fut.cancel()
             reason = f"timeout after {timeout:.1f}s"
+            now_utc = datetime.now(UTC)
             if kind == _MUTATION:
                 self._emit(
-                    state, MutationFailed(request_id=request_id, reason=reason)
+                    state,
+                    MutationFailed(
+                        request_id=request_id, reason=reason, completed_at=now_utc
+                    ),
                 )
             else:
                 self._emit(
-                    state, EvaluationFailed(request_id=request_id, reason=reason)
+                    state,
+                    EvaluationFailed(
+                        request_id=request_id, reason=reason, completed_at=now_utc
+                    ),
                 )
 
     # --- Dispatch helpers ---------------------------------------------
@@ -384,7 +394,11 @@ class SearchDriver(Generic[ObservationT]):
     ) -> Future[str]:
         self._emit(
             state,
-            MutationRequested(request_id=request_id, parent_ulid=parent.ulid),
+            MutationRequested(
+                request_id=request_id,
+                parent_ulid=parent.ulid,
+                started_at=datetime.now(UTC),
+            ),
         )
         return self.mutation_provider.submit(
             parent_code=parent.program_code,
@@ -409,6 +423,7 @@ class SearchDriver(Generic[ObservationT]):
                 parent_ulid=parent.ulid,
                 code=code,
                 from_mutation_request_id=from_mutation_request_id,
+                started_at=datetime.now(UTC),
             ),
         )
         fut = self.evaluation_provider.submit(code)
@@ -429,7 +444,11 @@ class SearchDriver(Generic[ObservationT]):
         except BaseException as exc:
             self._emit(
                 state,
-                MutationFailed(request_id=request_id, reason=repr(exc)),
+                MutationFailed(
+                    request_id=request_id,
+                    reason=repr(exc),
+                    completed_at=datetime.now(UTC),
+                ),
             )
             return
         if not isinstance(code, str):
@@ -443,10 +462,16 @@ class SearchDriver(Generic[ObservationT]):
                         f"mutation provider returned {type(code).__name__}, "
                         "expected str"
                     ),
+                    completed_at=datetime.now(UTC),
                 ),
             )
             return
-        self._emit(state, MutationCompleted(request_id=request_id, code=code))
+        self._emit(
+            state,
+            MutationCompleted(
+                request_id=request_id, code=code, completed_at=datetime.now(UTC)
+            ),
+        )
         eval_request_id, eval_fut = self._dispatch_evaluation(
             state,
             parent,
@@ -466,13 +491,19 @@ class SearchDriver(Generic[ObservationT]):
         except BaseException as exc:
             self._emit(
                 state,
-                EvaluationFailed(request_id=request_id, reason=repr(exc)),
+                EvaluationFailed(
+                    request_id=request_id,
+                    reason=repr(exc),
+                    completed_at=datetime.now(UTC),
+                ),
             )
             return
         self._emit(
             state,
             EvaluationCompleted[self._observation_type](  # type: ignore[name-defined]
-                request_id=request_id, evaluation=evaluation
+                request_id=request_id,
+                evaluation=evaluation,
+                completed_at=datetime.now(UTC),
             ),
         )
 

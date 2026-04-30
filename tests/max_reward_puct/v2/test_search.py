@@ -380,6 +380,41 @@ def test_crash_midstep_redispatches_rather_than_dropping(tmp_path: Path):
     assert original_mut_req.request_id in terminal_ids
 
 
+def test_event_timestamps_completed_after_started(tmp_path: Path):
+    """Every request/terminal pair joined by request_id must satisfy
+    completed_at >= started_at, so durations recovered from the log are
+    non-negative."""
+    log_path = tmp_path / "log.jsonl"
+    _ = _run(log_path=log_path, total_budget_steps=3, eval_sleep_s=0.005)
+
+    events = FileEventLog(log_path, observation_type=NoFeedback).read_all()
+
+    started_by_id: dict[str, object] = {}
+    for e in events:
+        if isinstance(e, MutationRequested) or isinstance(e, EvaluationRequested):
+            assert e.started_at is not None, (
+                f"{type(e).__name__} {e.request_id} missing started_at"
+            )
+            started_by_id[e.request_id] = e.started_at
+
+    for e in events:
+        if isinstance(
+            e,
+            (MutationCompleted, MutationFailed, EvaluationCompleted, EvaluationFailed),
+        ):
+            assert e.completed_at is not None, (
+                f"{type(e).__name__} {e.request_id} missing completed_at"
+            )
+            started = started_by_id.get(e.request_id)
+            assert started is not None, (
+                f"terminal {type(e).__name__} {e.request_id} has no matching "
+                "Requested event"
+            )
+            assert e.completed_at >= started, (  # type: ignore[operator]
+                f"completed_at < started_at for {e.request_id}"
+            )
+
+
 def test_wedged_evaluation_times_out_and_step_finishes(tmp_path: Path):
     """A provider call that never resolves must not hang the driver.
 
