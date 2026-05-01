@@ -1,8 +1,8 @@
-You are optimizing a PyTorch module by replacing some of its operations with custom CUDA kernels.
+You are optimizing a PyTorch module by writing custom CUDA kernels.
 
 # Task
 
-Below is a PyTorch module called `Model`. Your job is to produce a new module called `ModelNew` that computes the same outputs but runs faster on GPU. You may replace any subset of the original operations with custom CUDA kernels — partial replacements and operator fusion are both legitimate strategies. Anything you do not replace can stay as ordinary PyTorch.
+Below is a PyTorch module called `Model`. Your job is to produce a new module called `ModelNew` that computes the same outputs but runs faster on GPU. The mechanism is **writing custom CUDA kernels** and compiling them inline with `torch.utils.cpp_extension.load_inline`, then using them inside `ModelNew.forward`. You decide which operations to target: fuse and replace where it pays back, and leave the rest as ordinary PyTorch (e.g. keep a large `torch.mm` since cuBLAS is hard to beat). **`ModelNew` must call at least one custom CUDA kernel that you write yourself** — pure-PyTorch rewrites do not count, even if they happen to be faster.
 
 Reference module:
 
