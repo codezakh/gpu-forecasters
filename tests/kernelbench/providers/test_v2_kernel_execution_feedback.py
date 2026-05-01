@@ -27,11 +27,13 @@ from typing import Any, Callable
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import BaseModel
 
 from arid_badger.hill_climbing.domain import Evaluation
 from arid_badger.hill_climbing.scoring_providers.kernelbench import (
     KernelBenchObservation,
 )
+from arid_badger.invocation_sink import code_sha256
 from arid_badger.kernelbench.core import (
     CompileFailedFeedback,
     IncorrectFeedback,
@@ -41,6 +43,7 @@ from arid_badger.kernelbench.core import (
 )
 from arid_badger.kernelbench.providers.v2_kernel_execution_feedback import (
     KernelBenchFeedbackMutationProvider,
+    KernelBenchMutationRecord,
     MutationError,
     extract_last_python_codeblock,
     render_mutation_prompt,
@@ -540,3 +543,192 @@ def test_max_llm_concurrency_caps_concurrent_acompletion_calls() -> None:
     assert len(results) == n_submits
     for code in results:
         assert "ModelNew" in code
+
+
+# ---------------------------------------------------------------------------
+# Invocation sink — one record per submit, success and failure paths
+# ---------------------------------------------------------------------------
+
+
+class _ListSink:
+    """List-backed ``InvocationSink`` for tests — captures records in
+    insertion order so a test can assert on counts and field values."""
+
+    def __init__(self) -> None:
+        self.records: list[BaseModel] = []
+
+    def record(self, payload: BaseModel) -> None:
+        self.records.append(payload)
+
+
+def _make_response_with_usage(
+    content: str, *, prompt_tokens: int, completion_tokens: int
+) -> MagicMock:
+    """``litellm.ModelResponse`` stand-in with usage populated."""
+    choice = MagicMock()
+    choice.message.content = content
+    usage = MagicMock()
+    usage.prompt_tokens = prompt_tokens
+    usage.completion_tokens = completion_tokens
+    response = MagicMock()
+    response.choices = [choice]
+    response.usage = usage
+    return response
+
+
+def test_sink_records_success_with_token_counts_and_shas() -> None:
+    """Successful mutation: one record carrying parent+child shas, model,
+    tokens, and ``failure_reason=None``."""
+    sink = _ListSink()
+    response = _make_response_with_usage(
+        "Reasoning blah.\n\n```python\nclass ModelNew:\n    pass\n```",
+        prompt_tokens=1234,
+        completion_tokens=567,
+    )
+    expected_child_code = "class ModelNew:\n    pass"
+
+    with patch(
+        f"{PROVIDER_MODULE}.litellm.acompletion",
+        new=AsyncMock(return_value=response),
+    ):
+        with KernelBenchFeedbackMutationProvider(
+            reference_kernel_code=_REFERENCE_KERNEL,
+            model_slug="fake/model",
+            max_llm_concurrency=2,
+            invocation_sink=sink,
+        ) as provider:
+            provider.submit(
+                _PARENT_KERNEL, _success_feedback_evaluation()
+            ).result(timeout=5.0)
+
+    assert len(sink.records) == 1
+    record = sink.records[0]
+    assert isinstance(record, KernelBenchMutationRecord)
+    assert record.parent_code_sha256 == code_sha256(_PARENT_KERNEL)
+    assert record.child_code_sha256 == code_sha256(expected_child_code)
+    assert record.model_slug == "fake/model"
+    assert record.input_tokens == 1234
+    assert record.output_tokens == 567
+    assert record.failure_reason is None
+    assert record.wall_clock_seconds >= 0.0
+
+
+def test_sink_records_failure_when_acompletion_raises() -> None:
+    """Network failure inside ``acompletion``: record carries
+    ``child_code_sha256=None``, populated ``failure_reason``, and
+    ``input_tokens=output_tokens=None`` (no usage info to read)."""
+    sink = _ListSink()
+
+    async def boom(*args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError("provider 503")
+
+    with patch(
+        f"{PROVIDER_MODULE}.litellm.acompletion",
+        new=AsyncMock(side_effect=boom),
+    ):
+        with KernelBenchFeedbackMutationProvider(
+            reference_kernel_code=_REFERENCE_KERNEL,
+            model_slug="fake/model",
+            invocation_sink=sink,
+        ) as provider:
+            future = provider.submit(
+                _PARENT_KERNEL, _success_feedback_evaluation()
+            )
+            with pytest.raises(MutationError):
+                future.result(timeout=5.0)
+
+    assert len(sink.records) == 1
+    record = sink.records[0]
+    assert isinstance(record, KernelBenchMutationRecord)
+    assert record.child_code_sha256 is None
+    assert record.input_tokens is None
+    assert record.output_tokens is None
+    assert record.failure_reason is not None
+    assert "litellm.acompletion failed" in record.failure_reason
+
+
+def test_sink_records_failure_when_no_code_block() -> None:
+    """LLM returned a response with usage info but no python block:
+    record has ``child_code_sha256=None``, populated ``failure_reason``,
+    *and* preserves token counts (the call was billed)."""
+    sink = _ListSink()
+    response = _make_response_with_usage(
+        "just prose, no code", prompt_tokens=10, completion_tokens=5
+    )
+
+    with patch(
+        f"{PROVIDER_MODULE}.litellm.acompletion",
+        new=AsyncMock(return_value=response),
+    ):
+        with KernelBenchFeedbackMutationProvider(
+            reference_kernel_code=_REFERENCE_KERNEL,
+            model_slug="fake/model",
+            invocation_sink=sink,
+        ) as provider:
+            future = provider.submit(
+                _PARENT_KERNEL, _success_feedback_evaluation()
+            )
+            with pytest.raises(MutationError):
+                future.result(timeout=5.0)
+
+    assert len(sink.records) == 1
+    record = sink.records[0]
+    assert isinstance(record, KernelBenchMutationRecord)
+    assert record.child_code_sha256 is None
+    assert record.input_tokens == 10
+    assert record.output_tokens == 5
+    assert record.failure_reason is not None
+    assert "no python code block" in record.failure_reason
+
+
+def test_sink_one_record_per_submit_under_concurrency() -> None:
+    """N concurrent submits → exactly N records; no drops under the
+    semaphore-bounded loop multiplexing."""
+    sink = _ListSink()
+    n_submits = 6
+    response = _make_response_with_usage(
+        "```python\nclass ModelNew: pass\n```",
+        prompt_tokens=1,
+        completion_tokens=1,
+    )
+    with patch(
+        f"{PROVIDER_MODULE}.litellm.acompletion",
+        new=AsyncMock(return_value=response),
+    ):
+        with KernelBenchFeedbackMutationProvider(
+            reference_kernel_code=_REFERENCE_KERNEL,
+            model_slug="fake/model",
+            max_llm_concurrency=3,
+            invocation_sink=sink,
+        ) as provider:
+            futures = [
+                provider.submit(_PARENT_KERNEL, _success_feedback_evaluation())
+                for _ in range(n_submits)
+            ]
+            for f in futures:
+                f.result(timeout=10.0)
+
+    assert len(sink.records) == n_submits
+
+
+def test_no_sink_no_error_on_success_or_failure() -> None:
+    """Without a sink, both success and failure paths must complete
+    without raising (the sink is purely optional)."""
+    response = _make_response_with_usage(
+        "```python\nclass ModelNew: pass\n```",
+        prompt_tokens=1,
+        completion_tokens=1,
+    )
+    with patch(
+        f"{PROVIDER_MODULE}.litellm.acompletion",
+        new=AsyncMock(return_value=response),
+    ):
+        with KernelBenchFeedbackMutationProvider(
+            reference_kernel_code=_REFERENCE_KERNEL,
+            model_slug="fake/model",
+            invocation_sink=None,
+        ) as provider:
+            code = provider.submit(
+                _PARENT_KERNEL, _success_feedback_evaluation()
+            ).result(timeout=5.0)
+            assert "ModelNew" in code

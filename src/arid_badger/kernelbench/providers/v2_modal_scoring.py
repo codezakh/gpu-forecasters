@@ -26,18 +26,22 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 import traceback
 from concurrent.futures import Future
 from contextlib import AbstractContextManager
+from datetime import datetime, timezone
 from types import TracebackType
-from typing import Any, Self, cast
+from typing import Any, Literal, Self, cast
 
 from loguru import logger
+from pydantic import BaseModel
 
 from arid_badger.hill_climbing.domain import Evaluation
 from arid_badger.hill_climbing.scoring_providers.kernelbench import (
     KernelBenchObservation,
 )
+from arid_badger.invocation_sink import InvocationSink, code_sha256
 from arid_badger.kernelbench.core import (
     InfrastructureFailureFeedback,
     execution_feedback_from_exec_result,
@@ -53,6 +57,23 @@ from arid_badger.kernelbench.scoring import check_kernel_exec_result_valid
 from arid_badger.max_reward_puct.v2.providers import AsyncEvaluationProvider
 from arid_badger.typing_utils import implements
 from kernelbench.eval import KernelExecResult
+
+
+class KernelBenchModalEvaluationRecord(BaseModel, frozen=True):
+    """Invocation record for a single v2 KernelBench Modal evaluation.
+
+    Distinct ``kind`` from the v1 ``ModalEvaluationRecord`` so a run that
+    happens to mix v1 and v2 providers (or a v1 run replayed under v2
+    tooling) keeps the two streams separable on disk.
+    """
+
+    kind: Literal["kernelbench_modal_evaluation_v2"] = (
+        "kernelbench_modal_evaluation_v2"
+    )
+    code_sha256: str
+    wall_clock_seconds: float
+    reward: float | None
+    timestamp_utc: str
 
 
 class KernelBenchModalProvider:
@@ -99,6 +120,7 @@ class KernelBenchModalProvider:
         num_correct_trials: int = 5,
         num_perf_trials: int = 100,
         max_in_flight: int = 8,
+        invocation_sink: InvocationSink | None = None,
     ) -> None:
         if max_in_flight < 1:
             raise ValueError("max_in_flight must be >= 1")
@@ -117,6 +139,7 @@ class KernelBenchModalProvider:
         self._num_correct_trials = num_correct_trials
         self._num_perf_trials = num_perf_trials
         self._max_in_flight = max_in_flight
+        self._invocation_sink = invocation_sink
 
         # Lifecycle-owned state. All None until ``__enter__``.
         self._app_session: AbstractContextManager[Any] | None = None
@@ -219,6 +242,9 @@ class KernelBenchModalProvider:
         assert self._compiler is not None
         assert self._benchmarker_cls is not None
 
+        sha = code_sha256(code)
+        start_time_s = time.perf_counter()
+
         async with self._semaphore:
             try:
                 compile_result: dict[str, Any] = (
@@ -235,7 +261,9 @@ class KernelBenchModalProvider:
                     tb=traceback.format_exc(),
                 )
                 return self._infrastructure_failure(
-                    f"Modal CPU compile failed: {type(exc).__name__}: {exc}"
+                    f"Modal CPU compile failed: {type(exc).__name__}: {exc}",
+                    sha=sha,
+                    start_time_s=start_time_s,
                 )
 
             cpu_error = compile_result.get("error")
@@ -252,7 +280,9 @@ class KernelBenchModalProvider:
                             "compilation_error_name": "CpuCompileError",
                             "compilation_error": cpu_error,
                         },
-                    )
+                    ),
+                    sha=sha,
+                    start_time_s=start_time_s,
                 )
 
             cache_dir = compile_result["cache_dir"]
@@ -276,7 +306,9 @@ class KernelBenchModalProvider:
                     tb=traceback.format_exc(),
                 )
                 return self._infrastructure_failure(
-                    f"Modal GPU benchmark failed: {type(exc).__name__}: {exc}"
+                    f"Modal GPU benchmark failed: {type(exc).__name__}: {exc}",
+                    sha=sha,
+                    start_time_s=start_time_s,
                 )
 
             if exec_result is None:
@@ -287,16 +319,26 @@ class KernelBenchModalProvider:
                 # rather than a misleading "compile failed" prompt.
                 return self._infrastructure_failure(
                     "eval_kernel_against_ref returned None "
-                    "(likely lock-file race during compilation)"
+                    "(likely lock-file race during compilation)",
+                    sha=sha,
+                    start_time_s=start_time_s,
                 )
 
-            return self._evaluation_from_exec_result(exec_result)
+            return self._evaluation_from_exec_result(
+                exec_result, sha=sha, start_time_s=start_time_s
+            )
 
     # --- Wrapping helpers ----------------------------------------------
 
     def _infrastructure_failure(
-        self, reason: str
+        self,
+        reason: str,
+        *,
+        sha: str,
+        start_time_s: float,
     ) -> Evaluation[KernelBenchObservation]:
+        wall = time.perf_counter() - start_time_s
+        self._record(sha=sha, wall_clock_seconds=wall, reward=None)
         return Evaluation[KernelBenchObservation](
             observation=KernelBenchObservation(
                 feedback=InfrastructureFailureFeedback(reason=reason),
@@ -305,7 +347,11 @@ class KernelBenchModalProvider:
         )
 
     def _evaluation_from_exec_result(
-        self, exec_result: KernelExecResult
+        self,
+        exec_result: KernelExecResult,
+        *,
+        sha: str,
+        start_time_s: float,
     ) -> Evaluation[KernelBenchObservation]:
         is_valid = check_kernel_exec_result_valid(exec_result)
         speedup = (
@@ -316,9 +362,32 @@ class KernelBenchModalProvider:
             speedup=speedup,
             is_valid=is_valid,
         )
+        reward = speedup if is_valid else None
+        wall = time.perf_counter() - start_time_s
+        self._record(sha=sha, wall_clock_seconds=wall, reward=reward)
         return Evaluation[KernelBenchObservation](
             observation=KernelBenchObservation(feedback=feedback),
-            reward=speedup if is_valid else None,
+            reward=reward,
+        )
+
+    # --- Sink bookkeeping ---------------------------------------------
+
+    def _record(
+        self,
+        *,
+        sha: str,
+        wall_clock_seconds: float,
+        reward: float | None,
+    ) -> None:
+        if self._invocation_sink is None:
+            return
+        self._invocation_sink.record(
+            KernelBenchModalEvaluationRecord(
+                code_sha256=sha,
+                wall_clock_seconds=wall_clock_seconds,
+                reward=reward,
+                timestamp_utc=datetime.now(timezone.utc).isoformat(),
+            )
         )
 
 

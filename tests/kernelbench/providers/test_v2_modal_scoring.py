@@ -25,9 +25,12 @@ from arid_badger.kernelbench.core import (
     InfrastructureFailureFeedback,
     SuccessFeedback,
 )
+from arid_badger.invocation_sink import code_sha256
 from arid_badger.kernelbench.providers.v2_modal_scoring import (
+    KernelBenchModalEvaluationRecord,
     KernelBenchModalProvider,
 )
+from pydantic import BaseModel
 
 PROVIDER_MODULE = "arid_badger.kernelbench.providers.v2_modal_scoring"
 
@@ -74,6 +77,17 @@ def _incorrect_exec_result() -> KernelExecResult:
     )
 
 
+class _ListSink:
+    """List-backed ``InvocationSink`` for tests — captures records in
+    insertion order so a test can assert on counts and field values."""
+
+    def __init__(self) -> None:
+        self.records: list[BaseModel] = []
+
+    def record(self, payload: BaseModel) -> None:
+        self.records.append(payload)
+
+
 @contextmanager
 def _patched_provider(
     *,
@@ -83,6 +97,7 @@ def _patched_provider(
     evaluate_return: Any | None = None,
     max_in_flight: int = 8,
     gpu: str = "L4",
+    invocation_sink: _ListSink | None = None,
 ) -> Generator[KernelBenchModalProvider, None, None]:
     """Context manager that yields a KernelBenchModalProvider whose Modal
     handles are mocked.
@@ -118,6 +133,7 @@ def _patched_provider(
             reference_kernel_code=_REFERENCE_KERNEL,
             gpu=gpu,
             max_in_flight=max_in_flight,
+            invocation_sink=invocation_sink,
         )
         with provider:
             yield provider
@@ -473,5 +489,115 @@ def test_concurrent_submits_resolve_independently() -> None:
             provider._loop.call_soon_threadsafe(first_park_event.set)
             slow_eval = slow_future.result(timeout=5.0)
             assert isinstance(slow_eval.observation.feedback, SuccessFeedback)
+
+
+# ---------------------------------------------------------------------------
+# Invocation sink — every terminal path must produce exactly one record
+# ---------------------------------------------------------------------------
+
+
+def test_sink_records_success() -> None:
+    """Happy path: one record, ``reward`` matches the speedup, ``code_sha256``
+    matches the submitted code."""
+    sink = _ListSink()
+    with _patched_provider(
+        compile_return={"cache_dir": "/cache/x", "error": None},
+        evaluate_return=_ok_exec_result(runtime=5.0, ref_runtime=20.0),
+        invocation_sink=sink,
+    ) as provider:
+        provider.submit(_CANDIDATE_KERNEL).result(timeout=5.0)
+
+    assert len(sink.records) == 1
+    record = sink.records[0]
+    assert isinstance(record, KernelBenchModalEvaluationRecord)
+    assert record.code_sha256 == code_sha256(_CANDIDATE_KERNEL)
+    assert record.reward == pytest.approx(4.0)
+    assert record.wall_clock_seconds >= 0.0
+
+
+def test_sink_records_compile_failure_with_reward_none() -> None:
+    """CPU compile failure surfaces as ``CompileFailedFeedback`` for the
+    LLM, but the sink record carries ``reward=None`` — a kernel defect
+    contributed no usable reward signal."""
+    sink = _ListSink()
+    with _patched_provider(
+        compile_return={
+            "cache_dir": "/cache/x",
+            "error": "nvcc: error: unknown arg",
+        },
+        invocation_sink=sink,
+    ) as provider:
+        provider.submit(_CANDIDATE_KERNEL).result(timeout=5.0)
+
+    assert len(sink.records) == 1
+    record = sink.records[0]
+    assert isinstance(record, KernelBenchModalEvaluationRecord)
+    assert record.reward is None
+    assert record.code_sha256 == code_sha256(_CANDIDATE_KERNEL)
+
+
+def test_sink_records_infrastructure_failure_when_compile_call_raises() -> None:
+    """Modal connection drop (compile-stage) → one record with reward=None."""
+    sink = _ListSink()
+
+    async def boom(*args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError("modal connection lost")
+
+    with _patched_provider(
+        compile_side_effect=boom,
+        invocation_sink=sink,
+    ) as provider:
+        provider.submit(_CANDIDATE_KERNEL).result(timeout=5.0)
+
+    assert len(sink.records) == 1
+    record = sink.records[0]
+    assert isinstance(record, KernelBenchModalEvaluationRecord)
+    assert record.reward is None
+
+
+def test_sink_records_infrastructure_failure_when_evaluate_returns_none() -> None:
+    """Lock-file race (evaluate returns None) → one record with reward=None."""
+    sink = _ListSink()
+    with _patched_provider(
+        compile_return={"cache_dir": "/cache/x", "error": None},
+        evaluate_return=None,
+        invocation_sink=sink,
+    ) as provider:
+        provider.submit(_CANDIDATE_KERNEL).result(timeout=5.0)
+
+    assert len(sink.records) == 1
+    record = sink.records[0]
+    assert isinstance(record, KernelBenchModalEvaluationRecord)
+    assert record.reward is None
+
+
+def test_no_sink_no_records() -> None:
+    """Without a sink, the provider must complete the same code paths
+    without raising — a sink is purely optional cost telemetry."""
+    with _patched_provider(
+        compile_return={"cache_dir": "/cache/x", "error": None},
+        evaluate_return=_ok_exec_result(),
+        invocation_sink=None,
+    ) as provider:
+        evaluation = provider.submit(_CANDIDATE_KERNEL).result(timeout=5.0)
+    assert isinstance(evaluation.observation.feedback, SuccessFeedback)
+
+
+def test_sink_one_record_per_submit_under_concurrency() -> None:
+    """N concurrent submits → exactly N records. Asserts the sink path
+    doesn't drop records under the asyncio loop's multiplexing."""
+    sink = _ListSink()
+    n_submits = 6
+    with _patched_provider(
+        compile_return={"cache_dir": "/cache/x", "error": None},
+        evaluate_return=_ok_exec_result(),
+        max_in_flight=3,
+        invocation_sink=sink,
+    ) as provider:
+        futures = [provider.submit(_CANDIDATE_KERNEL) for _ in range(n_submits)]
+        for f in futures:
+            f.result(timeout=10.0)
+
+    assert len(sink.records) == n_submits
 
 

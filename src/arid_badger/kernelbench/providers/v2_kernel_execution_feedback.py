@@ -29,18 +29,22 @@ from __future__ import annotations
 import asyncio
 import re
 import threading
+import time
 import traceback
 from concurrent.futures import Future
-from typing import Any, Self
+from datetime import datetime, timezone
+from typing import Any, Literal, Self
 
 import litellm
 from jinja2 import Environment, PackageLoader, StrictUndefined
 from loguru import logger
+from pydantic import BaseModel
 
 from arid_badger.hill_climbing.domain import Evaluation
 from arid_badger.hill_climbing.scoring_providers.kernelbench import (
     KernelBenchObservation,
 )
+from arid_badger.invocation_sink import InvocationSink, code_sha256
 from arid_badger.kernelbench.core import (
     InfrastructureFailureFeedback,
     KernelExecutionFeedback,
@@ -52,6 +56,25 @@ from arid_badger.typing_utils import implements
 class MutationError(RuntimeError):
     """Raised inside the provider's coroutine to signal a per-candidate
     failure. The v2 driver catches this and emits ``MutationFailed``."""
+
+
+class KernelBenchMutationRecord(BaseModel, frozen=True):
+    """Invocation record for a single v2 KernelBench mutation call.
+
+    One record per ``submit(...)`` — matches the v2 atomic unit. On
+    failure (``MutationError``), ``child_code_sha256`` is None and
+    ``failure_reason`` carries the message.
+    """
+
+    kind: Literal["kernelbench_mutation_v2"] = "kernelbench_mutation_v2"
+    parent_code_sha256: str
+    child_code_sha256: str | None
+    model_slug: str
+    input_tokens: int | None
+    output_tokens: int | None
+    wall_clock_seconds: float
+    failure_reason: str | None
+    timestamp_utc: str
 
 
 # ---------------------------------------------------------------------------
@@ -263,6 +286,7 @@ class KernelBenchFeedbackMutationProvider:
         request_timeout_s: float = 600.0,
         temperature: float = 1.0,
         max_tokens: int | None = None,
+        invocation_sink: InvocationSink | None = None,
     ) -> None:
         if max_llm_concurrency < 1:
             raise ValueError("max_llm_concurrency must be >= 1")
@@ -278,6 +302,7 @@ class KernelBenchFeedbackMutationProvider:
         self._request_timeout_s = request_timeout_s
         self._temperature = temperature
         self._max_tokens = max_tokens
+        self._invocation_sink = invocation_sink
 
         self._loop: asyncio.AbstractEventLoop | None = None
         self._loop_thread: threading.Thread | None = None
@@ -333,7 +358,7 @@ class KernelBenchFeedbackMutationProvider:
                 "before submit()."
             )
         prompt = self._build_prompt(parent_code, evaluation)
-        coro = self._generate(prompt)
+        coro = self._generate(prompt, parent_code=parent_code)
         return asyncio.run_coroutine_threadsafe(coro, self._loop)
 
     def _build_prompt(
@@ -356,7 +381,7 @@ class KernelBenchFeedbackMutationProvider:
             feedback=feedback,
         )
 
-    async def _generate(self, prompt: str) -> str:
+    async def _generate(self, prompt: str, *, parent_code: str) -> str:
         assert self._semaphore is not None
         kwargs: dict[str, Any] = {
             "model": self._model_slug,
@@ -368,6 +393,9 @@ class KernelBenchFeedbackMutationProvider:
         if self._max_tokens is not None:
             kwargs["max_tokens"] = self._max_tokens
 
+        parent_sha = code_sha256(parent_code)
+        start_time_s = time.perf_counter()
+
         async with self._semaphore:
             try:
                 response = await litellm.acompletion(**kwargs)
@@ -377,15 +405,79 @@ class KernelBenchFeedbackMutationProvider:
                     exc=exc,
                     tb=traceback.format_exc(),
                 )
-                raise MutationError(f"litellm.acompletion failed: {exc}") from exc
+                reason = f"litellm.acompletion failed: {exc}"
+                self._record(
+                    parent_sha=parent_sha,
+                    child_sha=None,
+                    input_tokens=None,
+                    output_tokens=None,
+                    start_time_s=start_time_s,
+                    failure_reason=reason,
+                )
+                raise MutationError(reason) from exc
+
+            usage = response.usage  # pyright: ignore[reportAttributeAccessIssue]
+            input_tokens = usage.prompt_tokens if usage is not None else None
+            output_tokens = usage.completion_tokens if usage is not None else None
 
             content = response.choices[0].message.content  # pyright: ignore[reportAttributeAccessIssue]
             if not content:
+                self._record(
+                    parent_sha=parent_sha,
+                    child_sha=None,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    start_time_s=start_time_s,
+                    failure_reason="LLM returned empty content",
+                )
                 raise MutationError("LLM returned empty content")
             code = extract_last_python_codeblock(content)
             if not code:
+                self._record(
+                    parent_sha=parent_sha,
+                    child_sha=None,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    start_time_s=start_time_s,
+                    failure_reason="no python code block extracted from response",
+                )
                 raise MutationError("no python code block extracted from response")
+            self._record(
+                parent_sha=parent_sha,
+                child_sha=code_sha256(code),
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                start_time_s=start_time_s,
+                failure_reason=None,
+            )
             return code
+
+    # --- Sink bookkeeping ---------------------------------------------
+
+    def _record(
+        self,
+        *,
+        parent_sha: str,
+        child_sha: str | None,
+        input_tokens: int | None,
+        output_tokens: int | None,
+        start_time_s: float,
+        failure_reason: str | None,
+    ) -> None:
+        if self._invocation_sink is None:
+            return
+        self._invocation_sink.record(
+            KernelBenchMutationRecord(
+                parent_code_sha256=parent_sha,
+                child_code_sha256=child_sha,
+                model_slug=self._model_slug,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                wall_clock_seconds=time.perf_counter() - start_time_s,
+                failure_reason=failure_reason,
+                timestamp_utc=datetime.now(timezone.utc).isoformat(),
+            )
+        )
 
 
 implements(AsyncMutationProvider[KernelBenchObservation])(
@@ -395,6 +487,7 @@ implements(AsyncMutationProvider[KernelBenchObservation])(
 
 __all__ = [
     "KernelBenchFeedbackMutationProvider",
+    "KernelBenchMutationRecord",
     "MutationError",
     "render_mutation_prompt",
     "extract_last_python_codeblock",
