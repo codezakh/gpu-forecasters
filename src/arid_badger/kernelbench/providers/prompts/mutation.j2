@@ -1,0 +1,108 @@
+You are optimizing a PyTorch module by replacing some of its operations with custom CUDA kernels.
+
+# Task
+
+Below is a PyTorch module called `Model`. Your job is to produce a new module called `ModelNew` that computes the same outputs but runs faster on GPU. You may replace any subset of the original operations with custom CUDA kernels — partial replacements and operator fusion are both legitimate strategies. Anything you do not replace can stay as ordinary PyTorch.
+
+Reference module:
+
+```python
+{{ reference_module }}
+```
+{% if feedback is not none %}
+
+# Previous attempt
+
+Here is your previous `ModelNew`:
+
+```python
+{{ previous_kernel_code }}
+```
+
+It was evaluated on GPU. Result:
+{% if feedback.kind == "compile_failed" %}
+
+**Compilation failed.**
+{% if feedback.compilation_error_name %}
+
+Error type: `{{ feedback.compilation_error_name }}`
+{% endif %}
+
+Compiler output:
+
+```
+{{ compilation_error_truncated }}
+```
+
+Fix the compilation error. Keep the rest of the design unless the fix requires changing it.
+{% elif feedback.kind == "runtime_error" %}
+
+**Runtime error during execution.**
+{% if feedback.runtime_error_name %}
+
+Error type: `{{ feedback.runtime_error_name }}`
+{% endif %}
+
+Message:
+
+```
+{{ runtime_error_truncated }}
+```
+
+Traceback:
+
+```
+{{ runtime_error_traceback_truncated }}
+```
+
+Fix the runtime error. Common culprits: out-of-bounds indexing, dtype mismatch, missing `.contiguous()`, a kernel launch grid that does not cover all elements, or a CUDA-side assertion such as a misaligned address.
+{% elif feedback.kind == "incorrect" %}
+
+**Output does not match the reference.**
+
+Issue: {{ correctness_issue_truncated }}
+{% if feedback.max_difference %}
+
+Max absolute differences observed across test cases: {{ feedback.max_difference }}
+{% endif %}
+{% if feedback.avg_difference %}
+Average absolute differences observed across test cases: {{ feedback.avg_difference }}
+{% endif %}
+
+Make the output match the reference within standard tolerance (atol=1e-2, rtol=1e-2). Do not change the architecture beyond what is required to fix correctness.
+{% elif feedback.kind == "success" %}
+
+**Correct.** Speedup: {{ "%.3f"|format(feedback.speedup) }}x (kernel = {{ "%.1f"|format(feedback.runtime_us) }} µs, reference = {{ "%.1f"|format(feedback.ref_runtime_us) }} µs).
+
+Now make it faster. Rewrite the entire `ModelNew` from scratch with a more aggressive optimization strategy. Do not tune the existing kernel incrementally — propose a different approach (e.g. fuse more operations across the forward pass, change the tiling, switch to a more coalesced memory access pattern, or use cuBLAS where it beats handwritten CUDA).
+{% endif %}
+{% endif %}
+
+# Engineering guidance
+
+Treat correctness as a hard prerequisite and speed as the objective.
+
+- **Pick replacements that pay back.** Fusing several small element-wise ops, replacing a launch-bound sequence, or making memory accesses more coalesced tends to win. Reimplementing a single large GEMM in handwritten CUDA rarely beats cuBLAS.
+- **Precision.** Inputs are `float32` on a CUDA device. Your final output must be `float32`. Mixed-precision inside is fine if the result still matches the reference.
+- **Shapes.** Test shapes are determined by `get_inputs()` and `get_init_inputs()` in the reference module above. Size your kernels around what those imply. Do not hardcode shapes that those functions do not fix.
+- **Compile flags.** You may pass `extra_cuda_cflags=["-O3"]` (or similar) to `load_inline`. Do not assume non-default headers.
+- **Isolation.** Your code is `exec`'d in an isolated namespace. No filesystem access, no network, no `__file__`.
+
+# How to ship code
+
+Your final code is loaded via `torch.utils.cpp_extension.load_inline` and instantiated as `ModelNew`. For this to work:
+
+- Define a class named exactly **`ModelNew`** that subclasses `torch.nn.Module`. It is the entry point.
+- Compile your CUDA source(s) with `torch.utils.cpp_extension.load_inline(...)` at module scope (top-level), not inside `__init__`.
+- `ModelNew.__init__` must accept the same arguments as `Model.__init__` (whatever `get_init_inputs()` returns).
+- `ModelNew.forward` must accept the same arguments and return the same shape and dtype as `Model.forward`.
+
+A minimal example of the skeleton — pattern only, not problem-relevant:
+
+```python
+{{ skeleton_example }}
+```
+
+# Output format
+
+You may think through the design above as much as you like. Put your **final, complete `ModelNew` module in a single ```python``` code block at the end of your response**. The grader extracts the last python code block; everything above it is ignored.
