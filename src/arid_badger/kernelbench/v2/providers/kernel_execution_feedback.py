@@ -14,11 +14,12 @@ the loop; ``max_llm_concurrency`` is the cap on simultaneous outbound LLM
 calls.
 
 The mutation prompt is rendered from a Jinja template at
-``arid_badger.kernelbench.providers.prompts.mutation``. The template carries
-no problem-specific examples — it gives general optimization guidance and
-states the structural contract (the ``ModelNew`` + ``load_inline`` skeleton)
-that the eval pipeline requires. A short skeleton example is embedded inline
-below as a structural template, not a problem-relevant demonstration.
+``arid_badger.kernelbench.v2.providers.prompts.mutation``. The template
+carries no problem-specific examples — it gives general optimization
+guidance and states the structural contract (the ``ModelNew`` +
+``load_inline`` skeleton) that the eval pipeline requires. A short
+skeleton example is embedded inline below as a structural template, not a
+problem-relevant demonstration.
 
 On infrastructure failure (no useful prior signal), the prompt is rendered
 without the ``Previous attempt`` block — the LLM sees the task fresh.
@@ -27,7 +28,6 @@ without the ``Previous attempt`` block — the LLM sees the task fresh.
 from __future__ import annotations
 
 import asyncio
-import re
 import threading
 import time
 import traceback
@@ -40,6 +40,7 @@ from jinja2 import Environment, PackageLoader, StrictUndefined
 from loguru import logger
 from pydantic import BaseModel
 
+from arid_badger.code_extraction import extract_last_python_codeblock
 from arid_badger.hill_climbing.domain import Evaluation
 from arid_badger.hill_climbing.scoring_providers.kernelbench import (
     KernelBenchObservation,
@@ -75,29 +76,6 @@ class KernelBenchMutationRecord(BaseModel, frozen=True):
     wall_clock_seconds: float
     failure_reason: str | None
     timestamp_utc: str
-
-
-# ---------------------------------------------------------------------------
-# Code extraction
-# ---------------------------------------------------------------------------
-
-# Lifts the regex from ``arid_badger.gpu_mode_kernel.prompts.extract_last_python_codeblock``.
-# Picks the LAST python block — the prompt instructs the model to put its
-# final code in one trailing block, but reasoning models often emit drafts
-# above that final block.
-
-_PYTHON_CODEBLOCK_RE = re.compile(
-    r"```python\n(?!```)(.*?)(?:\n```)?(?=\n```|$)",
-    re.DOTALL,
-)
-
-
-def extract_last_python_codeblock(text: str) -> str | None:
-    matches = list(_PYTHON_CODEBLOCK_RE.finditer(text))
-    if not matches:
-        return None
-    code = matches[-1].group(1).rstrip()
-    return code or None
 
 
 # ---------------------------------------------------------------------------
@@ -191,7 +169,7 @@ class ModelNew(nn.Module):
 # ---------------------------------------------------------------------------
 
 _JINJA_ENV = Environment(
-    loader=PackageLoader("arid_badger.kernelbench.providers", "prompts"),
+    loader=PackageLoader("arid_badger.kernelbench.v2.providers", "prompts"),
     autoescape=False,
     undefined=StrictUndefined,
     keep_trailing_newline=True,

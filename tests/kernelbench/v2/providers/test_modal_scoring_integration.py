@@ -9,7 +9,7 @@ exercise via mocks.
 Selected explicitly:
 
     uv run --env-file .env pytest -m modal \\
-        tests/kernelbench/providers/test_v2_modal_scoring_integration.py -v
+        tests/kernelbench/v2/providers/test_modal_scoring_integration.py -v
 """
 
 from __future__ import annotations
@@ -23,9 +23,10 @@ from arid_badger.kernelbench.core import (
     InfrastructureFailureFeedback,
     SuccessFeedback,
 )
-from arid_badger.kernelbench.providers.v2_modal_scoring import (
+from arid_badger.kernelbench.v2.providers.modal_scoring import (
     KernelBenchModalProvider,
 )
+from arid_badger.modal_gpu import GpuKind
 
 # Same 128x128 matmul fixture used by the v1 modal scoring integration
 # tests. The point here is to exercise plumbing — provider lifecycle,
@@ -97,7 +98,7 @@ def test_v2_provider_submit_correct_kernel_end_to_end() -> None:
     ``app.run()`` → CPU compile → GPU bench → wrap → resolve future."""
     with KernelBenchModalProvider(
         reference_kernel_code=_REFERENCE_KERNEL_CODE,
-        gpu="L4",
+        gpu=GpuKind.L4,
         num_correct_trials=1,
         num_perf_trials=5,
         max_in_flight=2,
@@ -121,7 +122,7 @@ def test_v2_provider_submit_broken_kernel_surfaces_failure() -> None:
     never as a ``SuccessFeedback`` with a positive reward."""
     with KernelBenchModalProvider(
         reference_kernel_code=_REFERENCE_KERNEL_CODE,
-        gpu="L4",
+        gpu=GpuKind.L4,
         num_correct_trials=1,
         num_perf_trials=5,
         max_in_flight=2,
@@ -157,7 +158,7 @@ def test_v2_provider_concurrent_submits_share_session() -> None:
     """
     with KernelBenchModalProvider(
         reference_kernel_code=_REFERENCE_KERNEL_CODE,
-        gpu="L4",
+        gpu=GpuKind.L4,
         num_correct_trials=1,
         num_perf_trials=5,
         max_in_flight=2,

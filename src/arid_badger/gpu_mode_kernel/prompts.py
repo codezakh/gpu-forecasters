@@ -16,9 +16,9 @@ Generalizes ``arid_badger.hill_climbing.mutation_providers.<kernel>_feedback_mut
 
 from __future__ import annotations
 
-import re
 from typing import assert_never
 
+from arid_badger.code_extraction import extract_last_python_codeblock
 from arid_badger.gpu_mode_kernel.core import (
     CaseSpeedupBase,
     CaseSpeedupT,
@@ -29,6 +29,12 @@ from arid_badger.gpu_mode_kernel.core import (
     SuccessFeedback,
 )
 from arid_badger.gpu_mode_kernel.kernel_pack import KernelPack, TestArgsT
+
+# ``extract_last_python_codeblock`` is re-exported from this module so
+# ``from arid_badger.gpu_mode_kernel.prompts import extract_last_python_codeblock``
+# (used by ``providers.v2_feedback_mutation``) continues to resolve. The
+# canonical definition lives in ``arid_badger.code_extraction``.
+_ = extract_last_python_codeblock
 
 
 # ---------------------------------------------------------------------------
@@ -62,27 +68,6 @@ def build_base_prompt(
     """
     rules = _RULES_TEMPLATE.format(gpu_name=gpu_name, triton_version=triton_version)
     return pack.kernel_description_body.rstrip() + "\n\n" + rules
-
-
-# ---------------------------------------------------------------------------
-# Code extraction — kernel-agnostic.
-# ---------------------------------------------------------------------------
-
-# Picks the LAST python block — the rules instruct the model to put its
-# final code in one trailing block, but reasoning models often emit
-# drafts above that final block.
-_PYTHON_CODEBLOCK_RE = re.compile(
-    r"```python\n(?!```)(.*?)(?:\n```)?(?=\n```|$)",
-    re.DOTALL,
-)
-
-
-def extract_last_python_codeblock(text: str) -> str | None:
-    matches = list(_PYTHON_CODEBLOCK_RE.finditer(text))
-    if not matches:
-        return None
-    code = matches[-1].group(1).rstrip()
-    return code or None
 
 
 # ---------------------------------------------------------------------------

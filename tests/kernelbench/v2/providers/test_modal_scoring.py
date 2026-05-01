@@ -26,13 +26,14 @@ from arid_badger.kernelbench.core import (
     SuccessFeedback,
 )
 from arid_badger.invocation_sink import code_sha256
-from arid_badger.kernelbench.providers.v2_modal_scoring import (
+from arid_badger.kernelbench.v2.providers.modal_scoring import (
     KernelBenchModalEvaluationRecord,
     KernelBenchModalProvider,
 )
+from arid_badger.modal_gpu import GpuKind
 from pydantic import BaseModel
 
-PROVIDER_MODULE = "arid_badger.kernelbench.providers.v2_modal_scoring"
+PROVIDER_MODULE = "arid_badger.kernelbench.v2.providers.modal_scoring"
 
 _REFERENCE_KERNEL = "reference-kernel-source"
 _CANDIDATE_KERNEL = "candidate-kernel-source"
@@ -96,7 +97,7 @@ def _patched_provider(
     evaluate_side_effect: Callable[..., Any] | None = None,
     evaluate_return: Any | None = None,
     max_in_flight: int = 8,
-    gpu: str = "L4",
+    gpu: GpuKind = GpuKind.L4,
     invocation_sink: _ListSink | None = None,
 ) -> Generator[KernelBenchModalProvider, None, None]:
     """Context manager that yields a KernelBenchModalProvider whose Modal
@@ -167,7 +168,7 @@ def test_submit_before_enter_raises() -> None:
     with patch(f"{PROVIDER_MODULE}.app", fake_app):
         provider = KernelBenchModalProvider(
             reference_kernel_code=_REFERENCE_KERNEL,
-            gpu="L4",
+            gpu=GpuKind.L4,
         )
         with pytest.raises(RuntimeError, match="must be entered as a context manager"):
             provider.submit(_CANDIDATE_KERNEL)
@@ -178,18 +179,8 @@ def test_invalid_max_in_flight_raises() -> None:
     with pytest.raises(ValueError, match="max_in_flight must be >= 1"):
         KernelBenchModalProvider(
             reference_kernel_code=_REFERENCE_KERNEL,
-            gpu="L4",
+            gpu=GpuKind.L4,
             max_in_flight=0,
-        )
-
-
-def test_unknown_gpu_raises() -> None:
-    """A GPU not in COMPUTE_CAPABILITY_BY_GPU has no compute capability
-    string to pass to nvcc — must fail at construction."""
-    with pytest.raises(ValueError, match="Unknown GPU"):
-        KernelBenchModalProvider(
-            reference_kernel_code=_REFERENCE_KERNEL,
-            gpu="not-a-real-gpu",
         )
 
 
@@ -362,7 +353,7 @@ def test_max_in_flight_semaphore_caps_concurrent_modal_calls() -> None:
     ):
         with KernelBenchModalProvider(
             reference_kernel_code=_REFERENCE_KERNEL,
-            gpu="L4",
+            gpu=GpuKind.L4,
             max_in_flight=max_in_flight,
         ) as provider:
             assert provider._loop is not None
@@ -465,7 +456,7 @@ def test_concurrent_submits_resolve_independently() -> None:
     ):
         with KernelBenchModalProvider(
             reference_kernel_code=_REFERENCE_KERNEL,
-            gpu="L4",
+            gpu=GpuKind.L4,
             max_in_flight=4,
         ) as provider:
             assert provider._loop is not None

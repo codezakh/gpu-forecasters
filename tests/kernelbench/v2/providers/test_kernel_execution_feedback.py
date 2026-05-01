@@ -41,7 +41,7 @@ from arid_badger.kernelbench.core import (
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.kernelbench.providers.v2_kernel_execution_feedback import (
+from arid_badger.kernelbench.v2.providers.kernel_execution_feedback import (
     KernelBenchFeedbackMutationProvider,
     KernelBenchMutationRecord,
     MutationError,
@@ -50,7 +50,7 @@ from arid_badger.kernelbench.providers.v2_kernel_execution_feedback import (
 )
 
 PROVIDER_MODULE = (
-    "arid_badger.kernelbench.providers.v2_kernel_execution_feedback"
+    "arid_badger.kernelbench.v2.providers.kernel_execution_feedback"
 )
 
 

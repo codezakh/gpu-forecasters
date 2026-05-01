@@ -27,6 +27,7 @@ from typing import Iterable
 
 from pydantic import BaseModel, ConfigDict
 
+from arid_badger.modal_gpu import GpuKind
 from arid_badger.trimul.cases import BENCHMARK_CASES, TriMulTestArgs
 from arid_badger.trimul.modal_scoring import modal_trimul_scoring_session
 from arid_badger.typing_utils import is_ok
@@ -37,14 +38,12 @@ from arid_badger.typing_utils import is_ok
 # ---------------------------------------------------------------------------
 
 
-class GpuKind(StrEnum):
-    """Modal GPU identifiers. String values match Modal's ``gpu=`` argument
-    exactly so they pass through ``.with_options(gpu=...)`` unchanged."""
-
-    A100_80GB = "A100-80GB"
-    H100 = "H100"
-    B200 = "B200"
-    L40S = "L40S"
+# ``GpuKind`` is the shared GPU enum at ``arid_badger.modal_gpu``. The
+# leaderboard registry below uses the original four-member subset; new
+# members landed in the shared definition (``T4``, ``A10G``, ``A100``,
+# ``L4``, ``H200``) are valid Modal GPU strings but no leaderboard
+# baselines have been bootstrapped against them yet.
+__all__ = ["GpuKind"]
 
 
 class LeaderboardKernelId(StrEnum):

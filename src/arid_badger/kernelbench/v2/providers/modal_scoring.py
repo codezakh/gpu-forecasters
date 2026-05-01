@@ -55,6 +55,7 @@ from arid_badger.kernelbench.modal_split_scoring import (
 )
 from arid_badger.kernelbench.scoring import check_kernel_exec_result_valid
 from arid_badger.max_reward_puct.v2.providers import AsyncEvaluationProvider
+from arid_badger.modal_gpu import GpuKind
 from arid_badger.typing_utils import implements
 from kernelbench.eval import KernelExecResult
 
@@ -114,7 +115,7 @@ class KernelBenchModalProvider:
         self,
         *,
         reference_kernel_code: str,
-        gpu: str = "L4",
+        gpu: GpuKind = GpuKind.L4,
         backend: str = "cuda",
         precision: str = "fp32",
         num_correct_trials: int = 5,
@@ -124,16 +125,17 @@ class KernelBenchModalProvider:
     ) -> None:
         if max_in_flight < 1:
             raise ValueError("max_in_flight must be >= 1")
-        if gpu not in COMPUTE_CAPABILITY_BY_GPU:
+        if gpu.value not in COMPUTE_CAPABILITY_BY_GPU:
             raise ValueError(
-                f"Unknown GPU {gpu!r} — add it to COMPUTE_CAPABILITY_BY_GPU "
-                f"(in arid_badger.kernelbench.modal_split_scoring) before "
-                f"using KernelBenchModalProvider."
+                f"GPU {gpu.value!r} is in GpuKind but missing from "
+                f"COMPUTE_CAPABILITY_BY_GPU (arid_badger.kernelbench."
+                f"modal_split_scoring). Add the entry before using "
+                f"KernelBenchModalProvider."
             )
         self._reference_kernel_code = reference_kernel_code
         self._gpu = gpu
-        self._cc = COMPUTE_CAPABILITY_BY_GPU[gpu]
-        self._gpu_arch = GPU_ARCH_MAPPING.get(gpu, ["Ampere"])
+        self._cc = COMPUTE_CAPABILITY_BY_GPU[gpu.value]
+        self._gpu_arch = GPU_ARCH_MAPPING.get(gpu.value, ["Ampere"])
         self._backend = backend
         self._precision = precision
         self._num_correct_trials = num_correct_trials
