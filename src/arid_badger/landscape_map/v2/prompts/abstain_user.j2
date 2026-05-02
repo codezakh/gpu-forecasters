@@ -1,0 +1,32 @@
+## Task: {{ task.op_name }} (Level {{ task.level_id }})
+
+Either predict the speedup of the candidate kernel relative to the reference kernel, or defer this candidate to a real GPU evaluator if you are too uncertain to predict reliably.
+
+## Reference Kernel: {{ reference.kernel_name }}
+
+```python
+{{ reference.code }}
+```
+
+## Candidate Kernel: {{ candidate.kernel_name }}
+
+```cuda
+{{ candidate.code }}
+```
+{% if hardware %}
+
+## Hardware Context
+
+| Property | Value |
+|----------|-------|
+| Device | {{ hardware.device_name }} |
+| Compute Capability | {{ hardware.compute_capability[0] }}.{{ hardware.compute_capability[1] }} |
+| Global Memory | {{ "%.1f"|format(hardware.total_global_memory_gb) }} GB |
+| Multiprocessors | {{ hardware.multiprocessor_count }} |
+| Max Threads/SM | {{ hardware.max_threads_per_multiprocessor }} |
+| Clock Rate | {{ "%.2f"|format(hardware.clock_rate_ghz) }} GHz |
+| Memory Clock | {{ "%.2f"|format(hardware.memory_clock_rate_ghz) }} GHz |
+| Memory Bus Width | {{ hardware.memory_bus_width_bits }} bits |
+{% endif %}
+
+Analyze both kernels. Then call exactly one of the two tools: `{{ predict_tool_name }}` to submit a prediction, or `{{ defer_tool_name }}` if you are too uncertain to predict.
