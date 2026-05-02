@@ -95,8 +95,11 @@ class ConfidenceScore(Protocol):
 
     Larger = more confident. The threshold abstainer abstains when
     ``score(estimate) < threshold``, so any score function plugs in
-    transparently.
+    transparently. ``name`` is a stable identifier for table rendering.
     """
+
+    @property
+    def name(self) -> str: ...
 
     def __call__(self, estimate: KernelRuntimeEstimate) -> float: ...
 
