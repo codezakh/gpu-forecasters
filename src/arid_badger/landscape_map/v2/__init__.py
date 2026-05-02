@@ -49,6 +49,12 @@ from arid_badger.landscape_map.v2.prompt_rendering import (
     render_system_prompt,
     render_user_prompt,
 )
+from arid_badger.landscape_map.v2.rl_env import (
+    KernelBinPredictionEnv,
+    LabeledKernelItem,
+    RewardComponents,
+    RewardFunction,
+)
 from arid_badger.landscape_map.v2.stub_estimator import StubEstimator
 from arid_badger.landscape_map.v2.tinker_sampling_estimator import (
     TinkerSamplingClientEstimator,
@@ -88,6 +94,11 @@ __all__ = [
     "parse_tool_call_args",
     "render_system_prompt",
     "render_user_prompt",
+    # RL env
+    "KernelBinPredictionEnv",
+    "LabeledKernelItem",
+    "RewardComponents",
+    "RewardFunction",
     # concretes
     "LlmSpeedupEstimator",
     "StubEstimator",
