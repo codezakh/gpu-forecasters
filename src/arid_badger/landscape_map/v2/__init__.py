@@ -66,6 +66,10 @@ from arid_badger.landscape_map.v2.rl_env import (
     RewardFunction,
 )
 from arid_badger.landscape_map.v2.stub_estimator import StubEstimator
+from arid_badger.landscape_map.v2.tinker_abstain_estimator import (
+    AsyncAbstainSpeedupEstimator,
+    TinkerSamplingClientAbstainingEstimator,
+)
 from arid_badger.landscape_map.v2.tinker_sampling_estimator import (
     TinkerSamplingClientEstimator,
 )
@@ -117,7 +121,9 @@ __all__ = [
     "KernelBinPredictionAbstainEnv",
     "PredictOrDefer",
     # concretes
+    "AsyncAbstainSpeedupEstimator",
     "LlmSpeedupEstimator",
     "StubEstimator",
+    "TinkerSamplingClientAbstainingEstimator",
     "TinkerSamplingClientEstimator",
 ]
