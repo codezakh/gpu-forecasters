@@ -31,6 +31,12 @@ from arid_badger.abstaining_evaluation.v1.domain import (
     RiskFunction,
     SelectiveMetricRow,
 )
+from arid_badger.abstaining_evaluation.v1.forecast_checking import (
+    CheckedForecast,
+    ForecastChecker,
+    forecasts_to_check,
+    load_checked_forecasts,
+)
 from arid_badger.abstaining_evaluation.v1.forecast_reward import (
     ExpectedSpeedupReward,
     ForecastRewardPolicy,
@@ -89,12 +95,16 @@ __all__ = [
     "risk_coverage_curve",
     "selective_at_coverage",
     # Search-embedded surface (ZAI-72)
+    "CheckedForecast",
     "CompoundEvaluationProvider",
     "CompoundFeedbackMutationProvider",
     "CompoundMutationError",
     "CompoundObservation",
     "ExpectedSpeedupReward",
+    "ForecastChecker",
     "ForecastObservation",
     "ForecastRewardPolicy",
     "RealObservation",
+    "forecasts_to_check",
+    "load_checked_forecasts",
 ]
