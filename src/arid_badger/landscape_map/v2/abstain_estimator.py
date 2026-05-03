@@ -13,12 +13,16 @@ calling both, raises :class:`EstimatorParseError`.
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal, Union
+from typing import Any
 
 import litellm
 from litellm import completion
-from pydantic import BaseModel, ConfigDict, Field
 
+from arid_badger.landscape_map.v2.abstain_outcome import (
+    Deferral,
+    Forecast,
+    PredictOrDefer,
+)
 from arid_badger.landscape_map.v2.abstain_prompt_rendering import (
     render_abstain_system_prompt,
     render_abstain_user_prompt,
@@ -30,7 +34,6 @@ from arid_badger.landscape_map.v2.abstain_tool_spec import (
     both_openai_tool_specs,
 )
 from arid_badger.landscape_map.v2.domain import (
-    KernelRuntimeEstimate,
     KernelRuntimeQuery,
     LlmCallUsage,
 )
@@ -38,38 +41,6 @@ from arid_badger.landscape_map.v2.parsing import (
     EstimatorParseError,
     parse_tool_call_args,
 )
-
-
-class Deferral(BaseModel):
-    """Domain object for a native-abstain decision.
-
-    Carries the LLM's deferral rationale; downstream code reading the
-    log can group abstentions by reason for diagnostics.
-    """
-
-    model_config = ConfigDict(frozen=True)
-
-    kind: Literal["defer"] = "defer"
-    reason: str
-
-
-class Forecast(BaseModel):
-    """Domain object for a native-predict decision.
-
-    Wraps the existing :class:`KernelRuntimeEstimate` so the union
-    discriminator can sit on ``kind``.
-    """
-
-    model_config = ConfigDict(frozen=True)
-
-    kind: Literal["predict"] = "predict"
-    estimate: KernelRuntimeEstimate
-
-
-PredictOrDefer = Annotated[
-    Union[Forecast, Deferral],
-    Field(discriminator="kind"),
-]
 
 
 class AbstainingLlmSpeedupEstimator:

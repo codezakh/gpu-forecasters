@@ -93,14 +93,44 @@ def both_openai_tool_specs() -> list[dict[str, Any]]:
     return [predict_tool_spec_openai(), defer_tool_spec_openai()]
 
 
+def predict_cookbook_tool_spec() -> dict[str, Any]:
+    """Predict tool spec in the cookbook ``ToolSpec`` shape (renderer-compatible)."""
+    return {
+        "name": PREDICT_TOOL_NAME,
+        "description": PREDICT_TOOL_DESCRIPTION,
+        "parameters": predict_parameters_schema(),
+    }
+
+
+def defer_cookbook_tool_spec() -> dict[str, Any]:
+    """Defer tool spec in the cookbook ``ToolSpec`` shape (renderer-compatible)."""
+    return {
+        "name": DEFER_TOOL_NAME,
+        "description": DEFER_TOOL_DESCRIPTION,
+        "parameters": defer_parameters_schema(),
+    }
+
+
+def both_cookbook_tool_specs() -> list[dict[str, Any]]:
+    """Pair of cookbook-format tool specs for renderer-driven sampling.
+
+    Order is (predict, defer); used by Tinker-backed estimators and the
+    abstain RL env to register both tools on the conversation prefix.
+    """
+    return [predict_cookbook_tool_spec(), defer_cookbook_tool_spec()]
+
+
 __all__ = [
     "DEFER_TOOL_DESCRIPTION",
     "DEFER_TOOL_NAME",
     "DeferArguments",
     "PREDICT_TOOL_DESCRIPTION",
     "PREDICT_TOOL_NAME",
+    "both_cookbook_tool_specs",
     "both_openai_tool_specs",
+    "defer_cookbook_tool_spec",
     "defer_parameters_schema",
     "defer_tool_spec_openai",
+    "predict_cookbook_tool_spec",
     "predict_tool_spec_openai",
 ]

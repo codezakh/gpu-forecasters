@@ -27,6 +27,16 @@ Public surface:
     :func:`cookbook_tool_spec` — tool definitions.
 """
 
+from arid_badger.landscape_map.v2.abstain_outcome import (
+    Deferral,
+    Forecast,
+    PredictOrDefer,
+)
+from arid_badger.landscape_map.v2.abstain_rl_env import (
+    AbstainRewardComponents,
+    AbstainRewardFunction,
+    KernelBinPredictionAbstainEnv,
+)
 from arid_badger.landscape_map.v2.domain import (
     SUCCESS_BINS,
     AsyncSpeedupEstimator,
@@ -99,6 +109,13 @@ __all__ = [
     "LabeledKernelItem",
     "RewardComponents",
     "RewardFunction",
+    # abstain outcome + env
+    "AbstainRewardComponents",
+    "AbstainRewardFunction",
+    "Deferral",
+    "Forecast",
+    "KernelBinPredictionAbstainEnv",
+    "PredictOrDefer",
     # concretes
     "LlmSpeedupEstimator",
     "StubEstimator",
