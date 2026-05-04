@@ -61,6 +61,7 @@ COMPUTE_CAPABILITY_BY_GPU: dict[str, str] = {
     "T4": "7.5",  # Turing
     "A10G": "8.6",  # Ampere (AWS G5 variant of A10)
     "A100": "8.0",  # Ampere
+    "A100-80GB": "8.0",  # Ampere (80 GB SKU — same arch as A100)
     "L4": "8.9",  # Ada
     "L40S": "8.9",  # Ada
     "H100": "9.0",  # Hopper

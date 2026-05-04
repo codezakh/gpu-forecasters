@@ -33,6 +33,7 @@ GPU_ARCH_MAPPING: dict[str, list[str]] = {
     "T4": ["Turing"],
     "A10G": ["Ampere"],
     "A100": ["Ampere"],
+    "A100-80GB": ["Ampere"],
     "L4": ["Ada"],
     "L40S": ["Ada"],
     "H100": ["Hopper"],
