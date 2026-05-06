@@ -26,6 +26,8 @@ from concurrent.futures import FIRST_COMPLETED, Future, wait
 from datetime import UTC, datetime
 from typing import Any, Generic
 
+from ulid import ULID
+
 from arid_badger.hill_climbing.domain import (
     Evaluation,
     Node,
@@ -180,7 +182,7 @@ class SearchDriver(Generic[ObservationT]):
 
         # 3. Main loop. Pure decision function + I/O interpreter.
         in_flight: dict[Future[Any], Dispatch[ObservationT]] = {}
-        in_flight_ids: set[str] = set()
+        in_flight_ids: set[ULID] = set()
 
         while True:
             actions = compute_pending_actions(state, self.config)

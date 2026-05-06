@@ -109,7 +109,7 @@ class CandidateMutating(_Frozen):
 
     kind: Literal["mutating"] = "mutating"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
 
 
@@ -118,7 +118,7 @@ class CandidateAwaitingForecast(_Frozen):
 
     kind: Literal["awaiting_forecast"] = "awaiting_forecast"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     code: str
 
@@ -128,7 +128,7 @@ class CandidateForecasting(_Frozen):
 
     kind: Literal["forecasting"] = "forecasting"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     code: str
 
@@ -138,7 +138,7 @@ class CandidateAwaitingSelection(_Frozen):
 
     kind: Literal["awaiting_selection"] = "awaiting_selection"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     code: str
     forecast: KernelRuntimeEstimate
@@ -149,7 +149,7 @@ class CandidateAwaitingEval(_Frozen):
 
     kind: Literal["awaiting_eval"] = "awaiting_eval"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     code: str
     forecast: KernelRuntimeEstimate
@@ -161,7 +161,7 @@ class CandidateEvaluating(_Frozen):
 
     kind: Literal["evaluating"] = "evaluating"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     code: str
     forecast: KernelRuntimeEstimate
@@ -181,7 +181,7 @@ class CandidateSettled(_Frozen, Generic[ObservationT]):
 
     kind: Literal["settled"] = "settled"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     reason: Literal[
         "evaluated", "eval_failed", "mutation_failed", "forecast_failed", "deferred"
@@ -235,7 +235,7 @@ class ParentInStep(BaseModel, Generic[ObservationT]):
     phase: ParentPhase
     mutations_drained: bool = False
     candidates: Mapping[
-        str,
+        ULID,
         Annotated[
             Union[
                 CandidateMutating,
@@ -251,7 +251,7 @@ class ParentInStep(BaseModel, Generic[ObservationT]):
     ] = Field(default_factory=dict)
 
     def with_candidate(
-        self, request_id: str, candidate: Candidate
+        self, request_id: ULID, candidate: Candidate
     ) -> ParentInStep[ObservationT]:
         new_candidates = dict(self.candidates)
         new_candidates[request_id] = candidate
@@ -360,7 +360,7 @@ def _expect_parent(
 
 
 def _missing_candidate_error(
-    parent_ulid: ULID, request_id: str, event_kind: str
+    parent_ulid: ULID, request_id: ULID, event_kind: str
 ) -> ReducerStateError:
     return ReducerStateError(
         f"{event_kind}: no candidate with request_id {request_id!r} "
@@ -380,7 +380,7 @@ def _wrong_phase_error(
 def _update_candidate(
     state: SearchState[ObservationT],
     parent_ulid: ULID,
-    request_id: str,
+    request_id: ULID,
     candidate: Candidate,
     event_kind: str,
 ) -> SearchState[ObservationT]:
@@ -809,7 +809,7 @@ def _finalize_step(
             child = node_cls(
                 program_code=code,
                 evaluation=evaluation,
-                ulid=ULID.from_str(cand.request_id),
+                ulid=cand.request_id,
                 ancestors=[],
             )
             children.append(child)

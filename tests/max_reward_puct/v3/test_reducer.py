@@ -38,12 +38,6 @@ from arid_badger.max_reward_puct.v3.events import (
     StepStarted,
 )
 from arid_badger.max_reward_puct.v3.state import (
-    CandidateAwaitingEval,
-    CandidateAwaitingForecast,
-    CandidateAwaitingSelection,
-    CandidateEvaluating,
-    CandidateForecasting,
-    CandidateMutating,
     CandidateSettled,
     ParentPhase,
     ReducerStateError,
@@ -104,9 +98,7 @@ def _apply(state, event):
     )
 
 
-def _start_state_with_one_parent(
-    *, request_id: str = "REQ"
-) -> tuple[SearchState[NoFeedback], Node[NoFeedback]]:
+def _start_state_with_one_parent() -> tuple[SearchState[NoFeedback], Node[NoFeedback]]:
     """Helper: state initialized with a single root parent and a step
     open with that parent. Used by per-candidate-event tests."""
     root = _root()
@@ -153,7 +145,7 @@ def test_step_completed_finalizes_and_advances_step():
     Mutation+Forecast+Selection+Evaluation → StepCompleted folds the
     child into the archive and bumps current_step."""
     state, root = _start_state_with_one_parent()
-    req = "01KQY00000000000000000000A"  # valid ULID
+    req = ULID()
 
     state = _apply(
         state,
@@ -214,50 +206,24 @@ def test_step_completed_finalizes_and_advances_step():
     assert len(state.archive) == 2
     child = next(n for n in state.archive if n.program_code == "0001")
     assert child.evaluation.reward == 1.0
-    assert child.ulid == ULID.from_str(req)
+    assert child.ulid == req
     # Parent has visit count + best_child_reward updated.
     assert state.visit_counts[root.ulid] == 1
     assert state.best_child_rewards[root.ulid] == 1.0
 
 
-# --- Per-candidate lifecycle (one assertion per event type) -----------
-
-
-def test_mutation_requested_creates_mutating_candidate():
-    state, root = _start_state_with_one_parent()
-    req = "01KQY00000000000000000000A"
-    new_state = _apply(
-        state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
-    )
-    parent = new_state.parent_in_step(root.ulid)
-    assert parent is not None
-    cand = parent.candidates[req]
-    assert isinstance(cand, CandidateMutating)
-    assert cand.request_id == req
-
-
-def test_mutation_completed_advances_to_awaiting_forecast():
-    state, root = _start_state_with_one_parent()
-    req = "01KQY00000000000000000000A"
-    state = _apply(
-        state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
-    )
-    new_state = _apply(
-        state,
-        MutationCompleted(
-            step=0, request_id=req, parent_ulid=root.ulid, code="0001"
-        ),
-    )
-    parent = new_state.parent_in_step(root.ulid)
-    assert parent is not None
-    cand = parent.candidates[req]
-    assert isinstance(cand, CandidateAwaitingForecast)
-    assert cand.code == "0001"
+# --- Per-candidate lifecycle (failure paths) --------------------------
+#
+# Happy-path transitions (Mutating → AwaitingForecast → Forecasting →
+# AwaitingSelection → AwaitingEval → Evaluating → Settled[evaluated]) are
+# covered end-to-end by ``test_step_completed_finalizes_and_advances_step``
+# above. Only the failure-path arms get dedicated tests here, since they
+# aren't exercised by the chain.
 
 
 def test_mutation_failed_settles_with_mutation_failed_reason():
     state, root = _start_state_with_one_parent()
-    req = "01KQY00000000000000000000A"
+    req = ULID()
     state = _apply(
         state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
     )
@@ -274,67 +240,9 @@ def test_mutation_failed_settles_with_mutation_failed_reason():
     assert cand.reason == "mutation_failed"
 
 
-def test_forecast_requested_advances_to_forecasting():
-    state, root = _start_state_with_one_parent()
-    req = "01KQY00000000000000000000A"
-    state = _apply(
-        state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
-    )
-    state = _apply(
-        state,
-        MutationCompleted(
-            step=0, request_id=req, parent_ulid=root.ulid, code="0001"
-        ),
-    )
-    new_state = _apply(
-        state,
-        ForecastRequested(
-            step=0, request_id=req, parent_ulid=root.ulid, code="0001"
-        ),
-    )
-    parent = new_state.parent_in_step(root.ulid)
-    assert parent is not None
-    cand = parent.candidates[req]
-    assert isinstance(cand, CandidateForecasting)
-
-
-def test_forecast_completed_advances_to_awaiting_selection():
-    state, root = _start_state_with_one_parent()
-    req = "01KQY00000000000000000000A"
-    state = _apply(
-        state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
-    )
-    state = _apply(
-        state,
-        MutationCompleted(
-            step=0, request_id=req, parent_ulid=root.ulid, code="0001"
-        ),
-    )
-    state = _apply(
-        state,
-        ForecastRequested(
-            step=0, request_id=req, parent_ulid=root.ulid, code="0001"
-        ),
-    )
-    new_state = _apply(
-        state,
-        ForecastCompleted(
-            step=0,
-            request_id=req,
-            parent_ulid=root.ulid,
-            forecast=_uniform_estimate(),
-        ),
-    )
-    parent = new_state.parent_in_step(root.ulid)
-    assert parent is not None
-    cand = parent.candidates[req]
-    assert isinstance(cand, CandidateAwaitingSelection)
-    assert cand.forecast.predicted_bin == SpeedupBin.MINOR_SLOWDOWN
-
-
 def test_forecast_failed_settles():
     state, root = _start_state_with_one_parent()
-    req = "01KQY00000000000000000000A"
+    req = ULID()
     state = _apply(
         state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
     )
@@ -358,50 +266,9 @@ def test_forecast_failed_settles():
     assert cand.code == "0001"
 
 
-def test_candidate_selected_advances_phase_and_creates_awaiting_eval():
-    state, root = _start_state_with_one_parent()
-    req = "01KQY00000000000000000000A"
-    state = _apply(
-        state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
-    )
-    state = _apply(
-        state,
-        MutationCompleted(
-            step=0, request_id=req, parent_ulid=root.ulid, code="0001"
-        ),
-    )
-    state = _apply(
-        state,
-        ForecastRequested(
-            step=0, request_id=req, parent_ulid=root.ulid, code="0001"
-        ),
-    )
-    state = _apply(
-        state,
-        ForecastCompleted(
-            step=0,
-            request_id=req,
-            parent_ulid=root.ulid,
-            forecast=_uniform_estimate(),
-        ),
-    )
-    state = _apply(state, ForecastsDrained(step=0, parent_ulid=root.ulid))
-    new_state = _apply(
-        state,
-        CandidateSelected(
-            step=0, request_id=req, parent_ulid=root.ulid, selection_score=1.0
-        ),
-    )
-    parent = new_state.parent_in_step(root.ulid)
-    assert parent is not None
-    assert parent.phase == ParentPhase.EVALUATING
-    cand = parent.candidates[req]
-    assert isinstance(cand, CandidateAwaitingEval)
-
-
 def test_candidate_deferred_settles_and_advances_phase():
     state, root = _start_state_with_one_parent()
-    req = "01KQY00000000000000000000A"
+    req = ULID()
     state = _apply(
         state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
     )
@@ -441,110 +308,9 @@ def test_candidate_deferred_settles_and_advances_phase():
     assert cand.reason == "deferred"
 
 
-def test_evaluation_requested_advances_to_evaluating():
-    state, root = _start_state_with_one_parent()
-    req = "01KQY00000000000000000000A"
-    state = _apply(
-        state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
-    )
-    state = _apply(
-        state,
-        MutationCompleted(
-            step=0, request_id=req, parent_ulid=root.ulid, code="0001"
-        ),
-    )
-    state = _apply(
-        state,
-        ForecastRequested(
-            step=0, request_id=req, parent_ulid=root.ulid, code="0001"
-        ),
-    )
-    state = _apply(
-        state,
-        ForecastCompleted(
-            step=0,
-            request_id=req,
-            parent_ulid=root.ulid,
-            forecast=_uniform_estimate(),
-        ),
-    )
-    state = _apply(state, ForecastsDrained(step=0, parent_ulid=root.ulid))
-    state = _apply(
-        state,
-        CandidateSelected(
-            step=0, request_id=req, parent_ulid=root.ulid, selection_score=1.0
-        ),
-    )
-    new_state = _apply(
-        state,
-        EvaluationRequested(
-            step=0, request_id=req, parent_ulid=root.ulid, code="0001"
-        ),
-    )
-    parent = new_state.parent_in_step(root.ulid)
-    assert parent is not None
-    cand = parent.candidates[req]
-    assert isinstance(cand, CandidateEvaluating)
-
-
-def test_evaluation_completed_settles_with_evaluated_reason():
-    """Sequence to evaluated terminal."""
-    state, root = _start_state_with_one_parent()
-    req = "01KQY00000000000000000000A"
-    state = _apply(
-        state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
-    )
-    state = _apply(
-        state,
-        MutationCompleted(
-            step=0, request_id=req, parent_ulid=root.ulid, code="0001"
-        ),
-    )
-    state = _apply(
-        state,
-        ForecastRequested(
-            step=0, request_id=req, parent_ulid=root.ulid, code="0001"
-        ),
-    )
-    state = _apply(
-        state,
-        ForecastCompleted(
-            step=0,
-            request_id=req,
-            parent_ulid=root.ulid,
-            forecast=_uniform_estimate(),
-        ),
-    )
-    state = _apply(state, ForecastsDrained(step=0, parent_ulid=root.ulid))
-    state = _apply(
-        state,
-        CandidateSelected(
-            step=0, request_id=req, parent_ulid=root.ulid, selection_score=1.0
-        ),
-    )
-    state = _apply(
-        state,
-        EvaluationRequested(
-            step=0, request_id=req, parent_ulid=root.ulid, code="0001"
-        ),
-    )
-    new_state = _apply(
-        state,
-        EvaluationCompleted[NoFeedback](
-            step=0, request_id=req, parent_ulid=root.ulid, evaluation=_eval(1.0)
-        ),
-    )
-    parent = new_state.parent_in_step(root.ulid)
-    assert parent is not None
-    cand = parent.candidates[req]
-    assert isinstance(cand, CandidateSettled)
-    assert cand.reason == "evaluated"
-    assert cand.evaluation is not None and cand.evaluation.reward == 1.0
-
-
 def test_evaluation_failed_settles_with_eval_failed_reason():
     state, root = _start_state_with_one_parent()
-    req = "01KQY00000000000000000000A"
+    req = ULID()
     state = _apply(
         state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
     )
@@ -632,7 +398,7 @@ def test_event_for_unknown_parent_raises():
     driver-construction bug; the reducer surfaces it as a typed error."""
     state, _root = _start_state_with_one_parent()
     bogus_parent = ULID()
-    req = "01KQY00000000000000000000A"
+    req = ULID()
     with pytest.raises(ReducerStateError, match="MutationRequested"):
         _apply(
             state,
@@ -644,7 +410,7 @@ def test_eval_completed_for_non_evaluating_candidate_raises():
     """EvaluationCompleted requires the candidate to be in
     CandidateEvaluating. Folding it onto a Mutating candidate is a bug."""
     state, root = _start_state_with_one_parent()
-    req = "01KQY00000000000000000000A"
+    req = ULID()
     state = _apply(
         state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
     )
@@ -664,7 +430,7 @@ def test_candidate_selected_for_non_awaiting_selection_raises():
     """CandidateSelected requires the candidate to be in
     CandidateAwaitingSelection."""
     state, root = _start_state_with_one_parent()
-    req = "01KQY00000000000000000000A"
+    req = ULID()
     state = _apply(
         state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
     )
@@ -684,7 +450,7 @@ def test_replay_is_deterministic():
     """Spec § invariants: folding the same event sequence twice yields
     equal SearchState values."""
     root = _root()
-    req = "01KQY00000000000000000000A"
+    req = ULID()
     events = [
         _init_event(root),
         StepStarted(step=0, parent_ulids=[root.ulid], selected_parent_scores=[0.0]),

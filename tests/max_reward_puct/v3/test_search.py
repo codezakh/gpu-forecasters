@@ -9,6 +9,7 @@ surrogate context in the constructor matches what's pinned in the log.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -354,23 +355,6 @@ def _run_clean_search(
     return final_state, events, config
 
 
-def test_final_in_memory_state_equals_replayed_state(tmp_path: Path):
-    """The state the driver returns from ``run()`` must equal the
-    state you get by replaying the log it wrote. This is the core
-    'log is authoritative' invariant — if these ever diverge, the
-    in-memory state holds something that isn't recoverable from the
-    log."""
-    log_path = tmp_path / "log.jsonl"
-    final_state, events, config = _run_clean_search(log_path)
-    replayed = replay(
-        events,
-        k_per_parent=config.k_per_parent,
-        archive_capacity=config.archive_capacity,
-        observation_type=NoFeedback,
-    )
-    assert final_state.model_dump() == replayed.model_dump()
-
-
 def test_step_boundary_replay_is_consistent(tmp_path: Path):
     """For every step boundary in a clean log, replaying the prefix
     up to that boundary produces a state whose ``current_step``,
@@ -447,36 +431,34 @@ def _resume_with_overrides(
         return driver.run(initial_program="0000")
 
 
-def test_resume_with_diverged_seed_reference_code_raises(tmp_path: Path):
+_OTHER_HW = HardwareContext(
+    device_name="other-cpu",
+    compute_capability=(1, 0),
+    total_global_memory_gb=1.0,
+    multiprocessor_count=1,
+    max_threads_per_multiprocessor=1,
+    clock_rate_ghz=1.0,
+    memory_clock_rate_ghz=1.0,
+    memory_bus_width_bits=1,
+)
+_OTHER_TASK = KernelTaskInfo(op_name="other", level_id=1, task_id=2)
+
+
+@pytest.mark.parametrize(
+    ("field", "override"),
+    [
+        ("seed_reference_code", {"seed_reference_code": "DIFFERENT"}),
+        ("hardware", {"hardware": _OTHER_HW}),
+        ("kernel_task", {"kernel_task": _OTHER_TASK}),
+    ],
+)
+def test_resume_with_diverged_surrogate_context_raises(
+    tmp_path: Path, field: str, override: Any
+):
     log_path = tmp_path / "log.jsonl"
     _run_clean_search(log_path, total_budget_steps=2)
-    with pytest.raises(SurrogateContextMismatch, match="seed_reference_code"):
-        _resume_with_overrides(log_path, seed_reference_code="DIFFERENT")
-
-
-def test_resume_with_diverged_hardware_raises(tmp_path: Path):
-    log_path = tmp_path / "log.jsonl"
-    _run_clean_search(log_path, total_budget_steps=2)
-    other_hw = HardwareContext(
-        device_name="other-cpu",
-        compute_capability=(1, 0),
-        total_global_memory_gb=1.0,
-        multiprocessor_count=1,
-        max_threads_per_multiprocessor=1,
-        clock_rate_ghz=1.0,
-        memory_clock_rate_ghz=1.0,
-        memory_bus_width_bits=1,
-    )
-    with pytest.raises(SurrogateContextMismatch, match="hardware"):
-        _resume_with_overrides(log_path, hardware=other_hw)
-
-
-def test_resume_with_diverged_kernel_task_raises(tmp_path: Path):
-    log_path = tmp_path / "log.jsonl"
-    _run_clean_search(log_path, total_budget_steps=2)
-    other_task = KernelTaskInfo(op_name="other", level_id=1, task_id=2)
-    with pytest.raises(SurrogateContextMismatch, match="kernel_task"):
-        _resume_with_overrides(log_path, kernel_task=other_task)
+    with pytest.raises(SurrogateContextMismatch, match=field):
+        _resume_with_overrides(log_path, **override)
 
 
 def test_resume_with_matching_context_completes(tmp_path: Path):

@@ -65,7 +65,7 @@ class MutationDispatch(_DispatchBase, Generic[ObservationT]):
 
     kind: Literal["mutation"] = "mutation"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     parent_code: str
     parent_evaluation: Evaluation[ObservationT]
@@ -77,7 +77,7 @@ class ForecastDispatch(_DispatchBase):
 
     kind: Literal["forecast"] = "forecast"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     code: str
     is_redispatch: bool
@@ -88,7 +88,7 @@ class EvaluationDispatch(_DispatchBase):
 
     kind: Literal["evaluation"] = "evaluation"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     code: str
     is_redispatch: bool
@@ -261,11 +261,10 @@ def _handle_mutating_forecasting(
     # Open fresh mutation slots up to ``samples_per_parent``.
     missing = config.samples_per_parent - len(candidates)
     for _ in range(max(0, missing)):
-        new_request_id = str(ULID())
         actions.dispatches.append(
             MutationDispatch(
                 step=state.current_step,
-                request_id=new_request_id,
+                request_id=ULID(),
                 parent_ulid=parent_ulid,
                 parent_code=parent_node.program_code,
                 parent_evaluation=parent_node.evaluation,
@@ -331,10 +330,18 @@ def _handle_awaiting_selection(
         if isinstance(c, CandidateAwaitingSelection)
     ]
     if not awaiting:
-        # Nothing to select — every candidate failed before forecast,
-        # or selection has already run. Either way, no events to
-        # emit; eval phase will produce no dispatches and
-        # ``EvaluationsDrained`` will fire from ``_handle_evaluating``.
+        # Every candidate failed before reaching AwaitingSelection
+        # (e.g. all forecasts failed). The eval set is empty by
+        # vacuous truth — every selected candidate (zero of them)
+        # has a terminal eval outcome — so emit EvaluationsDrained
+        # directly to advance phase past EVALUATING straight to
+        # DONE. Without this, the parent sticks in AWAITING_SELECTION
+        # forever and the driver returns without firing StepCompleted.
+        actions.events.append(
+            EvaluationsDrained(
+                step=state.current_step, parent_ulid=parent_record.parent_ulid
+            )
+        )
         return
 
     scored: list[tuple[float, CandidateAwaitingSelection]] = [

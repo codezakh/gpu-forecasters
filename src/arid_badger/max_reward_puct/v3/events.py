@@ -90,7 +90,7 @@ class StepCompleted(_Frozen):
 class MutationRequested(_Frozen):
     kind: Literal["mutation_requested"] = "mutation_requested"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     started_at: datetime | None = None
 
@@ -98,7 +98,7 @@ class MutationRequested(_Frozen):
 class MutationCompleted(_Frozen):
     kind: Literal["mutation_completed"] = "mutation_completed"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     code: str
     llm_usage: LlmCallUsage | None = None
@@ -108,7 +108,7 @@ class MutationCompleted(_Frozen):
 class MutationFailed(_Frozen):
     kind: Literal["mutation_failed"] = "mutation_failed"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     reason: str
     completed_at: datetime | None = None
@@ -117,7 +117,7 @@ class MutationFailed(_Frozen):
 class ForecastRequested(_Frozen):
     kind: Literal["forecast_requested"] = "forecast_requested"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     code: str
     started_at: datetime | None = None
@@ -126,7 +126,7 @@ class ForecastRequested(_Frozen):
 class ForecastCompleted(_Frozen):
     kind: Literal["forecast_completed"] = "forecast_completed"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     forecast: KernelRuntimeEstimate
     llm_usage: LlmCallUsage | None = None
@@ -136,7 +136,7 @@ class ForecastCompleted(_Frozen):
 class ForecastFailed(_Frozen):
     kind: Literal["forecast_failed"] = "forecast_failed"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     reason: str
     completed_at: datetime | None = None
@@ -155,7 +155,7 @@ class CandidateSelected(_Frozen):
 
     kind: Literal["candidate_selected"] = "candidate_selected"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     selection_score: float
 
@@ -171,7 +171,7 @@ class CandidateDeferred(_Frozen):
 
     kind: Literal["candidate_deferred"] = "candidate_deferred"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     selection_score: float
 
@@ -179,7 +179,7 @@ class CandidateDeferred(_Frozen):
 class EvaluationRequested(_Frozen):
     kind: Literal["evaluation_requested"] = "evaluation_requested"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     code: str
     started_at: datetime | None = None
@@ -188,7 +188,7 @@ class EvaluationRequested(_Frozen):
 class EvaluationCompleted(_Frozen, Generic[ObservationT]):
     kind: Literal["evaluation_completed"] = "evaluation_completed"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     evaluation: Evaluation[ObservationT]
     completed_at: datetime | None = None
@@ -197,7 +197,7 @@ class EvaluationCompleted(_Frozen, Generic[ObservationT]):
 class EvaluationFailed(_Frozen):
     kind: Literal["evaluation_failed"] = "evaluation_failed"
     step: int
-    request_id: str
+    request_id: ULID
     parent_ulid: ULID
     reason: str
     completed_at: datetime | None = None

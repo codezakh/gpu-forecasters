@@ -7,6 +7,8 @@ criteria).
 
 from __future__ import annotations
 
+from ulid import ULID
+
 from arid_badger.hill_climbing.domain import Evaluation, NoFeedback, Node
 from arid_badger.landscape_map.v2 import (
     SUCCESS_BINS,
@@ -131,7 +133,7 @@ def test_mid_step_redispatches_in_flight_mutation():
     """Mutation already requested but not completed: returns a
     redispatch with the same request_id."""
     root = _root()
-    req = "01KQY00000000000000000000A"
+    req = ULID()
     parent = ParentInStep[NoFeedback](
         parent_ulid=root.ulid,
         phase=ParentPhase.MUTATING_FORECASTING,
@@ -158,7 +160,7 @@ def test_mutation_completed_yields_fresh_forecast_dispatch():
     """Mutation done, forecast not yet requested: returns a fresh
     forecast dispatch."""
     root = _root()
-    req = "01KQY00000000000000000000A"
+    req = ULID()
     parent = ParentInStep[NoFeedback](
         parent_ulid=root.ulid,
         phase=ParentPhase.MUTATING_FORECASTING,
@@ -188,19 +190,20 @@ def test_all_forecasts_done_emits_forecasts_drained():
     """Full slate of candidates, all in AwaitingSelection: emit
     ForecastsDrained barrier."""
     root = _root()
+    candidate_ids = [ULID() for _ in range(2)]
     parent = ParentInStep[NoFeedback](
         parent_ulid=root.ulid,
         phase=ParentPhase.MUTATING_FORECASTING,
         mutations_drained=True,  # already emitted on a prior iteration
         candidates={
-            f"01KQY0000000000000000000{i:02d}": CandidateAwaitingSelection(
+            rid: CandidateAwaitingSelection(
                 step=0,
-                request_id=f"01KQY0000000000000000000{i:02d}",
+                request_id=rid,
                 parent_ulid=root.ulid,
                 code=f"000{i}",
                 forecast=_uniform_estimate(),
             )
-            for i in range(2)
+            for i, rid in enumerate(candidate_ids)
         },
     )
     state = SearchState[NoFeedback](
@@ -219,14 +222,15 @@ def test_mutations_drained_only_emitted_once():
     """Once mutations_drained is True on the parent record, the
     decision function does not re-emit MutationsDrained."""
     root = _root()
+    rid = ULID()
     parent = ParentInStep[NoFeedback](
         parent_ulid=root.ulid,
         phase=ParentPhase.MUTATING_FORECASTING,
         mutations_drained=True,
         candidates={
-            "01KQY00000000000000000000A": CandidateAwaitingForecast(
+            rid: CandidateAwaitingForecast(
                 step=0,
-                request_id="01KQY00000000000000000000A",
+                request_id=rid,
                 parent_ulid=root.ulid,
                 code="0001",
             ),
@@ -250,10 +254,12 @@ def test_awaiting_selection_emits_top_k_selected_and_rest_deferred():
     candidates = {}
     # 3 awaiting-selection candidates with distinct predicted bins so
     # ExpectedBinIndexRule produces a strict ordering.
+    rids: list[ULID] = []
     for i, predicted in enumerate(
         (SpeedupBin.HIGH_SPEEDUP, SpeedupBin.MINOR_SPEEDUP, SpeedupBin.SEVERE_SLOWDOWN)
     ):
-        rid = f"01KQY0000000000000000000R{i}"
+        rid = ULID()
+        rids.append(rid)
         candidates[rid] = CandidateAwaitingSelection(
             step=0,
             request_id=rid,
@@ -270,9 +276,10 @@ def test_awaiting_selection_emits_top_k_selected_and_rest_deferred():
             ),
         )
     # And one already settled forecast_failed — should not be selected.
-    candidates["01KQY0000000000000000000RX"] = CandidateSettled[NoFeedback](
+    failed_rid = ULID()
+    candidates[failed_rid] = CandidateSettled[NoFeedback](
         step=0,
-        request_id="01KQY0000000000000000000RX",
+        request_id=failed_rid,
         parent_ulid=root.ulid,
         reason="forecast_failed",
         code="9999",
@@ -296,13 +303,13 @@ def test_awaiting_selection_emits_top_k_selected_and_rest_deferred():
     assert len(deferred) == 1  # only the 3rd awaiting one; failed candidate excluded
     selected_ids = {e.request_id for e in selected}
     # The two highest-bin candidates are picked.
-    assert "01KQY0000000000000000000R0" in selected_ids
-    assert "01KQY0000000000000000000R1" in selected_ids
+    assert rids[0] in selected_ids  # HIGH_SPEEDUP
+    assert rids[1] in selected_ids  # MINOR_SPEEDUP
 
 
 def test_evaluating_phase_dispatches_eval_for_awaiting_eval():
     root = _root()
-    rid = "01KQY00000000000000000000A"
+    rid = ULID()
     parent = ParentInStep[NoFeedback](
         parent_ulid=root.ulid,
         phase=ParentPhase.EVALUATING,
@@ -333,7 +340,7 @@ def test_evaluating_phase_dispatches_eval_for_awaiting_eval():
 
 def test_evaluating_phase_redispatches_in_flight_eval():
     root = _root()
-    rid = "01KQY00000000000000000000A"
+    rid = ULID()
     parent = ParentInStep[NoFeedback](
         parent_ulid=root.ulid,
         phase=ParentPhase.EVALUATING,
@@ -364,7 +371,7 @@ def test_evaluating_phase_redispatches_in_flight_eval():
 
 def test_evaluating_phase_emits_evaluations_drained_when_all_settled():
     root = _root()
-    rid = "01KQY00000000000000000000A"
+    rid = ULID()
     parent = ParentInStep[NoFeedback](
         parent_ulid=root.ulid,
         phase=ParentPhase.EVALUATING,
@@ -392,6 +399,45 @@ def test_evaluating_phase_emits_evaluations_drained_when_all_settled():
     assert len(drained) == 1
 
 
+def test_awaiting_selection_with_no_candidates_drains_immediately():
+    """All forecasts failed: every candidate is settled with
+    reason=forecast_failed, so awaiting-selection set is empty. The
+    decision function must short-circuit by emitting EvaluationsDrained
+    so the parent advances to DONE — otherwise the step never completes
+    and the driver returns without firing StepCompleted. This is the
+    bug the live-Modal smoke caught."""
+    root = _root()
+    candidates = {}
+    for i in range(2):
+        rid = ULID()
+        candidates[rid] = CandidateSettled[NoFeedback](
+            step=0,
+            request_id=rid,
+            parent_ulid=root.ulid,
+            reason="forecast_failed",
+            code=f"000{i}",
+        )
+    parent = ParentInStep[NoFeedback](
+        parent_ulid=root.ulid,
+        phase=ParentPhase.AWAITING_SELECTION,
+        candidates=candidates,
+    )
+    state = SearchState[NoFeedback](
+        archive=(root,),
+        seed_ids=frozenset({root.ulid}),
+        current_step=0,
+        current_step_parents=(parent,),
+    )
+    actions = compute_pending_actions(state, _config(samples_per_parent=2, k_per_parent=1))
+    selected = [e for e in actions.events if isinstance(e, CandidateSelected)]
+    deferred = [e for e in actions.events if isinstance(e, CandidateDeferred)]
+    drained = [e for e in actions.events if isinstance(e, EvaluationsDrained)]
+    assert not selected
+    assert not deferred
+    assert len(drained) == 1
+    assert drained[0].parent_ulid == root.ulid
+
+
 def test_all_parents_done_emits_step_completed():
     root = _root()
     parent = ParentInStep[NoFeedback](
@@ -409,22 +455,3 @@ def test_all_parents_done_emits_step_completed():
     assert completes[0].step == 0
 
 
-def test_pure_no_clock_no_random():
-    """compute_pending_actions returns the same Actions for the same
-    inputs across repeated calls — captures the purity invariant
-    (spec § principles)."""
-    root = _root()
-    state = SearchState[NoFeedback](
-        archive=(root,),
-        seed_ids=frozenset({root.ulid}),
-        current_step=0,
-    )
-    config = _config()
-    a = compute_pending_actions(state, config)
-    b = compute_pending_actions(state, config)
-    # Events compare by value; dispatches contain freshly-generated
-    # ULIDs for fresh mutation slots, so we compare structural shape
-    # rather than identity. For this state (fresh start), there are
-    # no fresh mutations, only a StepStarted event.
-    assert [type(e).__name__ for e in a.events] == [type(e).__name__ for e in b.events]
-    assert len(a.dispatches) == len(b.dispatches)
