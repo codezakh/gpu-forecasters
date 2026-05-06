@@ -63,9 +63,8 @@ def _query(candidate_code: str) -> KernelRuntimeQuery:
     [
         ("gemini/gemini-3-flash-preview", 4096),
         ("gemini/gemini-3-flash-preview", 16384),
-        ("gemini/gemini-2.5-flash", 4096),
     ],
-    ids=["gemini3-flash-4k", "gemini3-flash-16k", "gemini2.5-flash-4k"],
+    ids=["gemini3-flash-4k", "gemini3-flash-16k"],
 )
 def test_estimator_returns_valid_forecast_on_real_trimul(
     model_slug: str, max_tokens: int

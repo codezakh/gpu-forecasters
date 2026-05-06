@@ -73,7 +73,7 @@ def test_v2_mutation_provider_satisfies_v3_protocol() -> None:
     structurally. If this typechecks at import + runs without protocol
     error, the protocol seam works."""
     provider: MutationProvider[TriMulObservation] = TriMulFeedbackMutationProvider(
-        model_slug="gemini/gemini-2.5-flash",
+        model_slug="gemini/gemini-3-flash-preview",
         gpu_name="A100-80GB",
     )
     # Statically: the assignment above already proves protocol conformance
@@ -89,7 +89,7 @@ def test_one_mutation_returns_valid_python() -> None:
     """One real LLM mutation, assert the future resolves to parseable
     Python source. This is the per-call plumbing test."""
     provider = TriMulFeedbackMutationProvider(
-        model_slug="gemini/gemini-2.5-flash",
+        model_slug="gemini/gemini-3-flash-preview",
         gpu_name="A100-80GB",
     )
     with provider:
@@ -112,7 +112,7 @@ def test_real_mutation_then_forecast_chain() -> None:
     test_speedup_estimator_live.py), the bug is data-dependent on
     the mutation."""
     mutation_provider = TriMulFeedbackMutationProvider(
-        model_slug="gemini/gemini-2.5-flash",
+        model_slug="gemini/gemini-3-flash-preview",
         gpu_name="A100-80GB",
     )
     surrogate_inner = LlmSpeedupEstimator(
