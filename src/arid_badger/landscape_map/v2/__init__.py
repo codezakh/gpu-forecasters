@@ -59,6 +59,7 @@ from arid_badger.landscape_map.v2.prompt_rendering import (
     render_system_prompt,
     render_user_prompt,
 )
+from arid_badger.landscape_map.v2.retrying_estimator import RetryingSpeedupEstimator
 from arid_badger.landscape_map.v2.rl_env import (
     KernelBinPredictionEnv,
     LabeledKernelItem,
@@ -123,6 +124,7 @@ __all__ = [
     # concretes
     "AsyncAbstainSpeedupEstimator",
     "LlmSpeedupEstimator",
+    "RetryingSpeedupEstimator",
     "StubEstimator",
     "TinkerSamplingClientAbstainingEstimator",
     "TinkerSamplingClientEstimator",
