@@ -14,20 +14,17 @@ Recovery is not a separate code path: replay the log into state, call
 ``compute_pending_actions``, get the next moves. Same code, fresh or
 resumed.
 
-The driver bridges the surrogate's ``async`` interface to the
-``concurrent.futures`` world with one background asyncio loop. The
-loop runs for the lifetime of the driver's context manager; surrogate
-calls become ``Future``s via ``run_coroutine_threadsafe`` and enter
-the same in-flight tracker as mutation/evaluation futures.
+All three providers (mutation, evaluation, surrogate) speak the same
+``concurrent.futures.Future`` shape. The surrogate is adapted from
+its async-native v2 form by ``CoroutineSpeedupEstimator``; this
+driver owns no asyncio loop and imports no async machinery.
 """
 
 from __future__ import annotations
 
-import asyncio
-import threading
 from concurrent.futures import FIRST_COMPLETED, Future, wait
 from datetime import UTC, datetime
-from typing import Any, Generic, Self
+from typing import Any, Generic
 
 from arid_badger.hill_climbing.domain import (
     Evaluation,
@@ -35,7 +32,6 @@ from arid_badger.hill_climbing.domain import (
     ObservationT,
 )
 from arid_badger.landscape_map.v2 import (
-    AsyncSpeedupEstimator,
     HardwareContext,
     KernelImplementation,
     KernelRuntimeQuery,
@@ -64,8 +60,9 @@ from arid_badger.max_reward_puct.v3.events import (
     SearchInitialized,
 )
 from arid_badger.max_reward_puct.v3.providers import (
-    AsyncEvaluationProvider,
-    AsyncMutationProvider,
+    EvaluationProvider,
+    MutationProvider,
+    SpeedupEstimator,
 )
 from arid_badger.max_reward_puct.v3.state import (
     SearchState,
@@ -73,20 +70,22 @@ from arid_badger.max_reward_puct.v3.state import (
 )
 
 
-# Default kernel-task identity used in forecast queries when the
-# search is not bound to a real KernelBench task (e.g. the binary-
-# string smoke test). Real kernel runs construct a proper
-# ``KernelTaskInfo`` and pass the matching ``seed_reference_code``.
-_PLACEHOLDER_TASK = KernelTaskInfo(op_name="adhoc", level_id=0, task_id=0)
+class SurrogateContextMismatch(Exception):
+    """Raised on resume when constructor surrogate-context args don't
+    match what's in the log. Refusing to continue is the right call
+    here: a different ``seed_reference_code`` or ``hardware`` would
+    feed the surrogate inputs incomparable with what the existing
+    forecasts in the log were conditioned on, silently corrupting the
+    audit trail."""
 
 
 class SearchDriver(Generic[ObservationT]):
     """Orchestrates event log + providers + surrogate + reducer.
 
     One driver per search run. Not reusable across runs — callers
-    construct a fresh one. Use as a context manager so the background
-    asyncio loop the surrogate adapter relies on gets started and
-    stopped cleanly.
+    construct a fresh one. The driver owns no resources of its own,
+    so it is not a context manager; callers manage the lifecycles of
+    the providers and surrogate they pass in.
 
     ``observation_type`` is required because Pydantic generic
     ``BaseModel``s need the concrete type at construction time to
@@ -100,9 +99,10 @@ class SearchDriver(Generic[ObservationT]):
         self,
         config: SearchConfig,
         *,
-        mutation_provider: AsyncMutationProvider[ObservationT],
-        evaluation_provider: AsyncEvaluationProvider[ObservationT],
-        surrogate: AsyncSpeedupEstimator,
+        mutation_provider: MutationProvider[ObservationT],
+        evaluation_provider: EvaluationProvider[ObservationT],
+        surrogate: SpeedupEstimator,
+        kernel_task: KernelTaskInfo,
         seed_reference_code: str,
         hardware: HardwareContext,
         event_log: EventLog[ObservationT],
@@ -112,37 +112,11 @@ class SearchDriver(Generic[ObservationT]):
         self.mutation_provider = mutation_provider
         self.evaluation_provider = evaluation_provider
         self.surrogate = surrogate
+        self.kernel_task = kernel_task
         self.seed_reference_code = seed_reference_code
         self.hardware = hardware
         self.event_log = event_log
         self._observation_type = observation_type
-
-        self._surrogate_loop: asyncio.AbstractEventLoop | None = None
-        self._surrogate_thread: threading.Thread | None = None
-
-    # --- Lifecycle ------------------------------------------------
-
-    def __enter__(self) -> Self:
-        loop = asyncio.new_event_loop()
-        thread = threading.Thread(
-            target=loop.run_forever,
-            name="v3-surrogate-loop",
-            daemon=True,
-        )
-        thread.start()
-        self._surrogate_loop = loop
-        self._surrogate_thread = thread
-        return self
-
-    def __exit__(
-        self, exc_type: object, exc_val: object, exc_tb: object
-    ) -> None:
-        if self._surrogate_loop is not None:
-            self._surrogate_loop.call_soon_threadsafe(self._surrogate_loop.stop)
-        if self._surrogate_thread is not None:
-            self._surrogate_thread.join(timeout=5.0)
-        self._surrogate_loop = None
-        self._surrogate_thread = None
 
     # --- Event emission ------------------------------------------------
 
@@ -179,7 +153,11 @@ class SearchDriver(Generic[ObservationT]):
 
         # 2. Bootstrap if uninitialized. The root eval is synchronous —
         #    the rest of the algorithm has nothing to dispatch until
-        #    the archive has at least one node anyway.
+        #    the archive has at least one node anyway. On resume,
+        #    validate constructor surrogate-context args against the
+        #    log to catch operator drift early (different reference
+        #    code or hardware → forecasts incomparable with what's
+        #    already logged).
         if state.is_uninitialized():
             root_eval = self.evaluation_provider.submit(initial_program).result()
             root: Node[ObservationT] = Node[self._observation_type](  # type: ignore[name-defined,valid-type]
@@ -190,8 +168,15 @@ class SearchDriver(Generic[ObservationT]):
             )
             state = self._emit(
                 state,
-                SearchInitialized[self._observation_type](root=root),  # type: ignore[name-defined]
+                SearchInitialized[self._observation_type](  # type: ignore[name-defined]
+                    root=root,
+                    kernel_task=self.kernel_task,
+                    seed_reference_code=self.seed_reference_code,
+                    hardware=self.hardware,
+                ),
             )
+        else:
+            self._validate_surrogate_context(state)
 
         # 3. Main loop. Pure decision function + I/O interpreter.
         in_flight: dict[Future[Any], Dispatch[ObservationT]] = {}
@@ -212,7 +197,7 @@ class SearchDriver(Generic[ObservationT]):
                     continue
                 if not dispatch.is_redispatch:
                     state = self._emit(state, _make_requested_event(dispatch))
-                future = self._fire_dispatch(dispatch)
+                future = self._fire_dispatch(state, dispatch)
                 in_flight[future] = dispatch
                 in_flight_ids.add(dispatch.request_id)
 
@@ -225,10 +210,43 @@ class SearchDriver(Generic[ObservationT]):
                     in_flight_ids.discard(dispatch.request_id)
                     state = self._handle_completion(state, dispatch, fut)
 
+    # --- Resume validation --------------------------------------------
+
+    def _validate_surrogate_context(
+        self, state: SearchState[ObservationT]
+    ) -> None:
+        """Refuse to resume if constructor args don't match the log's
+        surrogate context. Replaying produces a state where these are
+        non-None (set by the SearchInitialized reducer arm); any
+        difference means the surrogate would be conditioned on
+        different inputs than the existing forecasts in the log."""
+        mismatches: list[str] = []
+        if state.kernel_task != self.kernel_task:
+            mismatches.append(
+                f"kernel_task: log={state.kernel_task!r} "
+                f"constructor={self.kernel_task!r}"
+            )
+        if state.seed_reference_code != self.seed_reference_code:
+            mismatches.append(
+                f"seed_reference_code: log={state.seed_reference_code!r} "
+                f"constructor={self.seed_reference_code!r}"
+            )
+        if state.hardware != self.hardware:
+            mismatches.append(
+                f"hardware: log={state.hardware!r} "
+                f"constructor={self.hardware!r}"
+            )
+        if mismatches:
+            raise SurrogateContextMismatch(
+                "Refusing to resume: surrogate context differs from log.\n"
+                + "\n".join(f"  - {m}" for m in mismatches)
+            )
+
     # --- Dispatch helpers ---------------------------------------------
 
     def _fire_dispatch(
         self,
+        state: SearchState[ObservationT],
         dispatch: Dispatch[ObservationT],
     ) -> Future[Any]:
         match dispatch:
@@ -238,32 +256,30 @@ class SearchDriver(Generic[ObservationT]):
                     evaluation=dispatch.parent_evaluation,
                 )
             case ForecastDispatch():
-                return self._fire_forecast(dispatch)
+                # State carries the surrogate-conditioning constants
+                # set at SearchInitialized; reading them here keeps
+                # the log authoritative even if the driver instance
+                # was constructed with stale values.
+                assert state.kernel_task is not None
+                assert state.seed_reference_code is not None
+                assert state.hardware is not None
+                query = KernelRuntimeQuery(
+                    task=state.kernel_task,
+                    reference=KernelImplementation(
+                        kernel_name="reference",
+                        code=state.seed_reference_code,
+                        runtime_ms=None,
+                    ),
+                    candidate=KernelImplementation(
+                        kernel_name="candidate",
+                        code=dispatch.code,
+                        runtime_ms=None,
+                    ),
+                    hardware=state.hardware,
+                )
+                return self.surrogate.submit(query)
             case EvaluationDispatch():
                 return self.evaluation_provider.submit(dispatch.code)
-
-    def _fire_forecast(self, dispatch: ForecastDispatch) -> Future[Any]:
-        loop = self._surrogate_loop
-        assert loop is not None, (
-            "SearchDriver must be used as a context manager — "
-            "background asyncio loop has not been started"
-        )
-        query = KernelRuntimeQuery(
-            task=_PLACEHOLDER_TASK,
-            reference=KernelImplementation(
-                kernel_name="reference",
-                code=self.seed_reference_code,
-                runtime_ms=None,
-            ),
-            candidate=KernelImplementation(
-                kernel_name="candidate",
-                code=dispatch.code,
-                runtime_ms=None,
-            ),
-            hardware=self.hardware,
-        )
-        coro = self.surrogate.aestimate(query)
-        return asyncio.run_coroutine_threadsafe(coro, loop)
 
     # --- Completion handlers ------------------------------------------
 
@@ -306,7 +322,7 @@ class SearchDriver(Generic[ObservationT]):
                     ),
                 )
             case ForecastDispatch():
-                # ``aestimate`` returns ``(estimate, usage)``.
+                # ``submit`` returns ``(estimate, usage)``.
                 estimate, usage = result
                 return self._emit(
                     state,
@@ -398,4 +414,4 @@ def _make_failed_event(
             )
 
 
-__all__ = ["SearchDriver"]
+__all__ = ["SearchDriver", "SurrogateContextMismatch"]

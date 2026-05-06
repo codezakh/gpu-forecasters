@@ -22,13 +22,26 @@ from __future__ import annotations
 
 from collections import defaultdict
 from enum import Enum
-from typing import Annotated, Any, Generic, Literal, Mapping, Union
+from typing import (
+    Annotated,
+    Any,
+    Generic,
+    Literal,
+    Mapping,
+    Sequence,
+    Union,
+    assert_never,
+)
 
 from pydantic import BaseModel, ConfigDict, Field
 from ulid import ULID
 
 from arid_badger.hill_climbing.domain import Evaluation, Node, ObservationT
-from arid_badger.landscape_map.v2 import KernelRuntimeEstimate
+from arid_badger.landscape_map.v2 import (
+    HardwareContext,
+    KernelRuntimeEstimate,
+    KernelTaskInfo,
+)
 from arid_badger.max_reward_puct.search import (
     backpropagate,
     record_failed_rollout,
@@ -54,6 +67,18 @@ from arid_badger.max_reward_puct.v3.events import (
     StepCompleted,
     StepStarted,
 )
+
+
+class ReducerStateError(Exception):
+    """Raised when ``apply_event`` receives an event whose preconditions
+    against the current state are violated.
+
+    These are driver-construction bugs, not runtime edge cases — the
+    driver should never emit an event that the reducer can't fold. We
+    raise (instead of ``assert``) so the failure mode survives
+    ``python -O``, and so a poisoned log surfaces a typed error rather
+    than a bare ``AssertionError``.
+    """
 
 
 # --- Per-parent phase ----------------------------------------------------
@@ -259,6 +284,14 @@ class SearchState(BaseModel, Generic[ObservationT]):
     global_expansion_count: int = 0
     current_step: int = 0
 
+    # Per-search constants set at ``SearchInitialized`` time; ``None``
+    # before initialization. Conditions every surrogate call. Folded
+    # from the log so resumption sees the same context the original
+    # run did, regardless of constructor args.
+    kernel_task: KernelTaskInfo | None = None
+    seed_reference_code: str | None = None
+    hardware: HardwareContext | None = None
+
     # Active step bookkeeping. Empty between steps. One entry per
     # parent selected by ``StepStarted``.
     current_step_parents: tuple[ParentInStep[ObservationT], ...] = ()
@@ -310,19 +343,50 @@ def _replace_parent(
     )
 
 
+def _expect_parent(
+    state: SearchState[ObservationT],
+    parent_ulid: ULID,
+    event_kind: str,
+) -> ParentInStep[ObservationT]:
+    """Look up the active-step parent record, or raise."""
+    parent = state.parent_in_step(parent_ulid)
+    if parent is None:
+        raise ReducerStateError(
+            f"{event_kind}: parent_ulid {parent_ulid} is not in the current "
+            f"step. The driver emitted an event for a parent that "
+            f"compute_pending_actions never opened."
+        )
+    return parent
+
+
+def _missing_candidate_error(
+    parent_ulid: ULID, request_id: str, event_kind: str
+) -> ReducerStateError:
+    return ReducerStateError(
+        f"{event_kind}: no candidate with request_id {request_id!r} "
+        f"on parent {parent_ulid}"
+    )
+
+
+def _wrong_phase_error(
+    candidate: Candidate, expected: str, event_kind: str
+) -> ReducerStateError:
+    return ReducerStateError(
+        f"{event_kind}: candidate {candidate.request_id!r} is in phase "
+        f"{type(candidate).__name__}, expected {expected}"
+    )
+
+
 def _update_candidate(
     state: SearchState[ObservationT],
     parent_ulid: ULID,
     request_id: str,
     candidate: Candidate,
+    event_kind: str,
 ) -> SearchState[ObservationT]:
     """Replace one candidate inside one parent record. The common path
     for every per-candidate event reducer."""
-    parent = state.parent_in_step(parent_ulid)
-    assert parent is not None, (
-        f"event references parent_ulid {parent_ulid} that is not in "
-        f"the current step"
-    )
+    parent = _expect_parent(state, parent_ulid, event_kind)
     new_parent = parent.with_candidate(request_id, candidate)
     return state.model_copy(
         update={
@@ -347,10 +411,16 @@ def apply_event(
     archive_capacity, observation_type)``. No clock reads, no
     randomness, no I/O, no logging.
 
-    ``match`` over the discriminated union is exhaustive; missing event
-    types surface as type-check errors (basedpyright) and runtime
-    errors (the final ``case _`` raises). This is the totality
-    invariant from the spec.
+    ``match`` over the discriminated union is exhaustive; the trailing
+    ``case _`` is a tripwire for events that bypass the discriminated
+    union, and ``assert_never`` lets basedpyright statically prove
+    every variant is handled. This is the totality invariant from the
+    spec.
+
+    Per-event preconditions on ``state`` (parent exists in the current
+    step, prior candidate is in the expected phase) raise
+    ``ReducerStateError`` rather than ``AssertionError`` — they are
+    real failure modes that must survive ``python -O``.
     """
     match event:
         case SearchInitialized():
@@ -358,6 +428,9 @@ def apply_event(
                 update={
                     "archive": (event.root,),
                     "seed_ids": frozenset({event.root.ulid}),
+                    "kernel_task": event.kernel_task,
+                    "seed_reference_code": event.seed_reference_code,
+                    "hardware": event.hardware,
                 }
             )
 
@@ -386,6 +459,7 @@ def apply_event(
                     request_id=event.request_id,
                     parent_ulid=event.parent_ulid,
                 ),
+                event_kind="MutationRequested",
             )
 
         case MutationCompleted():
@@ -399,6 +473,7 @@ def apply_event(
                     parent_ulid=event.parent_ulid,
                     code=event.code,
                 ),
+                event_kind="MutationCompleted",
             )
 
         case MutationFailed():
@@ -412,6 +487,7 @@ def apply_event(
                     parent_ulid=event.parent_ulid,
                     reason="mutation_failed",
                 ),
+                event_kind="MutationFailed",
             )
 
         case ForecastRequested():
@@ -425,13 +501,22 @@ def apply_event(
                     parent_ulid=event.parent_ulid,
                     code=event.code,
                 ),
+                event_kind="ForecastRequested",
             )
 
         case ForecastCompleted():
-            parent = state.parent_in_step(event.parent_ulid)
-            assert parent is not None
+            parent = _expect_parent(state, event.parent_ulid, "ForecastCompleted")
             existing = parent.candidates.get(event.request_id)
-            code = _extract_code(existing)
+            if existing is None:
+                raise _missing_candidate_error(
+                    event.parent_ulid, event.request_id, "ForecastCompleted"
+                )
+            if not isinstance(
+                existing, (CandidateAwaitingForecast, CandidateForecasting)
+            ):
+                raise _wrong_phase_error(
+                    existing, "AwaitingForecast/Forecasting", "ForecastCompleted"
+                )
             return _update_candidate(
                 state,
                 event.parent_ulid,
@@ -440,15 +525,25 @@ def apply_event(
                     step=event.step,
                     request_id=event.request_id,
                     parent_ulid=event.parent_ulid,
-                    code=code,
+                    code=existing.code,
                     forecast=event.forecast,
                 ),
+                event_kind="ForecastCompleted",
             )
 
         case ForecastFailed():
-            parent = state.parent_in_step(event.parent_ulid)
-            assert parent is not None
+            parent = _expect_parent(state, event.parent_ulid, "ForecastFailed")
             existing = parent.candidates.get(event.request_id)
+            if existing is None:
+                raise _missing_candidate_error(
+                    event.parent_ulid, event.request_id, "ForecastFailed"
+                )
+            if not isinstance(
+                existing, (CandidateAwaitingForecast, CandidateForecasting)
+            ):
+                raise _wrong_phase_error(
+                    existing, "AwaitingForecast/Forecasting", "ForecastFailed"
+                )
             return _update_candidate(
                 state,
                 event.parent_ulid,
@@ -458,15 +553,22 @@ def apply_event(
                     request_id=event.request_id,
                     parent_ulid=event.parent_ulid,
                     reason="forecast_failed",
-                    code=_extract_code(existing) if existing is not None else None,
+                    code=existing.code,
                 ),
+                event_kind="ForecastFailed",
             )
 
         case CandidateSelected():
-            parent = state.parent_in_step(event.parent_ulid)
-            assert parent is not None
-            existing = parent.candidates[event.request_id]
-            assert isinstance(existing, CandidateAwaitingSelection)
+            parent = _expect_parent(state, event.parent_ulid, "CandidateSelected")
+            existing = parent.candidates.get(event.request_id)
+            if existing is None:
+                raise _missing_candidate_error(
+                    event.parent_ulid, event.request_id, "CandidateSelected"
+                )
+            if not isinstance(existing, CandidateAwaitingSelection):
+                raise _wrong_phase_error(
+                    existing, "AwaitingSelection", "CandidateSelected"
+                )
             new_candidates = dict(parent.candidates)
             new_candidates[event.request_id] = CandidateAwaitingEval(
                 step=event.step,
@@ -495,10 +597,16 @@ def apply_event(
             )
 
         case CandidateDeferred():
-            parent = state.parent_in_step(event.parent_ulid)
-            assert parent is not None
-            existing = parent.candidates[event.request_id]
-            assert isinstance(existing, CandidateAwaitingSelection)
+            parent = _expect_parent(state, event.parent_ulid, "CandidateDeferred")
+            existing = parent.candidates.get(event.request_id)
+            if existing is None:
+                raise _missing_candidate_error(
+                    event.parent_ulid, event.request_id, "CandidateDeferred"
+                )
+            if not isinstance(existing, CandidateAwaitingSelection):
+                raise _wrong_phase_error(
+                    existing, "AwaitingSelection", "CandidateDeferred"
+                )
             new_candidates = dict(parent.candidates)
             new_candidates[event.request_id] = CandidateSettled[observation_type](  # type: ignore[valid-type]
                 step=event.step,
@@ -524,10 +632,16 @@ def apply_event(
             )
 
         case EvaluationRequested():
-            parent = state.parent_in_step(event.parent_ulid)
-            assert parent is not None
-            existing = parent.candidates[event.request_id]
-            assert isinstance(existing, (CandidateAwaitingEval, CandidateEvaluating))
+            parent = _expect_parent(state, event.parent_ulid, "EvaluationRequested")
+            existing = parent.candidates.get(event.request_id)
+            if existing is None:
+                raise _missing_candidate_error(
+                    event.parent_ulid, event.request_id, "EvaluationRequested"
+                )
+            if not isinstance(existing, (CandidateAwaitingEval, CandidateEvaluating)):
+                raise _wrong_phase_error(
+                    existing, "AwaitingEval/Evaluating", "EvaluationRequested"
+                )
             return _update_candidate(
                 state,
                 event.parent_ulid,
@@ -540,13 +654,20 @@ def apply_event(
                     forecast=existing.forecast,
                     selection_score=existing.selection_score,
                 ),
+                event_kind="EvaluationRequested",
             )
 
         case EvaluationCompleted():
-            parent = state.parent_in_step(event.parent_ulid)
-            assert parent is not None
-            existing = parent.candidates[event.request_id]
-            assert isinstance(existing, CandidateEvaluating)
+            parent = _expect_parent(state, event.parent_ulid, "EvaluationCompleted")
+            existing = parent.candidates.get(event.request_id)
+            if existing is None:
+                raise _missing_candidate_error(
+                    event.parent_ulid, event.request_id, "EvaluationCompleted"
+                )
+            if not isinstance(existing, CandidateEvaluating):
+                raise _wrong_phase_error(
+                    existing, "Evaluating", "EvaluationCompleted"
+                )
             return _update_candidate(
                 state,
                 event.parent_ulid,
@@ -561,13 +682,20 @@ def apply_event(
                     selection_score=existing.selection_score,
                     evaluation=event.evaluation,
                 ),
+                event_kind="EvaluationCompleted",
             )
 
         case EvaluationFailed():
-            parent = state.parent_in_step(event.parent_ulid)
-            assert parent is not None
-            existing = parent.candidates[event.request_id]
-            assert isinstance(existing, CandidateEvaluating)
+            parent = _expect_parent(state, event.parent_ulid, "EvaluationFailed")
+            existing = parent.candidates.get(event.request_id)
+            if existing is None:
+                raise _missing_candidate_error(
+                    event.parent_ulid, event.request_id, "EvaluationFailed"
+                )
+            if not isinstance(existing, CandidateEvaluating):
+                raise _wrong_phase_error(
+                    existing, "Evaluating", "EvaluationFailed"
+                )
             return _update_candidate(
                 state,
                 event.parent_ulid,
@@ -581,11 +709,11 @@ def apply_event(
                     forecast=existing.forecast,
                     selection_score=existing.selection_score,
                 ),
+                event_kind="EvaluationFailed",
             )
 
         case MutationsDrained():
-            parent = state.parent_in_step(event.parent_ulid)
-            assert parent is not None
+            parent = _expect_parent(state, event.parent_ulid, "MutationsDrained")
             new_parent = parent.model_copy(update={"mutations_drained": True})
             return state.model_copy(
                 update={
@@ -596,8 +724,7 @@ def apply_event(
             )
 
         case ForecastsDrained():
-            parent = state.parent_in_step(event.parent_ulid)
-            assert parent is not None
+            parent = _expect_parent(state, event.parent_ulid, "ForecastsDrained")
             new_parent = parent.model_copy(
                 update={"phase": ParentPhase.AWAITING_SELECTION}
             )
@@ -610,8 +737,7 @@ def apply_event(
             )
 
         case EvaluationsDrained():
-            parent = state.parent_in_step(event.parent_ulid)
-            assert parent is not None
+            parent = _expect_parent(state, event.parent_ulid, "EvaluationsDrained")
             new_parent = parent.model_copy(update={"phase": ParentPhase.DONE})
             return state.model_copy(
                 update={
@@ -630,31 +756,8 @@ def apply_event(
                 observation_type=observation_type,
             )
 
-
-def _extract_code(candidate: Candidate | None) -> str:
-    """Pull ``code`` from any candidate variant that has it.
-
-    Used by ``ForecastCompleted`` / ``ForecastFailed`` reducers, which
-    need the existing code to thread through the phase transition.
-    Asserts loudly if asked to extract from a phase that doesn't carry
-    code — that would be a reducer-construction bug, not a runtime
-    edge case.
-    """
-    assert candidate is not None, "no prior candidate for forecast event"
-    if isinstance(
-        candidate,
-        (
-            CandidateAwaitingForecast,
-            CandidateForecasting,
-            CandidateAwaitingSelection,
-            CandidateAwaitingEval,
-            CandidateEvaluating,
-        ),
-    ):
-        return candidate.code
-    raise AssertionError(
-        f"cannot extract code from candidate kind={candidate.kind}"
-    )
+        case _:
+            assert_never(event)
 
 
 def _finalize_step(
@@ -752,7 +855,7 @@ def _finalize_step(
 
 
 def replay(
-    events: list[SearchEvent[ObservationT]],
+    events: Sequence[SearchEvent[ObservationT]],
     *,
     k_per_parent: int,
     archive_capacity: int,

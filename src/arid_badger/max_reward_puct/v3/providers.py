@@ -1,10 +1,18 @@
-"""Async provider protocols for v3 search.
+"""Provider protocols for v3 search.
 
-Mutation and evaluation providers carry over unchanged from v2: one
-``submit(...)`` per atomic unit, returning a ``concurrent.futures.Future``.
-The surrogate side (``AsyncSpeedupEstimator``) is async-await; the
-driver bridges via a background asyncio loop and
-``run_coroutine_threadsafe``.
+All three providers share the same shape: ``submit(...)`` returns a
+``concurrent.futures.Future`` immediately, ``__enter__``/``__exit__``
+manage lifecycle, and the driver waits on completed futures via
+``concurrent.futures.wait(FIRST_COMPLETED)``. No asyncio appears in
+the driver — providers that wrap async-native backends own their own
+event loop internally (see
+``arid_badger.max_reward_puct.v3.scoring_providers.coroutine_adapter``
+for the surrogate side).
+
+Per-call atomic units: one ``submit`` yields one mutation, one
+forecast, or one evaluation. No batch shapes at this seam — the
+algorithm's atomic unit must agree with the log's atomic unit,
+otherwise durability is a lie.
 """
 
 from __future__ import annotations
@@ -16,9 +24,14 @@ from arid_badger.hill_climbing.domain import (
     Evaluation,
     ObservationT,
 )
+from arid_badger.landscape_map.v2 import (
+    KernelRuntimeEstimate,
+    KernelRuntimeQuery,
+    LlmCallUsage,
+)
 
 
-class AsyncMutationProvider(Protocol[ObservationT]):
+class MutationProvider(Protocol[ObservationT]):
     """Submits one mutation at a time and returns a future.
 
     Implementations must be safe to call ``submit`` concurrently from
@@ -38,14 +51,32 @@ class AsyncMutationProvider(Protocol[ObservationT]):
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None: ...
 
 
-class AsyncEvaluationProvider(Protocol[ObservationT]):
+class EvaluationProvider(Protocol[ObservationT]):
     """Submits one evaluation at a time and returns a future.
 
-    Same threading contract as ``AsyncMutationProvider``. Lifecycle
-    methods own the Modal session (or equivalent).
+    Same threading contract as ``MutationProvider``. Lifecycle methods
+    own the Modal session (or equivalent).
     """
 
     def submit(self, program_code: str) -> Future[Evaluation[ObservationT]]: ...
+
+    def __enter__(self) -> Self: ...
+
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None: ...
+
+
+class SpeedupEstimator(Protocol):
+    """Submits one surrogate forecast at a time and returns a future.
+
+    Same shape as the other two providers. Async-native estimators (the
+    v2 ``AsyncSpeedupEstimator`` family) are adapted to this protocol
+    by ``CoroutineSpeedupEstimator``, which owns an asyncio loop in a
+    daemon thread between ``__enter__`` and ``__exit__``.
+    """
+
+    def submit(
+        self, query: KernelRuntimeQuery
+    ) -> Future[tuple[KernelRuntimeEstimate, LlmCallUsage | None]]: ...
 
     def __enter__(self) -> Self: ...
 

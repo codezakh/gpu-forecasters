@@ -1,6 +1,6 @@
 """v3 mutation providers.
 
-The v3 ``AsyncMutationProvider`` protocol (see ``v3/providers.py``) is
+The v3 ``MutationProvider`` protocol (see ``v3/providers.py``) is
 intentionally identical to v2's: ``submit(parent_code, evaluation) ->
 Future[str]`` plus ``__enter__`` / ``__exit__``. This means existing v2
 concretes (e.g. ``arid_badger.max_reward_puct.v2.mutation_providers.

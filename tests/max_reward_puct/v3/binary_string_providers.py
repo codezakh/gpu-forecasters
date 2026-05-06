@@ -21,6 +21,7 @@ from arid_badger.landscape_map.v2 import (
     HardwareContext,
     KernelRuntimeEstimate,
     KernelRuntimeQuery,
+    KernelTaskInfo,
     LlmCallUsage,
     SpeedupBin,
 )
@@ -38,6 +39,10 @@ TEST_HARDWARE = HardwareContext(
     memory_clock_rate_ghz=0.0,
     memory_bus_width_bits=0,
 )
+
+
+# Fake KernelBench task identity for the binary-string toy.
+TEST_TASK = KernelTaskInfo(op_name="binary_string", level_id=0, task_id=0)
 
 
 def _eval(reward: float | None) -> Evaluation[NoFeedback]:

@@ -7,12 +7,15 @@ state out, ``apply_event`` returns a new ``SearchState``.
 
 from __future__ import annotations
 
+import pytest
 from ulid import ULID
 
 from arid_badger.hill_climbing.domain import Evaluation, NoFeedback, Node
 from arid_badger.landscape_map.v2 import (
     SUCCESS_BINS,
+    HardwareContext,
     KernelRuntimeEstimate,
+    KernelTaskInfo,
     SpeedupBin,
 )
 from arid_badger.max_reward_puct.v3.events import (
@@ -43,6 +46,7 @@ from arid_badger.max_reward_puct.v3.state import (
     CandidateMutating,
     CandidateSettled,
     ParentPhase,
+    ReducerStateError,
     SearchState,
     apply_event,
     replay,
@@ -51,6 +55,27 @@ from arid_badger.max_reward_puct.v3.state import (
 
 K = 2
 CAP = 1000
+
+_TEST_TASK = KernelTaskInfo(op_name="t", level_id=0, task_id=0)
+_TEST_HARDWARE = HardwareContext(
+    device_name="test-cpu",
+    compute_capability=(0, 0),
+    total_global_memory_gb=0.0,
+    multiprocessor_count=0,
+    max_threads_per_multiprocessor=0,
+    clock_rate_ghz=0.0,
+    memory_clock_rate_ghz=0.0,
+    memory_bus_width_bits=0,
+)
+
+
+def _init_event(root: Node[NoFeedback]) -> SearchInitialized[NoFeedback]:
+    return SearchInitialized[NoFeedback](
+        root=root,
+        kernel_task=_TEST_TASK,
+        seed_reference_code="0000",
+        hardware=_TEST_HARDWARE,
+    )
 
 
 def _eval(reward: float | None) -> Evaluation[NoFeedback]:
@@ -86,7 +111,7 @@ def _start_state_with_one_parent(
     open with that parent. Used by per-candidate-event tests."""
     root = _root()
     state = SearchState[NoFeedback]()
-    state = _apply(state, SearchInitialized[NoFeedback](root=root))
+    state = _apply(state, _init_event(root))
     state = _apply(
         state,
         StepStarted(step=0, parent_ulids=[root.ulid], selected_parent_scores=[0.0]),
@@ -100,7 +125,7 @@ def _start_state_with_one_parent(
 def test_search_initialized_seeds_archive():
     root = _root()
     state = SearchState[NoFeedback]()
-    new_state = _apply(state, SearchInitialized[NoFeedback](root=root))
+    new_state = _apply(state, _init_event(root))
     assert new_state.archive == (root,)
     assert new_state.seed_ids == frozenset({root.ulid})
     # Reducer is pure: original state untouched.
@@ -109,7 +134,7 @@ def test_search_initialized_seeds_archive():
 
 def test_step_started_opens_active_step():
     root = _root()
-    state = _apply(SearchState[NoFeedback](), SearchInitialized[NoFeedback](root=root))
+    state = _apply(SearchState[NoFeedback](), _init_event(root))
     new_state = _apply(
         state,
         StepStarted(step=0, parent_ulids=[root.ulid], selected_parent_scores=[1.0]),
@@ -599,6 +624,59 @@ def test_evaluations_drained_advances_phase_to_done():
     assert parent.phase == ParentPhase.DONE
 
 
+# --- Illegal transitions raise ReducerStateError -----------------------
+
+
+def test_event_for_unknown_parent_raises():
+    """An event whose parent_ulid is not in the active step is a
+    driver-construction bug; the reducer surfaces it as a typed error."""
+    state, _root = _start_state_with_one_parent()
+    bogus_parent = ULID()
+    req = "01KQY00000000000000000000A"
+    with pytest.raises(ReducerStateError, match="MutationRequested"):
+        _apply(
+            state,
+            MutationRequested(step=0, request_id=req, parent_ulid=bogus_parent),
+        )
+
+
+def test_eval_completed_for_non_evaluating_candidate_raises():
+    """EvaluationCompleted requires the candidate to be in
+    CandidateEvaluating. Folding it onto a Mutating candidate is a bug."""
+    state, root = _start_state_with_one_parent()
+    req = "01KQY00000000000000000000A"
+    state = _apply(
+        state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
+    )
+    with pytest.raises(ReducerStateError, match="EvaluationCompleted"):
+        _apply(
+            state,
+            EvaluationCompleted[NoFeedback](
+                step=0,
+                request_id=req,
+                parent_ulid=root.ulid,
+                evaluation=_eval(1.0),
+            ),
+        )
+
+
+def test_candidate_selected_for_non_awaiting_selection_raises():
+    """CandidateSelected requires the candidate to be in
+    CandidateAwaitingSelection."""
+    state, root = _start_state_with_one_parent()
+    req = "01KQY00000000000000000000A"
+    state = _apply(
+        state, MutationRequested(step=0, request_id=req, parent_ulid=root.ulid)
+    )
+    with pytest.raises(ReducerStateError, match="CandidateSelected"):
+        _apply(
+            state,
+            CandidateSelected(
+                step=0, request_id=req, parent_ulid=root.ulid, selection_score=1.0
+            ),
+        )
+
+
 # --- Replay determinism ------------------------------------------------
 
 
@@ -608,7 +686,7 @@ def test_replay_is_deterministic():
     root = _root()
     req = "01KQY00000000000000000000A"
     events = [
-        SearchInitialized[NoFeedback](root=root),
+        _init_event(root),
         StepStarted(step=0, parent_ulids=[root.ulid], selected_parent_scores=[0.0]),
         MutationRequested(step=0, request_id=req, parent_ulid=root.ulid),
         MutationCompleted(

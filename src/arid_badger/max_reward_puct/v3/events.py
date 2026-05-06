@@ -26,7 +26,12 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from ulid import ULID
 
 from arid_badger.hill_climbing.domain import Evaluation, Node, ObservationT
-from arid_badger.landscape_map.v2 import KernelRuntimeEstimate, LlmCallUsage
+from arid_badger.landscape_map.v2 import (
+    HardwareContext,
+    KernelRuntimeEstimate,
+    KernelTaskInfo,
+    LlmCallUsage,
+)
 
 
 class _Frozen(BaseModel):
@@ -37,10 +42,22 @@ class _Frozen(BaseModel):
 
 
 class SearchInitialized(_Frozen, Generic[ObservationT]):
-    """Root candidate evaluated, archive initialized."""
+    """Root candidate evaluated, archive initialized.
+
+    Carries the per-search constants that condition every surrogate
+    call (``kernel_task``, ``seed_reference_code``, ``hardware``). The
+    spec requires the event log to be the system of record for
+    everything the algorithm cares about; these three values directly
+    determine forecasts, so they belong in the log alongside the root
+    node. On resume, the driver validates its constructor args against
+    these and refuses to continue with diverged context.
+    """
 
     kind: Literal["search_initialized"] = "search_initialized"
     root: Node[ObservationT]
+    kernel_task: KernelTaskInfo
+    seed_reference_code: str
+    hardware: HardwareContext
 
 
 # --- Per-step ------------------------------------------------------------
