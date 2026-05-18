@@ -94,6 +94,24 @@ def _atomic_write_json(model: BaseModel, path: Path) -> None:
     _ = tmp.replace(path)
 
 
+def _write_experiment_snapshot(
+    config: SurrogateSearchExperimentConfig, path: Path
+) -> None:
+    """Persist the config to ``experiment.json`` for provenance.
+
+    ``SearchConfig.ranking_rule`` is a Protocol-typed field whose
+    concrete implementation (``ExpectedBinIndexRule`` etc.) is a plain
+    class, not a Pydantic model, so Pydantic can't serialize it.
+    Exclude it from the snapshot — the source experiment file is the
+    record of which rule was used.
+    """
+    tmp = path.with_name(path.name + ".tmp")
+    _ = tmp.write_text(
+        config.model_dump_json(indent=2, exclude={"search": {"ranking_rule"}})
+    )
+    _ = tmp.replace(path)
+
+
 def _build_surrogate(config: SurrogateConfig) -> SpeedupEstimator:
     """Construct the surrogate's outer ``SpeedupEstimator`` from config.
 
@@ -295,7 +313,7 @@ def run_pack_experiment(
     driver's log-replay path resumes mid-step on partial runs.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    _atomic_write_json(config, output_dir / "experiment.json")
+    _write_experiment_snapshot(config, output_dir / "experiment.json")
 
     observation_type: type[GpuModeKernelObservation[CaseSpeedupT]] = (
         GpuModeKernelObservation[case_speedup_type]
