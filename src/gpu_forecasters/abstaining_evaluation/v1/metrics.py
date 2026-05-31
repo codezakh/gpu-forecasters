@@ -16,8 +16,8 @@ from __future__ import annotations
 import math
 from typing import Sequence
 
-from arid_badger.abstaining_evaluation.v1.confidence_scores import MaxProbScore
-from arid_badger.abstaining_evaluation.v1.domain import (
+from gpu_forecasters.abstaining_evaluation.v1.confidence_scores import MaxProbScore
+from gpu_forecasters.abstaining_evaluation.v1.domain import (
     AbstainDecision,
     ConfidenceScore,
     Predict,
@@ -25,11 +25,11 @@ from arid_badger.abstaining_evaluation.v1.domain import (
     RiskCoveragePoint,
     RiskFunction,
 )
-from arid_badger.abstaining_evaluation.v1.threshold_abstainer import (
+from gpu_forecasters.abstaining_evaluation.v1.threshold_abstainer import (
     ThresholdAbstainPolicy,
 )
-from arid_badger.eval_dataset_builder.v1 import KernelRuntimeComparison
-from arid_badger.landscape_map.v2 import KernelRuntimeEstimate
+from gpu_forecasters.eval_dataset_builder.v1 import KernelRuntimeComparison
+from gpu_forecasters.landscape_map.v2 import KernelRuntimeEstimate
 
 
 def risk_coverage_curve(

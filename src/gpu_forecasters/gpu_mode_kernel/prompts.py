@@ -1,6 +1,6 @@
 """Generic prompt assembly + code extraction for gpu-mode kernel mutations.
 
-Generalizes ``arid_badger.hill_climbing.mutation_providers.<kernel>_feedback_mutation``:
+Generalizes ``gpu_forecasters.hill_climbing.mutation_providers.<kernel>_feedback_mutation``:
 
 - The rules block, code-block extraction regex, truncation helpers, and
   failure-arm formatters lift verbatim — they were byte-identical
@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from typing import assert_never
 
-from arid_badger.code_extraction import extract_last_python_codeblock
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.code_extraction import extract_last_python_codeblock
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupBase,
     CaseSpeedupT,
     CompileFailedFeedback,
@@ -28,12 +28,12 @@ from arid_badger.gpu_mode_kernel.core import (
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.kernel_pack import KernelPack, TestArgsT
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import KernelPack, TestArgsT
 
 # ``extract_last_python_codeblock`` is re-exported from this module so
-# ``from arid_badger.gpu_mode_kernel.prompts import extract_last_python_codeblock``
+# ``from gpu_forecasters.gpu_mode_kernel.prompts import extract_last_python_codeblock``
 # (used by ``providers.v2_feedback_mutation``) continues to resolve. The
-# canonical definition lives in ``arid_badger.code_extraction``.
+# canonical definition lives in ``gpu_forecasters.code_extraction``.
 _ = extract_last_python_codeblock
 
 

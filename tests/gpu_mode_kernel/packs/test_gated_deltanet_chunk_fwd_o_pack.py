@@ -7,8 +7,8 @@ format and the description body shape directly. See
 
 from __future__ import annotations
 
-from arid_badger.gpu_mode_kernel.core import KernelExecResult
-from arid_badger.gpu_mode_kernel.packs.gated_deltanet_chunk_fwd_o import (
+from gpu_forecasters.gpu_mode_kernel.core import KernelExecResult
+from gpu_forecasters.gpu_mode_kernel.packs.gated_deltanet_chunk_fwd_o import (
     BENCHMARK_CASES,
     CORRECTNESS_CASES,
     GDN_CHUNK_FWD_O_PACK,

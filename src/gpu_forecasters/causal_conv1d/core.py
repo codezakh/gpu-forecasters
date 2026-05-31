@@ -1,9 +1,9 @@
 """Causal conv1d execution feedback types and exec result.
 
-Near-duplicate of ``arid_badger.trimul.core``. The feedback union, exec
+Near-duplicate of ``gpu_forecasters.trimul.core``. The feedback union, exec
 result envelope, infrastructure-failure variant, and
 ``failure_feedback_from_exec_result`` are entirely kernel-agnostic and
-will be lifted into ``arid_badger.gpu_mode_kernel.feedback`` in the
+will be lifted into ``gpu_forecasters.gpu_mode_kernel.feedback`` in the
 gh070-A task #3 extraction.
 
 The only thing that differs from TriMul is ``CaseSpeedup``'s shape

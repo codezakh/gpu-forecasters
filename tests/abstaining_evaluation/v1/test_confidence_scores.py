@@ -5,12 +5,12 @@ from __future__ import annotations
 
 import pytest
 
-from arid_badger.abstaining_evaluation.v1 import (
+from gpu_forecasters.abstaining_evaluation.v1 import (
     MaxProbScore,
     NegEntropyScore,
     Top2MarginScore,
 )
-from arid_badger.landscape_map.v2 import SUCCESS_BINS, SpeedupBin
+from gpu_forecasters.landscape_map.v2 import SUCCESS_BINS, SpeedupBin
 
 from ._fixtures import make_estimate
 
@@ -28,7 +28,7 @@ def test_neg_entropy_one_for_delta_zero_for_uniform() -> None:
     assert score == pytest.approx(1.0)
 
     uniform_probs = {b: 1.0 / 8.0 for b in SUCCESS_BINS}
-    from arid_badger.landscape_map.v2 import KernelRuntimeEstimate
+    from gpu_forecasters.landscape_map.v2 import KernelRuntimeEstimate
     uniform = KernelRuntimeEstimate(
         predicted_bin=SpeedupBin.MINOR_SPEEDUP,
         bin_probabilities=uniform_probs,

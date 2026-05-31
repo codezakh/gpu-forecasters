@@ -31,30 +31,30 @@ from typing import Generic, Self
 
 from loguru import logger
 
-from arid_badger.abstaining_evaluation.v1.forecast_reward import ForecastRewardPolicy
-from arid_badger.abstaining_evaluation.v1.observation import (
+from gpu_forecasters.abstaining_evaluation.v1.forecast_reward import ForecastRewardPolicy
+from gpu_forecasters.abstaining_evaluation.v1.observation import (
     CompoundObservation,
     ForecastObservation,
     RealObservation,
 )
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupT,
     GpuModeKernelObservation,
 )
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.landscape_map.v2 import (
     HardwareContext,
     KernelImplementation,
     KernelRuntimeEstimate,
     KernelRuntimeQuery,
     KernelTaskInfo,
 )
-from arid_badger.landscape_map.v2.abstain_estimator import (
+from gpu_forecasters.landscape_map.v2.abstain_estimator import (
     AbstainingLlmSpeedupEstimator,
     Deferral,
     Forecast,
 )
-from arid_badger.max_reward_puct.v2.providers import AsyncEvaluationProvider
+from gpu_forecasters.max_reward_puct.v2.providers import AsyncEvaluationProvider
 
 
 class CompoundEvaluationProvider(Generic[CaseSpeedupT]):

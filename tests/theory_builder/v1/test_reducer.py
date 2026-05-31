@@ -7,14 +7,14 @@ from __future__ import annotations
 
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import NoFeedback
-from arid_badger.theory_builder.v1.domain import (
+from gpu_forecasters.hill_climbing.domain import NoFeedback
+from gpu_forecasters.theory_builder.v1.domain import (
     Explanation,
     ExperimentResult,
     Hypothesis,
     WorldModel,
 )
-from arid_badger.theory_builder.v1.events import (
+from gpu_forecasters.theory_builder.v1.events import (
     ExperimentCompleted,
     ExperimentFailed,
     ExperimentRequested,
@@ -26,7 +26,7 @@ from arid_badger.theory_builder.v1.events import (
     OuterStepCompleted,
     TheoryBuildingInitialized,
 )
-from arid_badger.theory_builder.v1.state import apply_event, replay
+from gpu_forecasters.theory_builder.v1.state import apply_event, replay
 
 
 def _wm(text: str = "") -> WorldModel:

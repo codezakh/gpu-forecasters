@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List, Set, Optional, Protocol, Generic
 import pickle
 from .domain import Checkpoint, CheckpointProvider, ObservationT
-from arid_badger.typing_utils import implements
+from gpu_forecasters.typing_utils import implements
 
 
 class NoOpCheckpointProvider(CheckpointProvider[ObservationT]):

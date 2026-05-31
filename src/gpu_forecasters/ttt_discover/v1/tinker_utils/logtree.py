@@ -40,7 +40,7 @@ _logging_disabled: ContextVar[bool] = ContextVar("lt_logging_disabled", default=
 
 ### format_colorized.py #######
 from termcolor import colored
-from arid_badger.ttt_discover.v1.tinker_utils.misc_utils import Tokenizer
+from gpu_forecasters.ttt_discover.v1.tinker_utils.misc_utils import Tokenizer
 
 
 def format_colorized(
@@ -841,7 +841,7 @@ def log_formatter(formatter: Formatter) -> None:
         formatter: Object implementing the Formatter protocol (to_html() and get_css())
 
     Example:
-        from arid_badger.ttt_discover.v1.tinker_utils.logtree_formatters import ConversationFormatter
+        from gpu_forecasters.ttt_discover.v1.tinker_utils.logtree_formatters import ConversationFormatter
 
         logtree.log_formatter(ConversationFormatter(messages=[...]))
     """

@@ -6,9 +6,9 @@ import threading
 from io import TextIOWrapper
 from pathlib import Path
 
-from arid_badger.ttt_discover.v2.domain.records import RolloutRecord
-from arid_badger.ttt_discover.v2.interfaces.sink import RolloutSink
-from arid_badger.typing_utils import implements
+from gpu_forecasters.ttt_discover.v2.domain.records import RolloutRecord
+from gpu_forecasters.ttt_discover.v2.interfaces.sink import RolloutSink
+from gpu_forecasters.typing_utils import implements
 
 
 class JsonlRolloutSink:

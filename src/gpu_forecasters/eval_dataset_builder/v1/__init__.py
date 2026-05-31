@@ -3,8 +3,8 @@
 See ``README.md`` for the design overview.
 """
 
-from arid_badger.eval_dataset_builder.v1.bin_filler import BinFiller
-from arid_badger.eval_dataset_builder.v1.domain import (
+from gpu_forecasters.eval_dataset_builder.v1.bin_filler import BinFiller
+from gpu_forecasters.eval_dataset_builder.v1.domain import (
     BinFillRequest,
     BinFillResult,
     EvalDataset,
@@ -21,29 +21,29 @@ from arid_badger.eval_dataset_builder.v1.domain import (
     SpeedupBand,
     speedup_band_for_bin,
 )
-from arid_badger.eval_dataset_builder.v1.goal_conditioned_evaluation import (
+from gpu_forecasters.eval_dataset_builder.v1.goal_conditioned_evaluation import (
     GoalConditionedEvaluationProvider,
     score_evaluation_against_target_bin,
 )
-from arid_badger.eval_dataset_builder.v1.goal_conditioned_mutation.provider import (
+from gpu_forecasters.eval_dataset_builder.v1.goal_conditioned_mutation.provider import (
     GoalConditionedMutationProvider,
     MutationError,
     build_render_context,
     render_prompt,
 )
-from arid_badger.eval_dataset_builder.v1.orchestrator import (
+from gpu_forecasters.eval_dataset_builder.v1.orchestrator import (
     build_eval_dataset,
     fill_via_generation,
     harvest_into_eval_set,
     read_eval_dataset,
     write_eval_set,
 )
-from arid_badger.eval_dataset_builder.v1.seed_selection import SelectedSeed, select_seed
-from arid_badger.eval_dataset_builder.v1.summary import (
+from gpu_forecasters.eval_dataset_builder.v1.seed_selection import SelectedSeed, select_seed
+from gpu_forecasters.eval_dataset_builder.v1.summary import (
     compute_run_summary_from_event_log,
     extract_in_target_kernels_from_event_log,
 )
-from arid_badger.eval_dataset_builder.v1.v2_event_log_source import V2EventLogSource
+from gpu_forecasters.eval_dataset_builder.v1.v2_event_log_source import V2EventLogSource
 
 
 __all__ = [

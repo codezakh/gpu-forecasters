@@ -12,19 +12,19 @@ from __future__ import annotations
 
 import pytest
 
-from arid_badger.abstaining_evaluation.v1.observation import ForecastObservation
-from arid_badger.abstaining_evaluation.v1.prompts import (
+from gpu_forecasters.abstaining_evaluation.v1.observation import ForecastObservation
+from gpu_forecasters.abstaining_evaluation.v1.prompts import (
     format_forecast_feedback_prompt,
     format_real_eval_feedback_prompt,
 )
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CompileFailedFeedback,
     IncorrectFeedback,
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.packs.trimul import TriMulCaseSpeedup
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.gpu_mode_kernel.packs.trimul import TriMulCaseSpeedup
+from gpu_forecasters.landscape_map.v2 import (
     SUCCESS_BINS,
     KernelRuntimeEstimate,
     SpeedupBin,

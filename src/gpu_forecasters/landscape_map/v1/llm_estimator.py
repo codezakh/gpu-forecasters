@@ -9,7 +9,7 @@ from jinja2 import Environment, FileSystemLoader
 from litellm import completion
 from loguru import logger
 
-from arid_badger.typing_utils import implements
+from gpu_forecasters.typing_utils import implements
 
 from .domain import (
     AsyncSpeedupEstimator,

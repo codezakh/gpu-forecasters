@@ -3,9 +3,9 @@ from types import SimpleNamespace
 import pytest
 from ulid import ULID
 
-from arid_badger.kernelbench.core import CompileFailedFeedback, SuccessFeedback
-from arid_badger.greedy_search.domain import MutationContext, ValidEvaluation
-from arid_badger.greedy_search.feedback_mutation import (
+from gpu_forecasters.kernelbench.core import CompileFailedFeedback, SuccessFeedback
+from gpu_forecasters.greedy_search.domain import MutationContext, ValidEvaluation
+from gpu_forecasters.greedy_search.feedback_mutation import (
     KernelBenchExecutionFeedbackMutationFunction,
     format_feedback_mutation_prompt,
 )
@@ -70,11 +70,11 @@ def test_feedback_mutation_function_sends_formatted_prompt_and_parses_code(
         )
 
     monkeypatch.setattr(
-        "arid_badger.greedy_search.feedback_mutation.get_prompt_for_backend",
+        "gpu_forecasters.greedy_search.feedback_mutation.get_prompt_for_backend",
         lambda **_: "BASE_PROMPT",
     )
     monkeypatch.setattr(
-        "arid_badger.greedy_search.feedback_mutation.completion",
+        "gpu_forecasters.greedy_search.feedback_mutation.completion",
         fake_completion,
     )
 

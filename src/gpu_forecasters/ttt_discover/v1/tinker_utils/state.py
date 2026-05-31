@@ -5,7 +5,7 @@ import uuid
 
 import numpy as np
 
-from arid_badger.ttt_discover.v1.rl.types import Action, StepResult
+from gpu_forecasters.ttt_discover.v1.rl.types import Action, StepResult
 
 
 def to_json_serializable(obj):

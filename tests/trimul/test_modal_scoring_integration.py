@@ -13,10 +13,10 @@ from pathlib import Path
 
 import pytest
 
-from arid_badger.trimul.cases import BENCHMARK_CASES, CORRECTNESS_CASES
-from arid_badger.trimul.leaderboard_comparison import LEADERBOARD_REGISTRY
-from arid_badger.trimul.modal_scoring import modal_trimul_scoring_session
-from arid_badger.typing_utils import is_ok
+from gpu_forecasters.trimul.cases import BENCHMARK_CASES, CORRECTNESS_CASES
+from gpu_forecasters.trimul.leaderboard_comparison import LEADERBOARD_REGISTRY
+from gpu_forecasters.trimul.modal_scoring import modal_trimul_scoring_session
+from gpu_forecasters.typing_utils import is_ok
 
 
 _FIXTURES = Path(__file__).parent / "fixtures"
@@ -26,7 +26,7 @@ _LEADERBOARD = _FIXTURES / "leaderboard"
 # A100 leaderboard ranking (problem 496) at the time the kernels were
 # scraped. Runtimes are the site-reported geometric-mean across 7 benchmark
 # cases, in microseconds. Order is load-bearing for the ranking test.
-# Sourced from the canonical registry in arid_badger.trimul.leaderboard_comparison.
+# Sourced from the canonical registry in gpu_forecasters.trimul.leaderboard_comparison.
 _LEADERBOARD_KERNELS: list[tuple[str, str, float]] = [
     (entry.fixture_filename, entry.display_name, entry.published_geomean_us)
     for entry in LEADERBOARD_REGISTRY.values()
@@ -65,7 +65,7 @@ _LEADERBOARD_KNOWN_BAD: set[tuple[str, int]] = {
 
 
 _REF_SELF_CANDIDATE = """\
-from arid_badger.trimul.reference import ref_kernel
+from gpu_forecasters.trimul.reference import ref_kernel
 
 def custom_kernel(data):
     return ref_kernel(data)

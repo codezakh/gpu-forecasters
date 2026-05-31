@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from arid_badger.causal_conv1d.cases import BENCHMARK_CASES, CORRECTNESS_CASES
+from gpu_forecasters.causal_conv1d.cases import BENCHMARK_CASES, CORRECTNESS_CASES
 
 
 _UPSTREAM_TASK_YML = Path(

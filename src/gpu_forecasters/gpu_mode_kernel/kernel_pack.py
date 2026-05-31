@@ -4,8 +4,8 @@ The seam: every kernel-specific surface (reference, cases, seed, prompt
 body, candidate-load shims) collapses into one frozen dataclass that the
 generic scoring + Modal + provider layers consume. Adding a new
 gpu-mode/reference-kernels problem becomes a single-file declaration
-under ``arid_badger.gpu_mode_kernel.packs.<name>`` rather than a ~10-file
-mirror of ``arid_badger.trimul`` / ``arid_badger.causal_conv1d``.
+under ``gpu_forecasters.gpu_mode_kernel.packs.<name>`` rather than a ~10-file
+mirror of ``gpu_forecasters.trimul`` / ``gpu_forecasters.causal_conv1d``.
 
 Type parameters:
 - ``TestArgsT``: TypedDict describing one test case's inputs (e.g.
@@ -24,7 +24,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import Any, Callable, Generic, Tuple, Type, TypeVar
 
-from arid_badger.gpu_mode_kernel.core import CaseSpeedupBase
+from gpu_forecasters.gpu_mode_kernel.core import CaseSpeedupBase
 
 
 TestArgsT = TypeVar("TestArgsT")
@@ -36,7 +36,7 @@ class KernelPack(Generic[TestArgsT, CaseSpeedupT]):
     """All kernel-specific behavior, in one value.
 
     Construct one of these per kernel under
-    ``arid_badger.gpu_mode_kernel.packs.<kernel>`` and export it as a
+    ``gpu_forecasters.gpu_mode_kernel.packs.<kernel>`` and export it as a
     module-level constant (e.g. ``CROSS_ENTROPY_PACK``). Generic infra
     consumes it without further parameterization.
     """
@@ -74,7 +74,7 @@ class KernelPack(Generic[TestArgsT, CaseSpeedupT]):
     check_implementation: Callable[[Any, Any], Tuple[bool, str]]
     """``check_implementation(data, candidate_output) -> (good, msg)``.
     Most packs build this via
-    ``arid_badger.gpu_mode_kernel.comparison.make_match_reference``;
+    ``gpu_forecasters.gpu_mode_kernel.comparison.make_match_reference``;
     multi-output kernels (cross-entropy fwd+bwd) supply a custom
     callable."""
 
@@ -100,7 +100,7 @@ class KernelPack(Generic[TestArgsT, CaseSpeedupT]):
 
     The kernel-agnostic helpers (``set_seed``, ``verbose_allclose``,
     ``match_reference``, ``make_match_reference``) are always
-    re-exported from ``arid_badger.gpu_mode_kernel.comparison`` —
+    re-exported from ``gpu_forecasters.gpu_mode_kernel.comparison`` —
     no per-pack configuration needed."""
 
     # --- Per-case record ----------------------------------------------
@@ -122,7 +122,7 @@ class KernelPack(Generic[TestArgsT, CaseSpeedupT]):
     op, lists shape parameters, includes reference source. Generic
     scaffolding (rules block, GPU/Triton block, parent-code block,
     per-case-feedback block) is added by
-    ``arid_badger.gpu_mode_kernel.prompts``."""
+    ``gpu_forecasters.gpu_mode_kernel.prompts``."""
 
     def __post_init__(self) -> None:
         # Fail fast if ``determinism_ctx`` was assigned a class whose

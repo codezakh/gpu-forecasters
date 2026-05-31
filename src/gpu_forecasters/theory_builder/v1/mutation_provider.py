@@ -22,15 +22,15 @@ from typing import Self
 import litellm
 from loguru import logger
 
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.hill_climbing.mutation_providers.trimul_feedback_mutation import (
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.hill_climbing.mutation_providers.trimul_feedback_mutation import (
     _build_base_prompt,
     _extract_last_python_codeblock,
     format_trimul_feedback_mutation_prompt,
 )
-from arid_badger.hill_climbing.scoring_providers.trimul import TriMulObservation
-from arid_badger.theory_builder.v1.domain import Hypothesis
-from arid_badger.trimul.core import InfrastructureFailureFeedback
+from gpu_forecasters.hill_climbing.scoring_providers.trimul import TriMulObservation
+from gpu_forecasters.theory_builder.v1.domain import Hypothesis
+from gpu_forecasters.trimul.core import InfrastructureFailureFeedback
 
 
 class MutationError(RuntimeError):

@@ -26,8 +26,8 @@ from typing import Literal, Optional, Self, assert_never, cast
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.causal_conv1d.cases import CausalConv1dTestArgs
-from arid_badger.causal_conv1d.core import (
+from gpu_forecasters.causal_conv1d.cases import CausalConv1dTestArgs
+from gpu_forecasters.causal_conv1d.core import (
     CaseSpeedup,
     CausalConv1dExecResult,
     CompileFailedFeedback,
@@ -37,17 +37,17 @@ from arid_badger.causal_conv1d.core import (
     SuccessFeedback,
     failure_feedback_from_exec_result,
 )
-from arid_badger.causal_conv1d.modal_scoring import (
+from gpu_forecasters.causal_conv1d.modal_scoring import (
     ModalCausalConv1dBenchmarker,
     app as modal_app,
 )
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.hill_climbing.scoring_providers.causal_conv1d import (
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.hill_climbing.scoring_providers.causal_conv1d import (
     CausalConv1dObservation,
 )
-from arid_badger.invocation_sink import InvocationSink, code_sha256
-from arid_badger.kernelbench.isolated_scoring import ScoringError
-from arid_badger.typing_utils import Option, is_ok
+from gpu_forecasters.invocation_sink import InvocationSink, code_sha256
+from gpu_forecasters.kernelbench.isolated_scoring import ScoringError
+from gpu_forecasters.typing_utils import Option, is_ok
 
 
 AggregationMethod = Literal["geomean", "min", "arith_mean"]

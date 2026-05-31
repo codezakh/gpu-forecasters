@@ -1,4 +1,4 @@
-from arid_badger.kernelbench.metrics import compute_fast1_score
+from gpu_forecasters.kernelbench.metrics import compute_fast1_score
 
 
 def test_empty_returns_zero() -> None:

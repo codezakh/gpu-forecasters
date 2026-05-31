@@ -6,7 +6,7 @@ from typing import Dict, List, Literal, Optional, Tuple
 import attrs
 from loguru import logger
 
-from arid_badger.typing_utils import Option, is_ok
+from gpu_forecasters.typing_utils import Option, is_ok
 
 from .checkpoint import GreedySearchCheckpoint, SearchCursor
 from .domain import (

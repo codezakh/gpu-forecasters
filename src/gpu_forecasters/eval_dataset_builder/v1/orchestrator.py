@@ -24,12 +24,12 @@ from pathlib import Path
 from collections.abc import Iterable
 from typing import Protocol
 
-from arid_badger.gpu_mode_kernel.core import CaseSpeedupT, GpuModeKernelObservation
-from arid_badger.gpu_mode_kernel.kernel_pack import TestArgsT
-from arid_badger.gpu_mode_kernel.modal_scoring import PackedModalRuntime
-from arid_badger.landscape_map.v1.domain import HardwareContext, SpeedupBin
-from arid_badger.max_reward_puct.v2.config import SearchConfig
-from arid_badger.max_reward_puct.v2.providers import AsyncEvaluationProvider
+from gpu_forecasters.gpu_mode_kernel.core import CaseSpeedupT, GpuModeKernelObservation
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import TestArgsT
+from gpu_forecasters.gpu_mode_kernel.modal_scoring import PackedModalRuntime
+from gpu_forecasters.landscape_map.v1.domain import HardwareContext, SpeedupBin
+from gpu_forecasters.max_reward_puct.v2.config import SearchConfig
+from gpu_forecasters.max_reward_puct.v2.providers import AsyncEvaluationProvider
 
 from .bin_filler import BinFiller
 from .domain import (

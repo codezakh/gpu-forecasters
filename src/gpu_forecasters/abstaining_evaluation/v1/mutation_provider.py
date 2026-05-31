@@ -29,24 +29,24 @@ from typing import Any, Generic, Self
 import litellm
 from loguru import logger
 
-from arid_badger.abstaining_evaluation.v1.observation import (
+from gpu_forecasters.abstaining_evaluation.v1.observation import (
     CompoundObservation,
     ForecastObservation,
     RealObservation,
 )
-from arid_badger.abstaining_evaluation.v1.prompts import (
+from gpu_forecasters.abstaining_evaluation.v1.prompts import (
     build_base_prompt,
     format_forecast_feedback_prompt,
     format_real_eval_feedback_prompt,
 )
-from arid_badger.code_extraction import extract_last_python_codeblock
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.code_extraction import extract_last_python_codeblock
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupT,
     GpuModeKernelObservation,
     InfrastructureFailureFeedback,
 )
-from arid_badger.gpu_mode_kernel.kernel_pack import KernelPack, TestArgsT
-from arid_badger.hill_climbing.domain import Evaluation
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import KernelPack, TestArgsT
+from gpu_forecasters.hill_climbing.domain import Evaluation
 
 
 class CompoundMutationError(RuntimeError):

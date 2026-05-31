@@ -6,8 +6,8 @@ import threading
 
 import numpy as np
 
-from arid_badger.ttt_discover.v1.tinker_utils.state import State, state_from_dict
-from arid_badger.ttt_discover.v1.tinker_utils.best_sequence_utils import _file_lock, _atomic_write_json, _read_json_or_default
+from gpu_forecasters.ttt_discover.v1.tinker_utils.state import State, state_from_dict
+from gpu_forecasters.ttt_discover.v1.tinker_utils.best_sequence_utils import _file_lock, _atomic_write_json, _read_json_or_default
 
 
 class StateSampler(ABC):
@@ -161,10 +161,10 @@ class PUCTSampler(StateSampler):
         rng = np.random.default_rng()
         state.construction = [rng.random()] * rng.integers(1000, 8000)
         if self.problem_type == "ac1":
-            from arid_badger.ttt_discover.v1.tinker_utils.ac_helpers import evaluate_sequence_ac1
+            from gpu_forecasters.ttt_discover.v1.tinker_utils.ac_helpers import evaluate_sequence_ac1
             state.value = -evaluate_sequence_ac1(state.construction)
         else:
-            from arid_badger.ttt_discover.v1.tinker_utils.ac_helpers import evaluate_sequence_ac2
+            from gpu_forecasters.ttt_discover.v1.tinker_utils.ac_helpers import evaluate_sequence_ac2
             state.value = evaluate_sequence_ac2(state.construction)
 
     def _get_construction_key(self, state: State) -> tuple | str | None:

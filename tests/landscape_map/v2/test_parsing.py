@@ -7,11 +7,11 @@ import math
 
 import pytest
 
-from arid_badger.landscape_map.v2.domain import (
+from gpu_forecasters.landscape_map.v2.domain import (
     SUCCESS_BINS,
     SpeedupBin,
 )
-from arid_badger.landscape_map.v2.parsing import (
+from gpu_forecasters.landscape_map.v2.parsing import (
     EstimatorParseError,
     parse_tool_call_args,
 )

@@ -5,7 +5,7 @@ from typing import TypedDict, cast
 
 from pydantic import BaseModel
 
-from arid_badger.landscape_map.v1.domain import KernelImplementation, KernelTaskInfo
+from gpu_forecasters.landscape_map.v1.domain import KernelImplementation, KernelTaskInfo
 
 # Type alias for a task key: (level_id, task_id, op_name)
 TaskKey = tuple[int, int, str]

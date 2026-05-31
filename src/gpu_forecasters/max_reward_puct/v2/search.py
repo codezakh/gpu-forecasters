@@ -47,15 +47,15 @@ from typing import Any, Generic
 from loguru import logger
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import (
+from gpu_forecasters.hill_climbing.domain import (
     Evaluation,
     Node,
     ObservationT,
 )
-from arid_badger.max_reward_puct.search import select_batch_of_parents
-from arid_badger.max_reward_puct.v2.config import SearchConfig
-from arid_badger.max_reward_puct.v2.event_log import EventLog
-from arid_badger.max_reward_puct.v2.events import (
+from gpu_forecasters.max_reward_puct.search import select_batch_of_parents
+from gpu_forecasters.max_reward_puct.v2.config import SearchConfig
+from gpu_forecasters.max_reward_puct.v2.event_log import EventLog
+from gpu_forecasters.max_reward_puct.v2.events import (
     EvaluationCompleted,
     EvaluationFailed,
     EvaluationRequested,
@@ -67,11 +67,11 @@ from arid_badger.max_reward_puct.v2.events import (
     StepCompleted,
     StepStarted,
 )
-from arid_badger.max_reward_puct.v2.providers import (
+from gpu_forecasters.max_reward_puct.v2.providers import (
     AsyncEvaluationProvider,
     AsyncMutationProvider,
 )
-from arid_badger.max_reward_puct.v2.state import (
+from gpu_forecasters.max_reward_puct.v2.state import (
     SearchState,
     apply_event,
 )

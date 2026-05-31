@@ -4,7 +4,7 @@ Adapted from ttt-discover's ``examples/gpu_mode/env.py``. The original ran
 submissions against the GPU-mode Discord leaderboard via ``libkernelbot``
 on Modal. That leaderboard is closed and its launcher drags in a large
 dependency tree (DB, profanity filter, Discord reporter). This version
-instead scores kernels with our existing ``arid_badger.trimul`` Modal
+instead scores kernels with our existing ``gpu_forecasters.trimul`` Modal
 pipeline, which uses the same adaptive cuda.Event timing loop and a
 curated set of benchmark cases.
 
@@ -23,18 +23,18 @@ import math
 import threading
 from typing import Optional
 
-from arid_badger.trimul.cases import BENCHMARK_CASES
-from arid_badger.trimul.modal_scoring import TriMulScoringFn, modal_trimul_scoring_session
-from arid_badger.typing_utils import is_ok
+from gpu_forecasters.trimul.cases import BENCHMARK_CASES
+from gpu_forecasters.trimul.modal_scoring import TriMulScoringFn, modal_trimul_scoring_session
+from gpu_forecasters.typing_utils import is_ok
 
-from arid_badger.ttt_discover.v1 import (
+from gpu_forecasters.ttt_discover.v1 import (
     BaseRewardEvaluator,
     DiscoverConfig,
     Environment,
     State,
     discover,
 )
-from arid_badger.ttt_discover.v1.examples.gpu_mode.prompt import TRIMUL_PROMPT
+from gpu_forecasters.ttt_discover.v1.examples.gpu_mode.prompt import TRIMUL_PROMPT
 
 # Paper target for A100 TriMul is ~2198us (TTT-Discover) vs 4531us (best human).
 # The ttt-discover original used score_scale=1500 on H100 (best human ~1371us).

@@ -16,7 +16,7 @@ mass at the other).
 
 from __future__ import annotations
 
-from arid_badger.landscape_map.v1.domain import SpeedupBin
+from gpu_forecasters.landscape_map.v1.domain import SpeedupBin
 
 from .domain import PREDICTED_BINS
 

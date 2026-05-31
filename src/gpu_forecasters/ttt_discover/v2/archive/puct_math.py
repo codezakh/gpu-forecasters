@@ -1,6 +1,6 @@
 """Pure PUCT math — rank-based prior + scale factor + selection score.
 
-Lifted from ``arid_badger.ttt_discover.v1.tinker_utils.sampler.PUCTSampler``
+Lifted from ``gpu_forecasters.ttt_discover.v1.tinker_utils.sampler.PUCTSampler``
 with everything state-mutating / file-backed stripped. Each function
 takes plain numpy arrays / mappings and returns plain values; the
 ``PUCTCandidateArchive`` composes them with its own bookkeeping.

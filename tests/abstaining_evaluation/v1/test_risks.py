@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from arid_badger.abstaining_evaluation.v1 import (
+from gpu_forecasters.abstaining_evaluation.v1 import (
     AbstainDecision,
     BinaryMismatchRisk,
     Predict,
@@ -14,7 +14,7 @@ from arid_badger.abstaining_evaluation.v1 import (
     SpeedupDistanceRisk,
     bin_midpoint,
 )
-from arid_badger.landscape_map.v2 import SpeedupBin
+from gpu_forecasters.landscape_map.v2 import SpeedupBin
 
 from ._fixtures import make_comparison, make_estimate, true_bin_v2
 

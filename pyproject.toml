@@ -1,5 +1,5 @@
 [project]
-name = "15-arid-badger"
+name = "gpu-forecasters"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -36,8 +36,8 @@ dependencies = [
 ]
 
 [project.scripts]
-15-arid-badger = "arid_badger:main"
-bootstrap-trimul-leaderboard = "arid_badger.trimul.leaderboard_comparison:_cli"
+gpu-forecasters = "gpu_forecasters:main"
+bootstrap-trimul-leaderboard = "gpu_forecasters.trimul.leaderboard_comparison:_cli"
 
 [build-system]
 requires = ["hatchling"]
@@ -47,7 +47,7 @@ build-backend = "hatchling.build"
 sources = ["src"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/arid_badger"]
+packages = ["src/gpu_forecasters"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -91,7 +91,7 @@ kernelbench = { workspace = true, editable = true }
 
 [tool.ty.src]
 exclude = [
-    "src/arid_badger/kernelbench/eval_logged.py", # This is a copy of the eval function from KernelBench with logging added.
+    "src/gpu_forecasters/kernelbench/eval_logged.py", # This is a copy of the eval function from KernelBench with logging added.
 ]
 
 [tool.uv.workspace]

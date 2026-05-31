@@ -1,7 +1,7 @@
 """Goal-conditioned kernel mutation provider — pack-generic.
 
 A near-duplicate of ``GpuModeKernelFeedbackMutationProvider`` (in
-``arid_badger.gpu_mode_kernel.providers.v2_feedback_mutation``) whose
+``gpu_forecasters.gpu_mode_kernel.providers.v2_feedback_mutation``) whose
 prompt is rendered from a Jinja template that frames the task as
 "land in a target speedup band" rather than "maximize speed."
 
@@ -30,7 +30,7 @@ import litellm
 from jinja2 import Environment, PackageLoader, StrictUndefined, select_autoescape
 from loguru import logger
 
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupT,
     CompileFailedFeedback,
     GpuModeKernelObservation,
@@ -39,20 +39,20 @@ from arid_badger.gpu_mode_kernel.core import (
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.kernel_pack import KernelPack, TestArgsT
-from arid_badger.gpu_mode_kernel.prompts import (
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import KernelPack, TestArgsT
+from gpu_forecasters.gpu_mode_kernel.prompts import (
     build_base_prompt,
     extract_last_python_codeblock,
 )
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.landscape_map.v1.domain import SpeedupBin
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.landscape_map.v1.domain import SpeedupBin
 
 from ..domain import speedup_band_for_bin
 
 
 # ---------------------------------------------------------------------------
 # Truncation budgets — copied from
-# ``arid_badger.gpu_mode_kernel.prompts``. Five-line helpers; not worth a
+# ``gpu_forecasters.gpu_mode_kernel.prompts``. Five-line helpers; not worth a
 # library dep for the purpose of one re-export.
 # ---------------------------------------------------------------------------
 
@@ -215,7 +215,7 @@ def build_render_context(
 def _make_jinja_env() -> Environment:
     return Environment(
         loader=PackageLoader(
-            "arid_badger.eval_dataset_builder.v1.goal_conditioned_mutation",
+            "gpu_forecasters.eval_dataset_builder.v1.goal_conditioned_mutation",
             "templates",
         ),
         autoescape=select_autoescape(disabled_extensions=("jinja",), default=False),
@@ -285,7 +285,7 @@ class GoalConditionedMutationProvider(Generic[TestArgsT, CaseSpeedupT]):
     structurally identical to the upstream
     ``GpuModeKernelFeedbackMutationProvider`` — the only difference is
     that ``_build_prompt`` renders ``mutation.jinja`` instead of
-    composing strings via ``arid_badger.gpu_mode_kernel.prompts``.
+    composing strings via ``gpu_forecasters.gpu_mode_kernel.prompts``.
 
     ``max_tokens=None`` is the right setting for Gemini 3 Flash (which
     rejects an explicit cap); Together gpt-oss requires an explicit

@@ -1,7 +1,7 @@
 """V2 async evaluation provider for KernelBench kernels.
 
 Async-chained over the split CPU-compile / GPU-benchmark Modal pipeline
-(``arid_badger.kernelbench.modal_split_scoring``, ADR-002). One submit
+(``gpu_forecasters.kernelbench.modal_split_scoring``, ADR-002). One submit
 == one in-flight unit at any moment: submit returns a
 ``concurrent.futures.Future`` immediately; the underlying coroutine
 awaits two ``.remote.aio(...)`` calls (compile, then bench) chained on a
@@ -19,7 +19,7 @@ container topology is preserved exactly, just expressed as a coroutine
 on the client.
 
 Mirrors the lifecycle pattern in
-``arid_badger.gpu_mode_kernel.providers.v2_feedback_mutation``.
+``gpu_forecasters.gpu_mode_kernel.providers.v2_feedback_mutation``.
 """
 
 from __future__ import annotations
@@ -37,26 +37,26 @@ from typing import Any, Literal, Self, cast
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.hill_climbing.scoring_providers.kernelbench import (
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.hill_climbing.scoring_providers.kernelbench import (
     KernelBenchObservation,
 )
-from arid_badger.invocation_sink import InvocationSink, code_sha256
-from arid_badger.kernelbench.core import (
+from gpu_forecasters.invocation_sink import InvocationSink, code_sha256
+from gpu_forecasters.kernelbench.core import (
     InfrastructureFailureFeedback,
     execution_feedback_from_exec_result,
 )
-from arid_badger.kernelbench.modal_image import GPU_ARCH_MAPPING
-from arid_badger.kernelbench.modal_split_scoring import (
+from gpu_forecasters.kernelbench.modal_image import GPU_ARCH_MAPPING
+from gpu_forecasters.kernelbench.modal_split_scoring import (
     COMPUTE_CAPABILITY_BY_GPU,
     ModalCpuCompiler,
     ModalGpuBenchmarker,
     app,
 )
-from arid_badger.kernelbench.scoring import check_kernel_exec_result_valid
-from arid_badger.max_reward_puct.v2.providers import AsyncEvaluationProvider
-from arid_badger.modal_gpu import GpuKind
-from arid_badger.typing_utils import implements
+from gpu_forecasters.kernelbench.scoring import check_kernel_exec_result_valid
+from gpu_forecasters.max_reward_puct.v2.providers import AsyncEvaluationProvider
+from gpu_forecasters.modal_gpu import GpuKind
+from gpu_forecasters.typing_utils import implements
 from kernelbench.eval import KernelExecResult
 
 
@@ -128,7 +128,7 @@ class KernelBenchModalProvider:
         if gpu.value not in COMPUTE_CAPABILITY_BY_GPU:
             raise ValueError(
                 f"GPU {gpu.value!r} is in GpuKind but missing from "
-                f"COMPUTE_CAPABILITY_BY_GPU (arid_badger.kernelbench."
+                f"COMPUTE_CAPABILITY_BY_GPU (gpu_forecasters.kernelbench."
                 f"modal_split_scoring). Add the entry before using "
                 f"KernelBenchModalProvider."
             )

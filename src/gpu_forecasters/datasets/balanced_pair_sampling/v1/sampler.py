@@ -23,7 +23,7 @@ from collections import Counter, defaultdict
 
 from pydantic import BaseModel
 
-from arid_badger.landscape_map.v2.domain import SpeedupBin
+from gpu_forecasters.landscape_map.v2.domain import SpeedupBin
 
 from .domain import CandidateKernel, LabeledPair, ProblemId
 

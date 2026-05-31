@@ -28,14 +28,14 @@ import litellm
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.greedy_search.feedback_mutation import format_feedback_mutation_prompt
-from arid_badger.hill_climbing.domain import Evaluation, MutationProvider
-from arid_badger.hill_climbing.scoring_providers.kernelbench import (
+from gpu_forecasters.greedy_search.feedback_mutation import format_feedback_mutation_prompt
+from gpu_forecasters.hill_climbing.domain import Evaluation, MutationProvider
+from gpu_forecasters.hill_climbing.scoring_providers.kernelbench import (
     KernelBenchObservation,
 )
-from arid_badger.invocation_sink import InvocationSink, code_sha256
-from arid_badger.kernelbench.core import InfrastructureFailureFeedback
-from arid_badger.typing_utils import implements
+from gpu_forecasters.invocation_sink import InvocationSink, code_sha256
+from gpu_forecasters.kernelbench.core import InfrastructureFailureFeedback
+from gpu_forecasters.typing_utils import implements
 
 from kernelbench.prompt_constructor_toml import get_prompt_for_backend
 from kernelbench.utils import extract_first_code

@@ -34,11 +34,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import litellm
 import pytest
 
-from arid_badger.ttt_discover.v1.examples.gpu_mode.env import (
+from gpu_forecasters.ttt_discover.v1.examples.gpu_mode.env import (
     GpuModeEnv,
     GpuModeRewardEvaluator,
 )
-from arid_badger.ttt_discover.v1.tinker_utils.dataset_builder import (
+from gpu_forecasters.ttt_discover.v1.tinker_utils.dataset_builder import (
     last_codeblock_postprocess,
 )
 

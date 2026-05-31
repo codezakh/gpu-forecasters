@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from arid_badger.landscape_map.v1.domain import (
+from gpu_forecasters.landscape_map.v1.domain import (
     KernelRuntimeEstimate,
     LikertConfidence,
     SpeedupBin,

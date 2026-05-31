@@ -296,7 +296,7 @@ def scope(func: Callable[..., Any]) -> Callable[..., Any]:
 
     Example usage:
 
-    from arid_badger.ttt_discover.v1.tinker_utils.trace import scope, trace_init, get_scope_context
+    from gpu_forecasters.ttt_discover.v1.tinker_utils.trace import scope, trace_init, get_scope_context
 
     @scope
     async def foo():

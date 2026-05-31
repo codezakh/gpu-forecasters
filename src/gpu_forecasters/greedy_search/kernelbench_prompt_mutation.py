@@ -10,8 +10,8 @@ from loguru import logger
 import time
 from pydantic import BaseModel
 
-from arid_badger.invocation_sink import InvocationSink, code_sha256
-from arid_badger.typing_utils import implements
+from gpu_forecasters.invocation_sink import InvocationSink, code_sha256
+from gpu_forecasters.typing_utils import implements
 from .domain import MutationContext, MutationFunction, MutatedKernel
 
 

@@ -25,7 +25,7 @@ from typing import Sequence
 
 import chz
 
-from arid_badger.ttt_discover.v1.rl.types import (
+from gpu_forecasters.ttt_discover.v1.rl.types import (
     Env,
     EnvGroupBuilder,
     Metrics,
@@ -33,20 +33,20 @@ from arid_badger.ttt_discover.v1.rl.types import (
     RLDatasetBuilder,
     Trajectory,
 )
-from arid_badger.ttt_discover.v1.tinker_utils import renderers as v1_renderers
-from arid_badger.ttt_discover.v2.domain.candidate import Candidate
-from arid_badger.ttt_discover.v2.domain.problem import TriMulProblem
-from arid_badger.ttt_discover.v2.env import TriMulRLEnvironment
-from arid_badger.ttt_discover.v2.interfaces.admission_policy import AdmissionPolicy
-from arid_badger.ttt_discover.v2.interfaces.archive import CandidateArchive
-from arid_badger.ttt_discover.v2.interfaces.evaluator import KernelEvaluator
-from arid_badger.ttt_discover.v2.interfaces.extractor import CodeExtractor
-from arid_badger.ttt_discover.v2.interfaces.renderer import (
+from gpu_forecasters.ttt_discover.v1.tinker_utils import renderers as v1_renderers
+from gpu_forecasters.ttt_discover.v2.domain.candidate import Candidate
+from gpu_forecasters.ttt_discover.v2.domain.problem import TriMulProblem
+from gpu_forecasters.ttt_discover.v2.env import TriMulRLEnvironment
+from gpu_forecasters.ttt_discover.v2.interfaces.admission_policy import AdmissionPolicy
+from gpu_forecasters.ttt_discover.v2.interfaces.archive import CandidateArchive
+from gpu_forecasters.ttt_discover.v2.interfaces.evaluator import KernelEvaluator
+from gpu_forecasters.ttt_discover.v2.interfaces.extractor import CodeExtractor
+from gpu_forecasters.ttt_discover.v2.interfaces.renderer import (
     FeedbackPromptRenderer,
     TaskPromptRenderer,
 )
-from arid_badger.ttt_discover.v2.interfaces.scalarizer import RewardScalarizer
-from arid_badger.ttt_discover.v2.interfaces.sink import RolloutSink
+from gpu_forecasters.ttt_discover.v2.interfaces.scalarizer import RewardScalarizer
+from gpu_forecasters.ttt_discover.v2.interfaces.sink import RolloutSink
 
 
 @dataclass(frozen=True)
@@ -160,7 +160,7 @@ class V2RLDatasetBuilder(RLDatasetBuilder):
     group_size: int
 
     async def __call__(self) -> V2RLDataset:  # pyright: ignore[reportIncompatibleMethodOverride]
-        from arid_badger.ttt_discover.v1.tinker_utils.misc_utils import get_tokenizer
+        from gpu_forecasters.ttt_discover.v1.tinker_utils.misc_utils import get_tokenizer
 
         tokenizer = get_tokenizer(self.model_name_for_tokenizer)
         tinker_renderer = v1_renderers.get_renderer(

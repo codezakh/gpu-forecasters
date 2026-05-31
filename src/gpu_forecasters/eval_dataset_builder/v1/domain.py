@@ -29,10 +29,10 @@ from typing import Generic, Literal, Protocol, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from arid_badger.gpu_mode_kernel.aggregation import AggregationMethod
-from arid_badger.gpu_mode_kernel.core import CaseSpeedupT, GpuModeKernelObservation
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.landscape_map.v1.domain import HardwareContext, SpeedupBin
+from gpu_forecasters.gpu_mode_kernel.aggregation import AggregationMethod
+from gpu_forecasters.gpu_mode_kernel.core import CaseSpeedupT, GpuModeKernelObservation
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.landscape_map.v1.domain import HardwareContext, SpeedupBin
 
 
 # ---------------------------------------------------------------------------

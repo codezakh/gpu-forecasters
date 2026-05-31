@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from arid_badger.kernelbench.v2.l3_problems import (
+from gpu_forecasters.kernelbench.v2.l3_problems import (
     TIER_B_PROBLEMS,
     L3ProblemReference,
     load_l3_problem,

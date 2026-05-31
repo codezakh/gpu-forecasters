@@ -12,7 +12,7 @@ from typing import Annotated, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     InfrastructureFailureFeedback,
     TriMulExecResult,
     TriMulKernelExecutionFeedback,

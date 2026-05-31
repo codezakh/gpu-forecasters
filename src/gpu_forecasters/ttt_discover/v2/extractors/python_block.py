@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import re
 
-from arid_badger.ttt_discover.v2.interfaces.extractor import CodeExtractor
-from arid_badger.typing_utils import implements
+from gpu_forecasters.ttt_discover.v2.interfaces.extractor import CodeExtractor
+from gpu_forecasters.typing_utils import implements
 
 _PYTHON_CODEBLOCK_RE = re.compile(
     r"```python\n(?!```)(.*?)(?:\n```)?(?=\n```|$)",

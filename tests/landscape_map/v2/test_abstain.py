@@ -14,28 +14,28 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from arid_badger.landscape_map.v2.abstain_estimator import (
+from gpu_forecasters.landscape_map.v2.abstain_estimator import (
     AbstainingLlmSpeedupEstimator,
     Deferral,
     Forecast,
 )
-from arid_badger.landscape_map.v2.abstain_prompt_rendering import (
+from gpu_forecasters.landscape_map.v2.abstain_prompt_rendering import (
     render_abstain_system_prompt,
     render_abstain_user_prompt,
 )
-from arid_badger.landscape_map.v2.abstain_tool_spec import (
+from gpu_forecasters.landscape_map.v2.abstain_tool_spec import (
     DEFER_TOOL_NAME,
     PREDICT_TOOL_NAME,
     both_openai_tool_specs,
     defer_parameters_schema,
 )
-from arid_badger.landscape_map.v2.domain import (
+from gpu_forecasters.landscape_map.v2.domain import (
     HardwareContext,
     KernelImplementation,
     KernelRuntimeQuery,
     KernelTaskInfo,
 )
-from arid_badger.landscape_map.v2.parsing import EstimatorParseError
+from gpu_forecasters.landscape_map.v2.parsing import EstimatorParseError
 
 
 _HW = HardwareContext(

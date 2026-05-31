@@ -1,6 +1,6 @@
 """Gemini CLI agentic variation operator — v1."""
 
-from arid_badger.agentic_variation.gemini_cli.v1.models import (
+from gpu_forecasters.agentic_variation.gemini_cli.v1.models import (
     BaselineFeedbackEntry,
     ExperimentConfig,
     PerToolCallHook,
@@ -17,7 +17,7 @@ from arid_badger.agentic_variation.gemini_cli.v1.models import (
     default_system_prompt_renderer,
     default_user_prompt_renderer,
 )
-from arid_badger.agentic_variation.gemini_cli.v1.orchestrator import (
+from gpu_forecasters.agentic_variation.gemini_cli.v1.orchestrator import (
     IMAGE_TAG,
     MCP_TOOL_NAME,
     RunLayout,
@@ -26,12 +26,12 @@ from arid_badger.agentic_variation.gemini_cli.v1.orchestrator import (
     dispatch_post_run_hooks,
     run_experiment,
 )
-from arid_badger.agentic_variation.gemini_cli.v1.prompts import (
+from gpu_forecasters.agentic_variation.gemini_cli.v1.prompts import (
     format_feedback_summary,
     render_system_prompt,
     render_user_prompt,
 )
-from arid_badger.agentic_variation.gemini_cli.v1.results import (
+from gpu_forecasters.agentic_variation.gemini_cli.v1.results import (
     RESULT_FILENAME,
     RUN_DIR_PREFIX,
     TRAJECTORY_FILENAME,

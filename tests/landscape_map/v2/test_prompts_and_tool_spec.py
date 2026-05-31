@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from arid_badger.landscape_map.v2.domain import (
+from gpu_forecasters.landscape_map.v2.domain import (
     HardwareContext,
     KernelImplementation,
     KernelRuntimeQuery,
     KernelTaskInfo,
 )
-from arid_badger.landscape_map.v2.prompt_rendering import (
+from gpu_forecasters.landscape_map.v2.prompt_rendering import (
     render_system_prompt,
     render_user_prompt,
 )
-from arid_badger.landscape_map.v2.tool_spec import (
+from gpu_forecasters.landscape_map.v2.tool_spec import (
     TOOL_NAME,
     cookbook_tool_spec,
     openai_tool_spec,

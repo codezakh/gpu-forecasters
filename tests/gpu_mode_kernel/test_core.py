@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ConfigDict, TypeAdapter
 
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupBase,
     CompileFailedFeedback,
     IncorrectFeedback,

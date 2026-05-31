@@ -12,15 +12,15 @@ from __future__ import annotations
 import pytest
 from pydantic import BaseModel
 
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.hill_climbing.mutation_providers.kernel_execution_feedback import (
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.hill_climbing.mutation_providers.kernel_execution_feedback import (
     KernelExecutionFeedbackMutationProvider,
     KernelExecutionFeedbackMutationRecord,
 )
-from arid_badger.hill_climbing.scoring_providers.kernelbench import (
+from gpu_forecasters.hill_climbing.scoring_providers.kernelbench import (
     KernelBenchObservation,
 )
-from arid_badger.kernelbench.core import (
+from gpu_forecasters.kernelbench.core import (
     InfrastructureFailureFeedback,
     SuccessFeedback,
 )

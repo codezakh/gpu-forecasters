@@ -14,7 +14,7 @@ from typing import Any, Generic, Literal, Mapping, assert_never, cast
 
 from pydantic import BaseModel, ConfigDict
 
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupT,
     InfrastructureFailureFeedback,
     KernelExecResult,
@@ -22,9 +22,9 @@ from arid_badger.gpu_mode_kernel.core import (
     SuccessFeedback,
     failure_feedback_from_exec_result,
 )
-from arid_badger.gpu_mode_kernel.kernel_pack import KernelPack, TestArgsT
-from arid_badger.kernelbench.isolated_scoring import ScoringError
-from arid_badger.typing_utils import Option, is_ok
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import KernelPack, TestArgsT
+from gpu_forecasters.kernelbench.isolated_scoring import ScoringError
+from gpu_forecasters.typing_utils import Option, is_ok
 
 
 AggregationMethod = Literal["geomean", "min", "arith_mean"]

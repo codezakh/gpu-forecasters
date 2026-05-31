@@ -12,7 +12,7 @@ from typing import Annotated, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from arid_badger.causal_conv1d.core import (
+from gpu_forecasters.causal_conv1d.core import (
     CausalConv1dExecResult,
     CausalConv1dKernelExecutionFeedback,
     InfrastructureFailureFeedback,

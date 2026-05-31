@@ -14,10 +14,10 @@ from jinja2 import Environment, FileSystemLoader
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.hill_climbing.domain import Evaluation, MutationProvider
-from arid_badger.invocation_sink import InvocationSink, code_sha256
-from arid_badger.landscape_map.v1.domain import KernelRuntimeEstimate, SpeedupBin
-from arid_badger.typing_utils import implements
+from gpu_forecasters.hill_climbing.domain import Evaluation, MutationProvider
+from gpu_forecasters.invocation_sink import InvocationSink, code_sha256
+from gpu_forecasters.landscape_map.v1.domain import KernelRuntimeEstimate, SpeedupBin
+from gpu_forecasters.typing_utils import implements
 
 from kernelbench.prompt_constructor_toml import get_prompt_for_backend
 from kernelbench.utils import extract_first_code

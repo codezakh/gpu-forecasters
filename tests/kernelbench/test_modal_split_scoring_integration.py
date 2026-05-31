@@ -10,8 +10,8 @@ import time
 
 import pytest
 
-from arid_badger.kernelbench.modal_split_scoring import modal_split_scoring_session
-from arid_badger.typing_utils import is_err, is_ok
+from gpu_forecasters.kernelbench.modal_split_scoring import modal_split_scoring_session
+from gpu_forecasters.typing_utils import is_err, is_ok
 
 from tests.kernelbench.test_modal_scoring_integration import (
     BROKEN_KERNEL_CODE,

@@ -15,7 +15,7 @@ from typing import Any, Callable, Dict, Tuple
 import torch
 from torch import einsum, nn
 
-from arid_badger.trimul.comparison import DisableCuDNNTF32, make_match_reference
+from gpu_forecasters.trimul.comparison import DisableCuDNNTF32, make_match_reference
 
 # Upstream defines these as TypeVars bound to concrete tuple/tensor shapes in
 # its ``task.py``. For our vendored scoring pipeline they're just type aliases

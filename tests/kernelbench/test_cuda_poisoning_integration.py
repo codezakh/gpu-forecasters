@@ -25,7 +25,7 @@ import pytest
 import torch
 from pathlib import Path
 
-from arid_badger.kernelbench.isolated_scoring import run_scoring_in_subprocess
+from gpu_forecasters.kernelbench.isolated_scoring import run_scoring_in_subprocess
 
 
 # Good reference kernel: simple PyTorch matmul (uses "Model" class)

@@ -16,29 +16,29 @@ from typing import cast
 import pytest
 import tinker
 
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CaseSpeedup,
     IncorrectFeedback,
     SuccessFeedback,
 )
-from arid_badger.ttt_discover.v2.admission_policies.success_only import (
+from gpu_forecasters.ttt_discover.v2.admission_policies.success_only import (
     SuccessOnlyAdmissionPolicy,
 )
-from arid_badger.ttt_discover.v2.archive.puct import PUCTCandidateArchive
-from arid_badger.ttt_discover.v2.domain.outcome import TriMulRLOutcome
-from arid_badger.ttt_discover.v2.domain.problem import TriMulProblem
-from arid_badger.ttt_discover.v2.env import TriMulRLEnvironment
-from arid_badger.ttt_discover.v2.extractors.python_block import (
+from gpu_forecasters.ttt_discover.v2.archive.puct import PUCTCandidateArchive
+from gpu_forecasters.ttt_discover.v2.domain.outcome import TriMulRLOutcome
+from gpu_forecasters.ttt_discover.v2.domain.problem import TriMulProblem
+from gpu_forecasters.ttt_discover.v2.env import TriMulRLEnvironment
+from gpu_forecasters.ttt_discover.v2.extractors.python_block import (
     LastPythonBlockExtractor,
 )
-from arid_badger.ttt_discover.v2.renderers.feedback_trimul import (
+from gpu_forecasters.ttt_discover.v2.renderers.feedback_trimul import (
     TriMulFeedbackPromptRenderer,
 )
-from arid_badger.ttt_discover.v2.renderers.task_static import (
+from gpu_forecasters.ttt_discover.v2.renderers.task_static import (
     StaticTaskPromptRenderer,
 )
-from arid_badger.ttt_discover.v2.scalarizers.by_target_us import ScaleByTargetUs
-from arid_badger.ttt_discover.v2.sinks.jsonl import ListRolloutSink
+from gpu_forecasters.ttt_discover.v2.scalarizers.by_target_us import ScaleByTargetUs
+from gpu_forecasters.ttt_discover.v2.sinks.jsonl import ListRolloutSink
 
 
 class FakeEvaluator:

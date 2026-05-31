@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from arid_badger.greedy_search.domain import MutationContext, MutatedKernel
-from arid_badger.greedy_search.mutation_provider import SerialMutationProvider
-from arid_badger.greedy_search.scoring_provider import SerialScoringProvider
-from arid_badger.greedy_search.search import GreedySearch, GreedySearchConfig
-from arid_badger.kernelbench.core import KernelScoringResult
+from gpu_forecasters.greedy_search.domain import MutationContext, MutatedKernel
+from gpu_forecasters.greedy_search.mutation_provider import SerialMutationProvider
+from gpu_forecasters.greedy_search.scoring_provider import SerialScoringProvider
+from gpu_forecasters.greedy_search.search import GreedySearch, GreedySearchConfig
+from gpu_forecasters.kernelbench.core import KernelScoringResult
 from kernelbench.eval import KernelExecResult
 
 

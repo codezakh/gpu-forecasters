@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from arid_badger.hill_climbing.domain import Evaluation, NoFeedback
-from arid_badger.hill_climbing.scoring_providers.trimul import TriMulObservation
-from arid_badger.theory_builder.v1.domain import (
+from gpu_forecasters.hill_climbing.domain import Evaluation, NoFeedback
+from gpu_forecasters.hill_climbing.scoring_providers.trimul import TriMulObservation
+from gpu_forecasters.theory_builder.v1.domain import (
     Explanation,
     ExperimentResult,
     ExperimentTrial,
@@ -19,8 +19,8 @@ from arid_badger.theory_builder.v1.domain import (
     WorldModel,
     WorldModelDiff,
 )
-from arid_badger.theory_builder.v1.event_log import FileTheoryEventLog
-from arid_badger.theory_builder.v1.events import (
+from gpu_forecasters.theory_builder.v1.event_log import FileTheoryEventLog
+from gpu_forecasters.theory_builder.v1.events import (
     ExperimentCompleted,
     ExperimentRequested,
     ExplanationCompleted,
@@ -31,7 +31,7 @@ from arid_badger.theory_builder.v1.events import (
     TheoryBuildingInitialized,
     theory_event_adapter,
 )
-from arid_badger.trimul.core import CaseSpeedup, SuccessFeedback
+from gpu_forecasters.trimul.core import CaseSpeedup, SuccessFeedback
 
 
 def _h() -> Hypothesis:

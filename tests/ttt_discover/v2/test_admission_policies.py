@@ -7,7 +7,7 @@ for every outcome variant.
 
 from __future__ import annotations
 
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CaseSpeedup,
     CompileFailedFeedback,
     IncorrectFeedback,
@@ -15,19 +15,19 @@ from arid_badger.trimul.core import (
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.ttt_discover.v2.admission_policies.insert_all import (
+from gpu_forecasters.ttt_discover.v2.admission_policies.insert_all import (
     InsertAllAdmissionPolicy,
 )
-from arid_badger.ttt_discover.v2.admission_policies.success_only import (
+from gpu_forecasters.ttt_discover.v2.admission_policies.success_only import (
     SuccessOnlyAdmissionPolicy,
 )
-from arid_badger.ttt_discover.v2.domain.admission_decision import (
+from gpu_forecasters.ttt_discover.v2.domain.admission_decision import (
     AdmissionDecision,
     AdmitChild,
     CreditOnly,
 )
-from arid_badger.ttt_discover.v2.domain.candidate import Candidate, CandidateId
-from arid_badger.ttt_discover.v2.domain.outcome import (
+from gpu_forecasters.ttt_discover.v2.domain.candidate import Candidate, CandidateId
+from gpu_forecasters.ttt_discover.v2.domain.outcome import (
     ParseFailureFeedback,
     TriMulRLOutcome,
 )

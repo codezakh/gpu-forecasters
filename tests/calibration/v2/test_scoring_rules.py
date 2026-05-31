@@ -13,13 +13,13 @@ import math
 
 import pytest
 
-from arid_badger.calibration.v2 import (
+from gpu_forecasters.calibration.v2 import (
     brier,
     crps,
     nll,
     uniform_distribution,
 )
-from arid_badger.landscape_map.v2 import SUCCESS_BINS, SpeedupBin
+from gpu_forecasters.landscape_map.v2 import SUCCESS_BINS, SpeedupBin
 
 
 def _one_hot(true_bin: SpeedupBin) -> dict[SpeedupBin, float]:

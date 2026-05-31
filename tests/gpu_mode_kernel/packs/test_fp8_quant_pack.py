@@ -7,8 +7,8 @@ the LLM-facing wire format silently.
 
 from __future__ import annotations
 
-from arid_badger.gpu_mode_kernel.core import KernelExecResult
-from arid_badger.gpu_mode_kernel.packs.fp8_quant import (
+from gpu_forecasters.gpu_mode_kernel.core import KernelExecResult
+from gpu_forecasters.gpu_mode_kernel.packs.fp8_quant import (
     BENCHMARK_CASES,
     CORRECTNESS_CASES,
     FP8_QUANT_PACK,

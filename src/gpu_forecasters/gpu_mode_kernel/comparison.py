@@ -1,7 +1,7 @@
 """Kernel-agnostic correctness oracle + numerical utilities.
 
-Lifted from ``arid_badger.trimul.comparison`` and
-``arid_badger.causal_conv1d.comparison`` — these helpers were byte-identical
+Lifted from ``gpu_forecasters.trimul.comparison`` and
+``gpu_forecasters.causal_conv1d.comparison`` — these helpers were byte-identical
 across both packages. Per-kernel determinism context managers
 (``DisableCuDNNTF32``, ``DeterministicContext``, …) live on the
 ``KernelPack`` rather than here, because their identity (the symbol name a

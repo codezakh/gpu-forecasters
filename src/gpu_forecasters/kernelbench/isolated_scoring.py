@@ -15,9 +15,9 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from arid_badger.typing_utils import Option, Ok, Err
+from gpu_forecasters.typing_utils import Option, Ok, Err
 
-from arid_badger.kernelbench.scoring import _score_kernel_impl
+from gpu_forecasters.kernelbench.scoring import _score_kernel_impl
 from kernelbench.eval import KernelExecResult
 
 # Default timeout for subprocess scoring (seconds).

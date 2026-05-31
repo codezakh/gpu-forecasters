@@ -15,30 +15,30 @@ the formatters disagree on a single character.
 
 from __future__ import annotations
 
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CompileFailedFeedback,
     IncorrectFeedback,
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.packs.trimul import TriMulCaseSpeedup
-from arid_badger.gpu_mode_kernel.prompts import format_feedback_prompt
-from arid_badger.hill_climbing.mutation_providers.trimul_feedback_mutation import (
+from gpu_forecasters.gpu_mode_kernel.packs.trimul import TriMulCaseSpeedup
+from gpu_forecasters.gpu_mode_kernel.prompts import format_feedback_prompt
+from gpu_forecasters.hill_climbing.mutation_providers.trimul_feedback_mutation import (
     format_trimul_feedback_mutation_prompt,
 )
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CaseSpeedup as LegacyCaseSpeedup,
 )
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CompileFailedFeedback as LegacyCompileFailedFeedback,
 )
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     IncorrectFeedback as LegacyIncorrectFeedback,
 )
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     RuntimeErrorFeedback as LegacyRuntimeErrorFeedback,
 )
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     SuccessFeedback as LegacySuccessFeedback,
 )
 

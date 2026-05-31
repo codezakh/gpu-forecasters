@@ -15,17 +15,17 @@ from __future__ import annotations
 
 import pytest
 
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.landscape_map.v2 import (
     HardwareContext,
     KernelImplementation,
     KernelRuntimeQuery,
     KernelTaskInfo,
 )
-from arid_badger.landscape_map.v2.litellm_estimator import LlmSpeedupEstimator
-from arid_badger.max_reward_puct.v3.scoring_providers import (
+from gpu_forecasters.landscape_map.v2.litellm_estimator import LlmSpeedupEstimator
+from gpu_forecasters.max_reward_puct.v3.scoring_providers import (
     CoroutineSpeedupEstimator,
 )
-from arid_badger.trimul.seed_kernel import SEED_KERNEL_CODE
+from gpu_forecasters.trimul.seed_kernel import SEED_KERNEL_CODE
 
 
 pytestmark = pytest.mark.integration

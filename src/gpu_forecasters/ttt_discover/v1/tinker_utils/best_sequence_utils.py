@@ -6,7 +6,7 @@ import time
 from contextlib import contextmanager
 from typing import Any, Dict, List, Optional, Tuple
 
-from arid_badger.ttt_discover.v1.tinker_utils.state import to_json_serializable
+from gpu_forecasters.ttt_discover.v1.tinker_utils.state import to_json_serializable
 
 
 # -----------------------------

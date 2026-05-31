@@ -16,7 +16,7 @@ from typing import Self
 
 from ulid import ULID
 
-from arid_badger.abstaining_evaluation.v1 import (
+from gpu_forecasters.abstaining_evaluation.v1 import (
     CheckedForecast,
     ForecastChecker,
     ForecastObservation,
@@ -25,23 +25,23 @@ from arid_badger.abstaining_evaluation.v1 import (
     forecasts_to_check,
     load_checked_forecasts,
 )
-from arid_badger.abstaining_evaluation.v1.forecast_reward import (
+from gpu_forecasters.abstaining_evaluation.v1.forecast_reward import (
     ExpectedSpeedupReward,
 )
-from arid_badger.abstaining_evaluation.v1.observation import CompoundObservation
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.abstaining_evaluation.v1.observation import CompoundObservation
+from gpu_forecasters.gpu_mode_kernel.core import (
     GpuModeKernelObservation,
     InfrastructureFailureFeedback,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.packs.trimul import TriMulCaseSpeedup
-from arid_badger.hill_climbing.domain import Evaluation, Node
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.gpu_mode_kernel.packs.trimul import TriMulCaseSpeedup
+from gpu_forecasters.hill_climbing.domain import Evaluation, Node
+from gpu_forecasters.landscape_map.v2 import (
     SUCCESS_BINS,
     KernelRuntimeEstimate,
     SpeedupBin,
 )
-from arid_badger.max_reward_puct.v2.events import (
+from gpu_forecasters.max_reward_puct.v2.events import (
     EvaluationCompleted,
     EvaluationFailed,
     EvaluationRequested,

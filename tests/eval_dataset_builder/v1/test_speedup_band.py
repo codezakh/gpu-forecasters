@@ -13,11 +13,11 @@ import math
 
 import pytest
 
-from arid_badger.eval_dataset_builder.v1.domain import (
+from gpu_forecasters.eval_dataset_builder.v1.domain import (
     SpeedupBand,
     speedup_band_for_bin,
 )
-from arid_badger.landscape_map.v1.domain import SpeedupBin
+from gpu_forecasters.landscape_map.v1.domain import SpeedupBin
 
 
 def test_failure_bin_raises() -> None:

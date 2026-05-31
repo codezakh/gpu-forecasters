@@ -18,26 +18,26 @@ from typing import Any
 import litellm
 from litellm import completion
 
-from arid_badger.landscape_map.v2.abstain_outcome import (
+from gpu_forecasters.landscape_map.v2.abstain_outcome import (
     Deferral,
     Forecast,
     PredictOrDefer,
 )
-from arid_badger.landscape_map.v2.abstain_prompt_rendering import (
+from gpu_forecasters.landscape_map.v2.abstain_prompt_rendering import (
     render_abstain_system_prompt,
     render_abstain_user_prompt,
 )
-from arid_badger.landscape_map.v2.abstain_tool_spec import (
+from gpu_forecasters.landscape_map.v2.abstain_tool_spec import (
     DEFER_TOOL_NAME,
     DeferArguments,
     PREDICT_TOOL_NAME,
     both_openai_tool_specs,
 )
-from arid_badger.landscape_map.v2.domain import (
+from gpu_forecasters.landscape_map.v2.domain import (
     KernelRuntimeQuery,
     LlmCallUsage,
 )
-from arid_badger.landscape_map.v2.parsing import (
+from gpu_forecasters.landscape_map.v2.parsing import (
     EstimatorParseError,
     parse_tool_call_args,
 )

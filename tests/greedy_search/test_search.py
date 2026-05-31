@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from arid_badger.greedy_search.domain import (
+from gpu_forecasters.greedy_search.domain import (
     MutationContext,
     MutationFunction,
     MutatedKernel,
@@ -10,13 +10,13 @@ from arid_badger.greedy_search.domain import (
     ScoringFailure,
     ValidEvaluation,
 )
-from arid_badger.greedy_search.mutation_provider import SerialMutationProvider
-from arid_badger.greedy_search.scoring_provider import SerialScoringProvider
-from arid_badger.greedy_search.search import (
+from gpu_forecasters.greedy_search.mutation_provider import SerialMutationProvider
+from gpu_forecasters.greedy_search.scoring_provider import SerialScoringProvider
+from gpu_forecasters.greedy_search.search import (
     GreedySearch,
     GreedySearchConfig,
 )
-from arid_badger.kernelbench.core import KernelScoringResult
+from gpu_forecasters.kernelbench.core import KernelScoringResult
 from kernelbench.eval import KernelExecResult
 
 

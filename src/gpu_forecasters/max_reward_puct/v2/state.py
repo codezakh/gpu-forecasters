@@ -17,13 +17,13 @@ from typing import Generic
 from pydantic import BaseModel, ConfigDict, Field
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import Evaluation, Node, ObservationT
-from arid_badger.max_reward_puct.search import (
+from gpu_forecasters.hill_climbing.domain import Evaluation, Node, ObservationT
+from gpu_forecasters.max_reward_puct.search import (
     backpropagate,
     record_failed_rollout,
     update_archive,
 )
-from arid_badger.max_reward_puct.v2.events import (
+from gpu_forecasters.max_reward_puct.v2.events import (
     EvaluationCompleted,
     EvaluationFailed,
     EvaluationRequested,

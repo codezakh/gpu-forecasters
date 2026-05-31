@@ -12,23 +12,23 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional
 
-from arid_badger.hill_climbing.domain import (
+from gpu_forecasters.hill_climbing.domain import (
     Evaluation,
     EvaluationProvider,
     Node,
     Checkpoint,
     MutationProvider,
 )
-from arid_badger.hill_climbing.checkpoint import (
+from gpu_forecasters.hill_climbing.checkpoint import (
     NoOpCheckpointProvider,
 )
-from arid_badger.hill_climbing.search import (
+from gpu_forecasters.hill_climbing.search import (
     search,
     set_parent_info,
     get_archive_statistics,
 )
-from arid_badger.typing_utils import implements
-from arid_badger.hill_climbing.domain import NoFeedback
+from gpu_forecasters.typing_utils import implements
+from gpu_forecasters.hill_climbing.domain import NoFeedback
 
 
 # Test Providers (reused from PUCT tests)

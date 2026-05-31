@@ -4,16 +4,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from arid_badger.agentic_variation.gemini_cli.v1.models import (
+from gpu_forecasters.agentic_variation.gemini_cli.v1.models import (
     TrajectoryRecord,
     TrimulRunResult,
 )
-from arid_badger.agentic_variation.gemini_cli.v1.results import (
+from gpu_forecasters.agentic_variation.gemini_cli.v1.results import (
     RESULT_FILENAME,
     best_record,
     compute_summary,
 )
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CaseSpeedup,
     CompileFailedFeedback,
     SuccessFeedback,

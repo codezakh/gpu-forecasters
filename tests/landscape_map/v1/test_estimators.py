@@ -7,21 +7,21 @@ import textwrap
 
 import pytest
 
-from arid_badger.landscape_map.v1.domain import (
+from gpu_forecasters.landscape_map.v1.domain import (
     KernelImplementation,
     KernelRuntimeQuery,
     KernelTaskInfo,
     LikertConfidence,
     SpeedupBin,
 )
-from arid_badger.landscape_map.v1.llm_estimator import (
+from gpu_forecasters.landscape_map.v1.llm_estimator import (
     EstimatorParseError,
     _extract_json_from_response,
     _parse_llm_response,
     _resolve_bin_key,
     _resolve_confidence,
 )
-from arid_badger.landscape_map.v1.stub_estimator import StubEstimator
+from gpu_forecasters.landscape_map.v1.stub_estimator import StubEstimator
 
 
 # ---------------------------------------------------------------------------

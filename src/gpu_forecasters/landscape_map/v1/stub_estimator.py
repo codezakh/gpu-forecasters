@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from arid_badger.typing_utils import implements
+from gpu_forecasters.typing_utils import implements
 
 from .domain import (
     KernelRuntimeEstimate,

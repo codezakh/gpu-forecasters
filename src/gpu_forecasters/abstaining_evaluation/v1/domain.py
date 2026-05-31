@@ -16,8 +16,8 @@ from typing import Annotated, Literal, Protocol, Sequence, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from arid_badger.eval_dataset_builder.v1 import KernelRuntimeComparison
-from arid_badger.landscape_map.v2 import KernelRuntimeEstimate
+from gpu_forecasters.eval_dataset_builder.v1 import KernelRuntimeComparison
+from gpu_forecasters.landscape_map.v2 import KernelRuntimeEstimate
 
 
 class Predict(BaseModel):

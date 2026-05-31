@@ -21,18 +21,18 @@ from loguru import logger
 
 from collections import defaultdict
 
-from arid_badger.hill_climbing.domain import (
+from gpu_forecasters.hill_climbing.domain import (
     Node,
     MutationProvider,
     EvaluationProvider,
     ObservationT,
 )
-from arid_badger.max_reward_puct.checkpoint import (
+from gpu_forecasters.max_reward_puct.checkpoint import (
     PuctCheckpoint,
     PuctCheckpointProvider,
     NoOpPuctCheckpointProvider,
 )
-from arid_badger.max_reward_puct.trajectory import (
+from gpu_forecasters.max_reward_puct.trajectory import (
     TrajectoryProvider,
     NoOpTrajectoryProvider,
 )

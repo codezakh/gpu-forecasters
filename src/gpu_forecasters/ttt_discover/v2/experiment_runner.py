@@ -25,8 +25,8 @@ from pathlib import Path
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.ttt_discover.v2.discovery import DiscoverConfig, discover
-from arid_badger.ttt_discover.v2.results import V2ExperimentResults
+from gpu_forecasters.ttt_discover.v2.discovery import DiscoverConfig, discover
+from gpu_forecasters.ttt_discover.v2.results import V2ExperimentResults
 
 
 class DiscoverConfigSnapshot(BaseModel, frozen=True):

@@ -5,15 +5,15 @@ rollout outcome on the candidate and returns a typed
 ``AdmissionDecision``. The env applies that decision to the archive via
 ``credit_rollout``.
 
-Concretes live in ``arid_badger.ttt_discover.v2.admission_policies``.
+Concretes live in ``gpu_forecasters.ttt_discover.v2.admission_policies``.
 """
 
 from __future__ import annotations
 
 from typing import Protocol
 
-from arid_badger.ttt_discover.v2.domain.admission_decision import AdmissionDecision
-from arid_badger.ttt_discover.v2.domain.candidate import Candidate
+from gpu_forecasters.ttt_discover.v2.domain.admission_decision import AdmissionDecision
+from gpu_forecasters.ttt_discover.v2.domain.candidate import Candidate
 
 
 class AdmissionPolicy(Protocol):

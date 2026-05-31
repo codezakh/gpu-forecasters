@@ -6,11 +6,11 @@ import math
 
 import pytest
 
-from arid_badger.calibration.v2 import (
+from gpu_forecasters.calibration.v2 import (
     CalibrationDatum,
     evaluate_calibration,
 )
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.landscape_map.v2 import (
     SUCCESS_BINS,
     KernelRuntimeEstimate,
     SpeedupBin,

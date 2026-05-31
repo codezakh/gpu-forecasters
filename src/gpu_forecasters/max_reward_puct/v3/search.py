@@ -28,27 +28,27 @@ from typing import Any, Generic
 
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import (
+from gpu_forecasters.hill_climbing.domain import (
     Evaluation,
     Node,
     ObservationT,
 )
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.landscape_map.v2 import (
     HardwareContext,
     KernelImplementation,
     KernelRuntimeQuery,
     KernelTaskInfo,
 )
-from arid_badger.max_reward_puct.v3.actions import (
+from gpu_forecasters.max_reward_puct.v3.actions import (
     Dispatch,
     EvaluationDispatch,
     ForecastDispatch,
     MutationDispatch,
     compute_pending_actions,
 )
-from arid_badger.max_reward_puct.v3.config import SearchConfig
-from arid_badger.max_reward_puct.v3.event_log import EventLog
-from arid_badger.max_reward_puct.v3.events import (
+from gpu_forecasters.max_reward_puct.v3.config import SearchConfig
+from gpu_forecasters.max_reward_puct.v3.event_log import EventLog
+from gpu_forecasters.max_reward_puct.v3.events import (
     EvaluationCompleted,
     EvaluationFailed,
     EvaluationRequested,
@@ -61,12 +61,12 @@ from arid_badger.max_reward_puct.v3.events import (
     SearchEvent,
     SearchInitialized,
 )
-from arid_badger.max_reward_puct.v3.providers import (
+from gpu_forecasters.max_reward_puct.v3.providers import (
     EvaluationProvider,
     MutationProvider,
     SpeedupEstimator,
 )
-from arid_badger.max_reward_puct.v3.state import (
+from gpu_forecasters.max_reward_puct.v3.state import (
     SearchState,
     apply_event,
 )

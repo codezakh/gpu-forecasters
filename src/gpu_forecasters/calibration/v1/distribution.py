@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import math
 
-from arid_badger.landscape_map.v1.domain import KernelRuntimeEstimate, SpeedupBin
+from gpu_forecasters.landscape_map.v1.domain import KernelRuntimeEstimate, SpeedupBin
 
 from .domain import PREDICTED_BINS, LikertNumericMapping
 

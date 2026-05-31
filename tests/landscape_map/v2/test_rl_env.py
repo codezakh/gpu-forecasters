@@ -15,7 +15,7 @@ import pytest
 from tinker_cookbook.renderers import Message, ToolCall, get_renderer
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.landscape_map.v2 import (
     HardwareContext,
     KernelBinPredictionEnv,
     KernelRuntimeEstimate,

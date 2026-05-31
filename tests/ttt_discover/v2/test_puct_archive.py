@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from arid_badger.trimul.core import CaseSpeedup, IncorrectFeedback, SuccessFeedback
-from arid_badger.ttt_discover.v2.archive.puct import (
+from gpu_forecasters.trimul.core import CaseSpeedup, IncorrectFeedback, SuccessFeedback
+from gpu_forecasters.ttt_discover.v2.archive.puct import (
     PUCTCandidateArchive,
     build_candidate,
 )

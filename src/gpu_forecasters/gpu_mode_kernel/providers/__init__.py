@@ -5,11 +5,11 @@ and ``AsyncMutationProvider[GpuModeKernelObservation[CaseSpeedupT]]`` via
 the ``KernelPack`` seam, without per-kernel duplication.
 """
 
-from arid_badger.gpu_mode_kernel.providers.v2_feedback_mutation import (
+from gpu_forecasters.gpu_mode_kernel.providers.v2_feedback_mutation import (
     GpuModeKernelFeedbackMutationProvider,
     MutationError,
 )
-from arid_badger.gpu_mode_kernel.providers.v2_modal_scoring import (
+from gpu_forecasters.gpu_mode_kernel.providers.v2_modal_scoring import (
     GpuModeKernelModalProvider,
 )
 

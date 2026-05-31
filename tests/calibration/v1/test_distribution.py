@@ -6,14 +6,14 @@ import math
 
 import pytest
 
-from arid_badger.calibration.v1 import (
+from gpu_forecasters.calibration.v1 import (
     LikertNumericMapping,
     PREDICTED_BINS,
     bin_distribution,
     entropy,
     uniform_distribution,
 )
-from arid_badger.landscape_map.v1.domain import (
+from gpu_forecasters.landscape_map.v1.domain import (
     KernelRuntimeEstimate,
     LikertConfidence,
     SpeedupBin,

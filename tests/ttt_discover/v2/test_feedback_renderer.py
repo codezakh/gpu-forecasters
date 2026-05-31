@@ -1,6 +1,6 @@
 import pytest
 
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CaseSpeedup,
     CompileFailedFeedback,
     IncorrectFeedback,
@@ -8,14 +8,14 @@ from arid_badger.trimul.core import (
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.ttt_discover.v2.domain.candidate import Candidate, CandidateId
-from arid_badger.ttt_discover.v2.domain.context import FeedbackPromptContext
-from arid_badger.ttt_discover.v2.domain.outcome import (
+from gpu_forecasters.ttt_discover.v2.domain.candidate import Candidate, CandidateId
+from gpu_forecasters.ttt_discover.v2.domain.context import FeedbackPromptContext
+from gpu_forecasters.ttt_discover.v2.domain.outcome import (
     ParseFailureFeedback,
     TriMulRLOutcome,
 )
-from arid_badger.ttt_discover.v2.domain.problem import TriMulProblem
-from arid_badger.ttt_discover.v2.renderers.feedback_trimul import (
+from gpu_forecasters.ttt_discover.v2.domain.problem import TriMulProblem
+from gpu_forecasters.ttt_discover.v2.renderers.feedback_trimul import (
     TriMulFeedbackPromptRenderer,
 )
 

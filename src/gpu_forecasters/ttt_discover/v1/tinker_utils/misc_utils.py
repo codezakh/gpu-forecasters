@@ -185,7 +185,7 @@ from typing import Any, Literal
 
 import tinker
 
-from arid_badger.ttt_discover.v1.tinker_utils.trace import scope, update_scope_context
+from gpu_forecasters.ttt_discover.v1.tinker_utils.trace import scope, update_scope_context
 
 CHECKPOINTS_BASE_NAME = "checkpoints.jsonl"
 

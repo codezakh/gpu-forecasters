@@ -2,8 +2,8 @@ from pathlib import Path
 from typing import Optional
 
 import torch
-from arid_badger.kernelbench.core import KernelScoringResult
-from arid_badger.kernelbench.eval_logged import eval_kernel_against_ref_logged
+from gpu_forecasters.kernelbench.core import KernelScoringResult
+from gpu_forecasters.kernelbench.eval_logged import eval_kernel_against_ref_logged
 from kernelbench.eval import get_torch_dtype_from_string, KernelExecResult
 
 DEFAULT_BUILD_DIR = Path("/tmp/arid_badger_torch_extensions")

@@ -6,7 +6,7 @@ this as the canonical type for any provider-config or constructor field
 that selects a Modal GPU; it gives type-checked typo detection at the
 call boundary while remaining string-compatible at lookup sites (e.g.
 the ``COMPUTE_CAPABILITY_BY_GPU`` and ``GPU_ARCH_MAPPING`` dicts in
-``arid_badger.kernelbench``).
+``gpu_forecasters.kernelbench``).
 
 Members enumerate the GPUs the kernelbench / gpu_mode_kernel infra has
 arch + compute-capability mappings for today. Add a new member here and

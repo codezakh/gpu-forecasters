@@ -5,7 +5,7 @@ The package wires up an outer loop on top of an inner search:
 * ``Hypothesis`` → ``ExperimentResult`` → ``Explanation`` → ``WorldModel``
   domain types live in ``domain.py``.
 * The loop is event-sourced (``events.py`` / ``state.py`` / ``event_log.py``)
-  in the same shape as ``arid_badger.max_reward_puct.v2``.
+  in the same shape as ``gpu_forecasters.max_reward_puct.v2``.
 * The builder (``builder.py``) is an LLM that proposes hypotheses and
   writes explanations + world-model diffs back. Diffs are ``SEARCH``/
   ``REPLACE`` blocks applied by ``diff.py``.

@@ -1,6 +1,6 @@
 """Durable, append-only log of ``TheoryEvent``s.
 
-Same shape as ``arid_badger.max_reward_puct.v2.event_log``: per-event
+Same shape as ``gpu_forecasters.max_reward_puct.v2.event_log``: per-event
 fsync, JSONL on disk, single-writer, in-process appends serialised by
 an internal lock. Truncated trailing line on read is tolerated;
 corrupt mid-file lines raise.
@@ -15,8 +15,8 @@ from typing import Generic, Protocol
 
 from loguru import logger
 
-from arid_badger.hill_climbing.domain import ObservationT
-from arid_badger.theory_builder.v1.events import (
+from gpu_forecasters.hill_climbing.domain import ObservationT
+from gpu_forecasters.theory_builder.v1.events import (
     TheoryEvent,
     theory_event_adapter,
 )

@@ -6,7 +6,7 @@ on Modal remote GPU containers rather than locally. Mirrors the signature of
 
 Usage (session — preferred for multiple evaluations):
 
-    from arid_badger.kernelbench.modal_scoring import modal_scoring_session
+    from gpu_forecasters.kernelbench.modal_scoring import modal_scoring_session
 
     with modal_scoring_session(gpu="T4") as score:
         result = score(mutated_kernel_code, reference_kernel_code)
@@ -15,7 +15,7 @@ Usage (session — preferred for multiple evaluations):
 
 Usage (one-shot convenience):
 
-    from arid_badger.kernelbench.modal_scoring import run_scoring_on_modal
+    from gpu_forecasters.kernelbench.modal_scoring import run_scoring_on_modal
 
     result = run_scoring_on_modal(mutated_kernel_code, reference_kernel_code, gpu="T4")
 
@@ -34,8 +34,8 @@ from typing import Generator, Callable, Optional
 
 import modal
 
-from arid_badger.kernelbench.isolated_scoring import ScoringError
-from arid_badger.typing_utils import Ok, Err, Option
+from gpu_forecasters.kernelbench.isolated_scoring import ScoringError
+from gpu_forecasters.typing_utils import Ok, Err, Option
 from kernelbench.eval import KernelExecResult
 
 from .modal_image import app, image, GPU_ARCH_MAPPING

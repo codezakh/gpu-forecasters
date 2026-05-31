@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 
-from arid_badger.hill_climbing.scoring_providers.trimul_modal import (
+from gpu_forecasters.hill_climbing.scoring_providers.trimul_modal import (
     _aggregate_speedups,
 )
 

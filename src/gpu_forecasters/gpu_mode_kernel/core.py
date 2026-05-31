@@ -1,8 +1,8 @@
 """Generic execution feedback types for gpu-mode-style scoring.
 
-This module is the kernel-agnostic core of ``arid_badger.gpu_mode_kernel``.
+This module is the kernel-agnostic core of ``gpu_forecasters.gpu_mode_kernel``.
 It generalizes the per-kernel ``core.py`` modules under
-``arid_badger.trimul`` and ``arid_badger.causal_conv1d``:
+``gpu_forecasters.trimul`` and ``gpu_forecasters.causal_conv1d``:
 
 - The four failure feedback arms (``CompileFailedFeedback``,
   ``RuntimeErrorFeedback``, ``IncorrectFeedback``,

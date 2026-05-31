@@ -23,7 +23,7 @@ from typing import Protocol, Self
 
 from concurrent.futures import Future
 
-from arid_badger.hill_climbing.domain import (
+from gpu_forecasters.hill_climbing.domain import (
     Evaluation,
     ObservationT,
 )

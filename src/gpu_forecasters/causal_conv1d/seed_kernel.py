@@ -30,9 +30,9 @@ phase the search loop is designed to handle.
 
 The ``from task import input_t, output_t`` import resolves at
 candidate-load time via the synthetic ``task.py`` shim installed by
-``arid_badger.causal_conv1d.scoring._loaded_candidate``.
+``gpu_forecasters.causal_conv1d.scoring._loaded_candidate``.
 
-Mirror of ``arid_badger.trimul.seed_kernel``.
+Mirror of ``gpu_forecasters.trimul.seed_kernel``.
 """
 
 from __future__ import annotations

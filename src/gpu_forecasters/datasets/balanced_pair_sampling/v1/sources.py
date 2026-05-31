@@ -16,7 +16,7 @@ from __future__ import annotations
 import hashlib
 from typing import Protocol, Sequence
 
-from arid_badger.datasets.sakana_archive import load_archive_rows
+from gpu_forecasters.datasets.sakana_archive import load_archive_rows
 
 from .domain import CandidateKernel, ProblemId
 

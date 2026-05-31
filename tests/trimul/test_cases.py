@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from arid_badger.trimul.cases import BENCHMARK_CASES, CORRECTNESS_CASES
+from gpu_forecasters.trimul.cases import BENCHMARK_CASES, CORRECTNESS_CASES
 
 
 _TTT_DISCOVER_TRIMUL = Path(

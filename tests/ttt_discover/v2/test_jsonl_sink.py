@@ -1,10 +1,10 @@
 import json
 from pathlib import Path
 
-from arid_badger.trimul.core import IncorrectFeedback
-from arid_badger.ttt_discover.v2.domain.candidate import CandidateId
-from arid_badger.ttt_discover.v2.domain.records import RolloutRecord
-from arid_badger.ttt_discover.v2.sinks.jsonl import (
+from gpu_forecasters.trimul.core import IncorrectFeedback
+from gpu_forecasters.ttt_discover.v2.domain.candidate import CandidateId
+from gpu_forecasters.ttt_discover.v2.domain.records import RolloutRecord
+from gpu_forecasters.ttt_discover.v2.sinks.jsonl import (
     JsonlRolloutSink,
     ListRolloutSink,
 )

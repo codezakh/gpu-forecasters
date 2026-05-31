@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from arid_badger.calibration.v1 import (
+from gpu_forecasters.calibration.v1 import (
     CalibrationDatum,
     LikertNumericMapping,
     PREDICTED_BINS,
     evaluate_calibration,
 )
-from arid_badger.landscape_map.v1.domain import (
+from gpu_forecasters.landscape_map.v1.domain import (
     KernelRuntimeEstimate,
     LikertConfidence,
     SpeedupBin,

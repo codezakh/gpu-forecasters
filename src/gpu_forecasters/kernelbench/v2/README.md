@@ -3,7 +3,7 @@
 Async-driver-shaped infrastructure for KernelBench search. Adapts the
 KernelBench scoring/feedback contract to the per-candidate
 `AsyncMutationProvider` / `AsyncEvaluationProvider` protocols consumed
-by `arid_badger.max_reward_puct.v2.search.SearchDriver`.
+by `gpu_forecasters.max_reward_puct.v2.search.SearchDriver`.
 
 What lives here:
 
@@ -25,7 +25,7 @@ What lives here:
   `kernelbench.dataset.construct_kernelbench_dataset`, plus the
   Tier-B problem registry pinned by the gh070 paper testbed spec.
 
-The v1 implementation under `arid_badger/kernelbench/{modal_scoring,
+The v1 implementation under `gpu_forecasters/kernelbench/{modal_scoring,
 modal_split_scoring, modal_image, scoring, core}.py` continues to back
 the older `ModalProvider` and is what experiments e0015–e0021 still
 import. Modules under `v2/` import from the v1 layer for unchanged

@@ -6,7 +6,7 @@ Requires a live LLM API key. Run with: pytest -m integration
 
 import pytest
 
-from arid_badger.landscape_map.v1.domain import (
+from gpu_forecasters.landscape_map.v1.domain import (
     KernelImplementation,
     KernelRuntimeEstimate,
     KernelRuntimeQuery,
@@ -15,7 +15,7 @@ from arid_badger.landscape_map.v1.domain import (
     LlmCallUsage,
     SpeedupBin,
 )
-from arid_badger.landscape_map.v1.llm_estimator import LlmSpeedupEstimator
+from gpu_forecasters.landscape_map.v1.llm_estimator import LlmSpeedupEstimator
 
 # Minimal kernels that the LLM can reason about without needing real GPU compilation.
 _PYTORCH_VECTOR_ADD = """\

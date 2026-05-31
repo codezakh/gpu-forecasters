@@ -4,7 +4,7 @@ The model is given exactly two tools and must call one (and only one):
 
 * :func:`predict_tool_spec` — the existing
   ``submit_kernel_runtime_estimate`` from
-  :mod:`arid_badger.landscape_map.v2.tool_spec`.
+  :mod:`gpu_forecasters.landscape_map.v2.tool_spec`.
 * :func:`defer_tool_spec` — a new ``defer_to_real_evaluator`` tool
   whose only argument is a one-to-two-sentence ``reason``.
 
@@ -19,7 +19,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from arid_badger.landscape_map.v2.tool_spec import (
+from gpu_forecasters.landscape_map.v2.tool_spec import (
     TOOL_DESCRIPTION as PREDICT_TOOL_DESCRIPTION,
     TOOL_NAME as PREDICT_TOOL_NAME,
     parameters_schema as predict_parameters_schema,

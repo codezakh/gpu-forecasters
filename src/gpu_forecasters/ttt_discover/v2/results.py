@@ -15,8 +15,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
 
-from arid_badger.trimul.core import SuccessFeedback
-from arid_badger.ttt_discover.v2.domain.records import RolloutRecord
+from gpu_forecasters.trimul.core import SuccessFeedback
+from gpu_forecasters.ttt_discover.v2.domain.records import RolloutRecord
 
 
 class BestByStep(BaseModel):

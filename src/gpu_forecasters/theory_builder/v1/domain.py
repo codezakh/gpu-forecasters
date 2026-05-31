@@ -33,7 +33,7 @@ from typing import Generic, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import Evaluation, ObservationT
+from gpu_forecasters.hill_climbing.domain import Evaluation, ObservationT
 
 
 HypothesisStatus = Literal[

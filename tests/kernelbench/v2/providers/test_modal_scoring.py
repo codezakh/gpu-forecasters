@@ -19,21 +19,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from kernelbench.eval import KernelExecResult
 
-from arid_badger.kernelbench.core import (
+from gpu_forecasters.kernelbench.core import (
     CompileFailedFeedback,
     IncorrectFeedback,
     InfrastructureFailureFeedback,
     SuccessFeedback,
 )
-from arid_badger.invocation_sink import code_sha256
-from arid_badger.kernelbench.v2.providers.modal_scoring import (
+from gpu_forecasters.invocation_sink import code_sha256
+from gpu_forecasters.kernelbench.v2.providers.modal_scoring import (
     KernelBenchModalEvaluationRecord,
     KernelBenchModalProvider,
 )
-from arid_badger.modal_gpu import GpuKind
+from gpu_forecasters.modal_gpu import GpuKind
 from pydantic import BaseModel
 
-PROVIDER_MODULE = "arid_badger.kernelbench.v2.providers.modal_scoring"
+PROVIDER_MODULE = "gpu_forecasters.kernelbench.v2.providers.modal_scoring"
 
 _REFERENCE_KERNEL = "reference-kernel-source"
 _CANDIDATE_KERNEL = "candidate-kernel-source"

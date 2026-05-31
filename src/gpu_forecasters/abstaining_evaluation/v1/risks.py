@@ -18,15 +18,15 @@ import statistics
 from dataclasses import dataclass
 from typing import Sequence
 
-from arid_badger.abstaining_evaluation.v1.domain import (
+from gpu_forecasters.abstaining_evaluation.v1.domain import (
     AbstainDecision,
     Predict,
     PredictOrAbstain,
     RiskFunction,
 )
-from arid_badger.eval_dataset_builder.v1 import KernelRuntimeComparison
-from arid_badger.landscape_map.v2 import SpeedupBin
-from arid_badger.typing_utils import implements
+from gpu_forecasters.eval_dataset_builder.v1 import KernelRuntimeComparison
+from gpu_forecasters.landscape_map.v2 import SpeedupBin
+from gpu_forecasters.typing_utils import implements
 
 
 _LOG2_BIN_CENTERS: dict[int, float] = {

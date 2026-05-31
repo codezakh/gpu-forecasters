@@ -19,32 +19,32 @@ from pathlib import Path
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupT,
     GpuModeKernelObservation,
 )
-from arid_badger.gpu_mode_kernel.kernel_pack import TestArgsT
-from arid_badger.gpu_mode_kernel.modal_scoring import PackedModalRuntime
-from arid_badger.gpu_mode_kernel.providers.v2_feedback_mutation import (
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import TestArgsT
+from gpu_forecasters.gpu_mode_kernel.modal_scoring import PackedModalRuntime
+from gpu_forecasters.gpu_mode_kernel.providers.v2_feedback_mutation import (
     GpuModeKernelFeedbackMutationProvider,
 )
-from arid_badger.gpu_mode_kernel.providers.v2_modal_scoring import (
+from gpu_forecasters.gpu_mode_kernel.providers.v2_modal_scoring import (
     GpuModeKernelModalProvider,
 )
-from arid_badger.gpu_mode_kernel.surrogate_search.v1.config import (
+from gpu_forecasters.gpu_mode_kernel.surrogate_search.v1.config import (
     LiteLlmSurrogateConfig,
     SurrogateConfig,
     SurrogateSearchExperimentConfig,
     TinkerSurrogateConfig,
 )
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.landscape_map.v2 import (
     KernelTaskInfo,
     RetryingSpeedupEstimator,
     TinkerSamplingClientEstimator,
 )
-from arid_badger.landscape_map.v2.litellm_estimator import LlmSpeedupEstimator
-from arid_badger.max_reward_puct.v3.event_log import FileEventLog
-from arid_badger.max_reward_puct.v3.events import (
+from gpu_forecasters.landscape_map.v2.litellm_estimator import LlmSpeedupEstimator
+from gpu_forecasters.max_reward_puct.v3.event_log import FileEventLog
+from gpu_forecasters.max_reward_puct.v3.events import (
     CandidateDeferred,
     CandidateSelected,
     EvaluationCompleted,
@@ -55,12 +55,12 @@ from arid_badger.max_reward_puct.v3.events import (
     SearchInitialized,
     StepCompleted,
 )
-from arid_badger.max_reward_puct.v3.providers import SpeedupEstimator
-from arid_badger.max_reward_puct.v3.scoring_providers import (
+from gpu_forecasters.max_reward_puct.v3.providers import SpeedupEstimator
+from gpu_forecasters.max_reward_puct.v3.scoring_providers import (
     CoroutineSpeedupEstimator,
 )
-from arid_badger.max_reward_puct.v3.search import SearchDriver
-from arid_badger.max_reward_puct.v3.state import replay
+from gpu_forecasters.max_reward_puct.v3.search import SearchDriver
+from gpu_forecasters.max_reward_puct.v3.state import replay
 
 
 class RunSummary(BaseModel, frozen=True):

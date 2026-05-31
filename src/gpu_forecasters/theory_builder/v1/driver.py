@@ -28,11 +28,11 @@ from typing import Generic
 from loguru import logger
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import ObservationT
-from arid_badger.theory_builder.v1.builder import BuilderError
-from arid_badger.theory_builder.v1.domain import WorldModel
-from arid_badger.theory_builder.v1.event_log import TheoryEventLog
-from arid_badger.theory_builder.v1.events import (
+from gpu_forecasters.hill_climbing.domain import ObservationT
+from gpu_forecasters.theory_builder.v1.builder import BuilderError
+from gpu_forecasters.theory_builder.v1.domain import WorldModel
+from gpu_forecasters.theory_builder.v1.event_log import TheoryEventLog
+from gpu_forecasters.theory_builder.v1.events import (
     ExperimentCompleted,
     ExperimentFailed,
     ExperimentRequested,
@@ -46,11 +46,11 @@ from arid_badger.theory_builder.v1.events import (
     TheoryBuildingInitialized,
     TheoryEvent,
 )
-from arid_badger.theory_builder.v1.interfaces import (
+from gpu_forecasters.theory_builder.v1.interfaces import (
     ExperimentWorker,
     WorldModelBuilder,
 )
-from arid_badger.theory_builder.v1.state import TheoryState, apply_event
+from gpu_forecasters.theory_builder.v1.state import TheoryState, apply_event
 
 
 class TheoryBuilderDriver(Generic[ObservationT]):

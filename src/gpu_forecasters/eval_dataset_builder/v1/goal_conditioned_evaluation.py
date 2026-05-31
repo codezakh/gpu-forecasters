@@ -20,14 +20,14 @@ import math
 from concurrent.futures import Future
 from typing import Generic, Self
 
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupT,
     GpuModeKernelObservation,
     SuccessFeedback,
 )
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.landscape_map.v1.domain import SpeedupBin
-from arid_badger.max_reward_puct.v2.providers import AsyncEvaluationProvider
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.landscape_map.v1.domain import SpeedupBin
+from gpu_forecasters.max_reward_puct.v2.providers import AsyncEvaluationProvider
 
 from .domain import speedup_band_for_bin
 

@@ -5,7 +5,7 @@ function via a synthetic-module shim, runs the correctness oracle, then
 times both candidate and reference in the adaptive cuda.Event loop.
 Returns raw nanoseconds — the provider layer computes speedup.
 
-Near-duplicate of ``arid_badger.trimul.scoring``. The candidate
+Near-duplicate of ``gpu_forecasters.trimul.scoring``. The candidate
 resolution shim and the adaptive timing loop are kernel-agnostic and
 will be lifted in the gh070-A task #3 extraction; the only kernel-
 specific bits are:
@@ -33,16 +33,16 @@ from typing import Any, Callable
 
 import torch
 
-from arid_badger.causal_conv1d.cases import CausalConv1dTestArgs
-from arid_badger.causal_conv1d.comparison import set_seed
-from arid_badger.causal_conv1d.core import CausalConv1dExecResult, Stats
-from arid_badger.causal_conv1d.reference import (
+from gpu_forecasters.causal_conv1d.cases import CausalConv1dTestArgs
+from gpu_forecasters.causal_conv1d.comparison import set_seed
+from gpu_forecasters.causal_conv1d.core import CausalConv1dExecResult, Stats
+from gpu_forecasters.causal_conv1d.reference import (
     check_implementation,
     generate_input,
     ref_kernel,
 )
-from arid_badger.kernelbench.isolated_scoring import ScoringError
-from arid_badger.typing_utils import Err, Ok, Option
+from gpu_forecasters.kernelbench.isolated_scoring import ScoringError
+from gpu_forecasters.typing_utils import Err, Ok, Option
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ _UTILS_SHIM = """\
 # Synthetic stand-in for upstream utils.py — re-exports just the helpers
 # that candidate sources written against the helion task layout reach for
 # (notably DeterministicContext, used by the upstream reference.py).
-from arid_badger.causal_conv1d.comparison import (
+from gpu_forecasters.causal_conv1d.comparison import (
     DeterministicContext,
     make_match_reference,
     match_reference,

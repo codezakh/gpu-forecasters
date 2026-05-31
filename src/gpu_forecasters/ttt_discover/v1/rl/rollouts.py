@@ -3,16 +3,16 @@ import time
 import json
 from typing import Sequence
 
-from arid_badger.ttt_discover.v1.tinker_utils.completers import TokenCompleter
-from arid_badger.ttt_discover.v1.tinker_utils.state import to_json_serializable
-from arid_badger.ttt_discover.v1.rl.types import (
+from gpu_forecasters.ttt_discover.v1.tinker_utils.completers import TokenCompleter
+from gpu_forecasters.ttt_discover.v1.tinker_utils.state import to_json_serializable
+from gpu_forecasters.ttt_discover.v1.rl.types import (
     Env,
     EnvGroupBuilder,
     Trajectory,
     TrajectoryGroup,
     Transition,
 )
-from arid_badger.ttt_discover.v1.tinker_utils import logtree
+from gpu_forecasters.ttt_discover.v1.tinker_utils import logtree
 
 
 @logtree.scope_header_decorator

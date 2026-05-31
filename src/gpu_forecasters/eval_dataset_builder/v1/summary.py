@@ -9,19 +9,19 @@ import hashlib
 from collections import Counter
 from collections.abc import Mapping
 
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupT,
     GpuModeKernelObservation,
     InfrastructureFailureFeedback,
     SuccessFeedback,
 )
-from arid_badger.landscape_map.v1.domain import HardwareContext, SpeedupBin
-from arid_badger.max_reward_puct.v2.events import (
+from gpu_forecasters.landscape_map.v1.domain import HardwareContext, SpeedupBin
+from gpu_forecasters.max_reward_puct.v2.events import (
     EvaluationCompleted,
     EvaluationRequested,
     SearchEvent,
 )
-from arid_badger.max_reward_puct.v2.state import replay
+from gpu_forecasters.max_reward_puct.v2.state import replay
 
 from .domain import KernelRuntimeComparison, RunSummary
 

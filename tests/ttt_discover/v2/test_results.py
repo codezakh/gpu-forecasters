@@ -1,19 +1,19 @@
 from pathlib import Path
 
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CaseSpeedup,
     IncorrectFeedback,
     InfrastructureFailureFeedback,
     SuccessFeedback,
 )
-from arid_badger.ttt_discover.v2.domain.candidate import CandidateId
-from arid_badger.ttt_discover.v2.domain.outcome import (
+from gpu_forecasters.ttt_discover.v2.domain.candidate import CandidateId
+from gpu_forecasters.ttt_discover.v2.domain.outcome import (
     ParseFailureFeedback,
     TriMulRLOutcome,
 )
-from arid_badger.ttt_discover.v2.domain.records import RolloutRecord
-from arid_badger.ttt_discover.v2.results import V2ExperimentResults
-from arid_badger.ttt_discover.v2.sinks.jsonl import JsonlRolloutSink
+from gpu_forecasters.ttt_discover.v2.domain.records import RolloutRecord
+from gpu_forecasters.ttt_discover.v2.results import V2ExperimentResults
+from gpu_forecasters.ttt_discover.v2.sinks.jsonl import JsonlRolloutSink
 
 
 def _make_record(

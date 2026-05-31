@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 
-from arid_badger.landscape_map.v2 import SUCCESS_BINS, SpeedupBin
+from gpu_forecasters.landscape_map.v2 import SUCCESS_BINS, SpeedupBin
 
 
 def uniform_distribution() -> dict[SpeedupBin, float]:

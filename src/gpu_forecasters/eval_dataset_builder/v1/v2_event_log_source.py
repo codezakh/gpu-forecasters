@@ -1,9 +1,9 @@
 """``HarvestedKernelSource`` for v2 max-reward-PUCT event logs.
 
 v2 PUCT's authoritative durable artifact is ``events.jsonl`` (see
-``arid_badger.max_reward_puct.v2.event_log.FileEventLog``). v2 does
+``gpu_forecasters.max_reward_puct.v2.event_log.FileEventLog``). v2 does
 not write a ``PuctCheckpoint`` JSON; the archive is reconstructed by
-folding events through ``arid_badger.max_reward_puct.v2.state.replay``.
+folding events through ``gpu_forecasters.max_reward_puct.v2.state.replay``.
 
 This adapter wraps that fold so every gpu-mode pack can hand the
 eval-set builder a v2 events log directly. It is the v2-native
@@ -17,10 +17,10 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Generic, final
 
-from arid_badger.gpu_mode_kernel.core import CaseSpeedupT, GpuModeKernelObservation
-from arid_badger.landscape_map.v1.domain import HardwareContext, SpeedupBin
-from arid_badger.max_reward_puct.v2.event_log import FileEventLog
-from arid_badger.max_reward_puct.v2.state import replay
+from gpu_forecasters.gpu_mode_kernel.core import CaseSpeedupT, GpuModeKernelObservation
+from gpu_forecasters.landscape_map.v1.domain import HardwareContext, SpeedupBin
+from gpu_forecasters.max_reward_puct.v2.event_log import FileEventLog
+from gpu_forecasters.max_reward_puct.v2.state import replay
 
 from .domain import KernelRuntimeComparison
 

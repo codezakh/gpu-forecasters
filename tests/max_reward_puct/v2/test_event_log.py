@@ -9,10 +9,10 @@ from pathlib import Path
 
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import Evaluation, NoFeedback, Node
-from arid_badger.hill_climbing.scoring_providers.trimul import TriMulObservation
-from arid_badger.max_reward_puct.v2.event_log import FileEventLog
-from arid_badger.max_reward_puct.v2.events import (
+from gpu_forecasters.hill_climbing.domain import Evaluation, NoFeedback, Node
+from gpu_forecasters.hill_climbing.scoring_providers.trimul import TriMulObservation
+from gpu_forecasters.max_reward_puct.v2.event_log import FileEventLog
+from gpu_forecasters.max_reward_puct.v2.events import (
     EvaluationCompleted,
     EvaluationRequested,
     MutationCompleted,
@@ -22,7 +22,7 @@ from arid_badger.max_reward_puct.v2.events import (
     StepStarted,
     search_event_adapter,
 )
-from arid_badger.trimul.core import SuccessFeedback, CaseSpeedup
+from gpu_forecasters.trimul.core import SuccessFeedback, CaseSpeedup
 
 
 def _eval(reward: float | None) -> Evaluation[NoFeedback]:
@@ -221,12 +221,12 @@ def test_log_written_by_driver_preserves_trimul_observation(tmp_path: Path):
     from concurrent.futures import Future, ThreadPoolExecutor
     from typing import Self
 
-    from arid_badger.max_reward_puct.v2.config import SearchConfig
-    from arid_badger.max_reward_puct.v2.providers import (
+    from gpu_forecasters.max_reward_puct.v2.config import SearchConfig
+    from gpu_forecasters.max_reward_puct.v2.providers import (
         AsyncEvaluationProvider,
         AsyncMutationProvider,
     )
-    from arid_badger.max_reward_puct.v2.search import SearchDriver
+    from gpu_forecasters.max_reward_puct.v2.search import SearchDriver
 
     class _MutationProvider:
         def __init__(self) -> None:

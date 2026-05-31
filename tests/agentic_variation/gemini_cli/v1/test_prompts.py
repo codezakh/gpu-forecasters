@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from arid_badger.agentic_variation.gemini_cli.v1 import (
+from gpu_forecasters.agentic_variation.gemini_cli.v1 import (
     ExperimentConfig,
     PromptContext,
     default_system_prompt_renderer,
     default_user_prompt_renderer,
 )
-from arid_badger.agentic_variation.gemini_cli.v1.prompts import (
+from gpu_forecasters.agentic_variation.gemini_cli.v1.prompts import (
     format_feedback_summary,
     render_system_prompt,
     render_user_prompt,
 )
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CaseSpeedup,
     CompileFailedFeedback,
     IncorrectFeedback,

@@ -21,9 +21,9 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from arid_badger.gpu_mode_kernel.aggregation import AggregationMethod
-from arid_badger.landscape_map.v2 import HardwareContext
-from arid_badger.max_reward_puct.v3.config import SearchConfig
+from gpu_forecasters.gpu_mode_kernel.aggregation import AggregationMethod
+from gpu_forecasters.landscape_map.v2 import HardwareContext
+from gpu_forecasters.max_reward_puct.v3.config import SearchConfig
 
 
 class MutatorConfig(BaseModel):

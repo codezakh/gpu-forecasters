@@ -36,18 +36,18 @@ from typing import (
 from pydantic import BaseModel, ConfigDict, Field
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import Evaluation, Node, ObservationT
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.hill_climbing.domain import Evaluation, Node, ObservationT
+from gpu_forecasters.landscape_map.v2 import (
     HardwareContext,
     KernelRuntimeEstimate,
     KernelTaskInfo,
 )
-from arid_badger.max_reward_puct.search import (
+from gpu_forecasters.max_reward_puct.search import (
     backpropagate,
     record_failed_rollout,
     update_archive,
 )
-from arid_badger.max_reward_puct.v3.events import (
+from gpu_forecasters.max_reward_puct.v3.events import (
     CandidateDeferred,
     CandidateSelected,
     EvaluationCompleted,

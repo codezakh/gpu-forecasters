@@ -13,16 +13,16 @@ from pathlib import Path
 from typing import List, Optional
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import Evaluation, NoFeedback, Node
-from arid_badger.hill_climbing.scoring_providers.kernelbench import KernelBenchObservation
-from arid_badger.kernelbench.core import (
+from gpu_forecasters.hill_climbing.domain import Evaluation, NoFeedback, Node
+from gpu_forecasters.hill_climbing.scoring_providers.kernelbench import KernelBenchObservation
+from gpu_forecasters.kernelbench.core import (
     CompileFailedFeedback,
     RuntimeErrorFeedback,
     IncorrectFeedback,
     SuccessFeedback,
     InfrastructureFailureFeedback,
 )
-from arid_badger.max_reward_puct.search import (
+from gpu_forecasters.max_reward_puct.search import (
     search,
     resume_search,
     run_or_resume,
@@ -34,8 +34,8 @@ from arid_badger.max_reward_puct.search import (
     calculate_puct_scores,
     set_parent_info,
 )
-from arid_badger.max_reward_puct.checkpoint import FilePuctCheckpointProvider, PuctCheckpoint
-from arid_badger.max_reward_puct.trajectory import (
+from gpu_forecasters.max_reward_puct.checkpoint import FilePuctCheckpointProvider, PuctCheckpoint
+from gpu_forecasters.max_reward_puct.trajectory import (
     FileTrajectoryProvider,
     TrajectoryRecord,
     load_trajectory,

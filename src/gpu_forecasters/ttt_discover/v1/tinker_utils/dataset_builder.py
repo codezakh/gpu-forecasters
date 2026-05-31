@@ -10,14 +10,14 @@ import re
 
 import chz
 import tinker
-from arid_badger.ttt_discover.v1.tinker_utils import renderers, logtree
-from arid_badger.ttt_discover.v1.rl.types import (
+from gpu_forecasters.ttt_discover.v1.tinker_utils import renderers, logtree
+from gpu_forecasters.ttt_discover.v1.rl.types import (
     ProblemEnv, ProblemGroupBuilder, EnvGroupBuilder, RLDataset, RLDatasetBuilder,
     Env, Action, StepResult
 )
-from arid_badger.ttt_discover.v1.tinker_utils.misc_utils import get_tokenizer
-from arid_badger.ttt_discover.v1.tinker_utils.state import State
-from arid_badger.ttt_discover.v1.tinker_utils.sampler import StateSampler, get_or_create_sampler_with_default
+from gpu_forecasters.ttt_discover.v1.tinker_utils.misc_utils import get_tokenizer
+from gpu_forecasters.ttt_discover.v1.tinker_utils.state import State
+from gpu_forecasters.ttt_discover.v1.tinker_utils.sampler import StateSampler, get_or_create_sampler_with_default
 
 logger = logging.getLogger(__name__)
 

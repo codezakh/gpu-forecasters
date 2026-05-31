@@ -34,7 +34,7 @@ import tinker
 from tinker_cookbook.renderers import Renderer, get_renderer
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 
-from arid_badger.typing_utils import implements
+from gpu_forecasters.typing_utils import implements
 
 from .domain import (
     AsyncSpeedupEstimator,

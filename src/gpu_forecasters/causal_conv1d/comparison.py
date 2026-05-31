@@ -5,7 +5,7 @@ Vendored from
 ``verbose_allclose``, ``match_reference``, ``make_match_reference``,
 ``DeterministicContext``).
 
-Near-duplicate of ``arid_badger.trimul.comparison``. The two differ in:
+Near-duplicate of ``gpu_forecasters.trimul.comparison``. The two differ in:
 - this module exposes ``DeterministicContext`` (helion's name + uses
   ``torch.use_deterministic_algorithms`` + ``CUBLAS_WORKSPACE_CONFIG``)
   vs. TriMul's ``DisableCuDNNTF32`` (cuDNN flags only). The candidate

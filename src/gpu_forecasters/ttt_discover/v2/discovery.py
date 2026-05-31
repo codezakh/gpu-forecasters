@@ -15,35 +15,35 @@ from pathlib import Path
 
 import chz
 
-from arid_badger.hill_climbing.mutation_providers.trimul_feedback_mutation import (
+from gpu_forecasters.hill_climbing.mutation_providers.trimul_feedback_mutation import (
     _TRIMUL_BASE_PROMPT,
 )
-from arid_badger.trimul.cases import BENCHMARK_CASES
-from arid_badger.ttt_discover.v1.rl.train import Config as V1TrainConfig
-from arid_badger.ttt_discover.v1.rl.train import main as v1_train_main
-from arid_badger.ttt_discover.v1.tinker_utils import misc_utils as v1_misc_utils
-from arid_badger.ttt_discover.v2.admission_policies.success_only import (
+from gpu_forecasters.trimul.cases import BENCHMARK_CASES
+from gpu_forecasters.ttt_discover.v1.rl.train import Config as V1TrainConfig
+from gpu_forecasters.ttt_discover.v1.rl.train import main as v1_train_main
+from gpu_forecasters.ttt_discover.v1.tinker_utils import misc_utils as v1_misc_utils
+from gpu_forecasters.ttt_discover.v2.admission_policies.success_only import (
     SuccessOnlyAdmissionPolicy,
 )
-from arid_badger.ttt_discover.v2.archive.puct import PUCTCandidateArchive
-from arid_badger.ttt_discover.v2.domain.problem import TriMulProblem
-from arid_badger.ttt_discover.v2.evaluator.modal_trimul import ModalTriMulEvaluator
-from arid_badger.ttt_discover.v2.extractors.python_block import (
+from gpu_forecasters.ttt_discover.v2.archive.puct import PUCTCandidateArchive
+from gpu_forecasters.ttt_discover.v2.domain.problem import TriMulProblem
+from gpu_forecasters.ttt_discover.v2.evaluator.modal_trimul import ModalTriMulEvaluator
+from gpu_forecasters.ttt_discover.v2.extractors.python_block import (
     LastPythonBlockExtractor,
 )
-from arid_badger.ttt_discover.v2.interfaces.admission_policy import AdmissionPolicy
-from arid_badger.ttt_discover.v2.renderers.feedback_trimul import (
+from gpu_forecasters.ttt_discover.v2.interfaces.admission_policy import AdmissionPolicy
+from gpu_forecasters.ttt_discover.v2.renderers.feedback_trimul import (
     TriMulFeedbackPromptRenderer,
 )
-from arid_badger.ttt_discover.v2.renderers.task_static import (
+from gpu_forecasters.ttt_discover.v2.renderers.task_static import (
     StaticTaskPromptRenderer,
 )
-from arid_badger.ttt_discover.v2.rl_integration import (
+from gpu_forecasters.ttt_discover.v2.rl_integration import (
     V2Components,
     V2RLDatasetBuilder,
 )
-from arid_badger.ttt_discover.v2.scalarizers.by_target_us import ScaleByTargetUs
-from arid_badger.ttt_discover.v2.sinks.jsonl import JsonlRolloutSink
+from gpu_forecasters.ttt_discover.v2.scalarizers.by_target_us import ScaleByTargetUs
+from gpu_forecasters.ttt_discover.v2.sinks.jsonl import JsonlRolloutSink
 
 logger = logging.getLogger(__name__)
 

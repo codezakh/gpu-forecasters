@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 from pydantic import TypeAdapter
 
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CaseSpeedup,
     CompileFailedFeedback,
     IncorrectFeedback,

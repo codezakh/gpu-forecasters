@@ -1,6 +1,6 @@
 import pytest
 
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CaseSpeedup,
     CompileFailedFeedback,
     IncorrectFeedback,
@@ -8,8 +8,8 @@ from arid_badger.trimul.core import (
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.ttt_discover.v2.domain.outcome import ParseFailureFeedback
-from arid_badger.ttt_discover.v2.scalarizers.by_target_us import ScaleByTargetUs
+from gpu_forecasters.ttt_discover.v2.domain.outcome import ParseFailureFeedback
+from gpu_forecasters.ttt_discover.v2.scalarizers.by_target_us import ScaleByTargetUs
 
 
 def _success_with_constant_runtime(runtime_ns: float) -> SuccessFeedback:

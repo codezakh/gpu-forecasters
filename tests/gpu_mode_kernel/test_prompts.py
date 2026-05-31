@@ -16,15 +16,15 @@ import pytest
 from pydantic import ConfigDict
 from typing_extensions import TypedDict
 
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupBase,
     CompileFailedFeedback,
     IncorrectFeedback,
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.kernel_pack import KernelPack
-from arid_badger.gpu_mode_kernel.prompts import (
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import KernelPack
+from gpu_forecasters.gpu_mode_kernel.prompts import (
     build_base_prompt,
     extract_last_python_codeblock,
     format_feedback_prompt,

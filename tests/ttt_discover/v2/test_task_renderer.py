@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock
 
-from arid_badger.ttt_discover.v2.domain.context import TaskPromptContext
-from arid_badger.ttt_discover.v2.domain.problem import TriMulProblem
-from arid_badger.ttt_discover.v2.renderers.task_static import (
+from gpu_forecasters.ttt_discover.v2.domain.context import TaskPromptContext
+from gpu_forecasters.ttt_discover.v2.domain.problem import TriMulProblem
+from gpu_forecasters.ttt_discover.v2.renderers.task_static import (
     StaticTaskPromptRenderer,
 )
 

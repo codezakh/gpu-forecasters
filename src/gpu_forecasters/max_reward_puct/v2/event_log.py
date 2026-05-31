@@ -21,8 +21,8 @@ from typing import Generic, Protocol
 
 from loguru import logger
 
-from arid_badger.hill_climbing.domain import ObservationT
-from arid_badger.max_reward_puct.v2.events import (
+from gpu_forecasters.hill_climbing.domain import ObservationT
+from gpu_forecasters.max_reward_puct.v2.events import (
     SearchEvent,
     search_event_adapter,
 )

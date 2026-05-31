@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from arid_badger.trimul.cases import TriMulTestArgs
+from gpu_forecasters.trimul.cases import TriMulTestArgs
 
 
 @dataclass(frozen=True)

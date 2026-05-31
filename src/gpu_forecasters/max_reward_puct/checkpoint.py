@@ -11,8 +11,8 @@ from typing import Dict, List, Set, Optional, Protocol, Generic
 from pydantic import BaseModel, TypeAdapter
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import Node, ObservationT
-from arid_badger.typing_utils import implements
+from gpu_forecasters.hill_climbing.domain import Node, ObservationT
+from gpu_forecasters.typing_utils import implements
 
 
 class PuctCheckpoint(BaseModel, Generic[ObservationT]):

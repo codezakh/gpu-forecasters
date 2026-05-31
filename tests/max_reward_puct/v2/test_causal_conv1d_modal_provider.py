@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from arid_badger.causal_conv1d.cases import CORRECTNESS_CASES
-from arid_badger.max_reward_puct.v2.scoring_providers.causal_conv1d_modal import (
+from gpu_forecasters.causal_conv1d.cases import CORRECTNESS_CASES
+from gpu_forecasters.max_reward_puct.v2.scoring_providers.causal_conv1d_modal import (
     CausalConv1dModalProvider,
 )
 

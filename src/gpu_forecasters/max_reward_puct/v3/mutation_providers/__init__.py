@@ -3,7 +3,7 @@
 The v3 ``MutationProvider`` protocol (see ``v3/providers.py``) is
 intentionally identical to v2's: ``submit(parent_code, evaluation) ->
 Future[str]`` plus ``__enter__`` / ``__exit__``. This means existing v2
-concretes (e.g. ``arid_badger.max_reward_puct.v2.mutation_providers.
+concretes (e.g. ``gpu_forecasters.max_reward_puct.v2.mutation_providers.
 trimul_feedback_mutation``) satisfy the v3 protocol unchanged and can
 be passed directly to ``v3.SearchDriver``. No adapter layer is
 required — wrapping v2 concretes in shim classes would just duplicate

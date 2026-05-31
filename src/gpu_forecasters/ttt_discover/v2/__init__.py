@@ -15,6 +15,6 @@ diagnosis, and the package subdirectories for the implementation:
 Tinker training loop.
 """
 
-from arid_badger.ttt_discover.v2.discovery import DiscoverConfig, discover
+from gpu_forecasters.ttt_discover.v2.discovery import DiscoverConfig, discover
 
 __all__ = ["DiscoverConfig", "discover"]

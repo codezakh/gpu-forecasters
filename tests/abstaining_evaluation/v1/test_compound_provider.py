@@ -12,24 +12,24 @@ import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Self
 
-from arid_badger.abstaining_evaluation.v1.forecast_reward import (
+from gpu_forecasters.abstaining_evaluation.v1.forecast_reward import (
     ExpectedSpeedupReward,
 )
-from arid_badger.abstaining_evaluation.v1.observation import (
+from gpu_forecasters.abstaining_evaluation.v1.observation import (
     CompoundObservation,
     ForecastObservation,
     RealObservation,
 )
-from arid_badger.abstaining_evaluation.v1.provider import (
+from gpu_forecasters.abstaining_evaluation.v1.provider import (
     CompoundEvaluationProvider,
 )
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     GpuModeKernelObservation,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.packs.trimul import TriMulCaseSpeedup
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.gpu_mode_kernel.packs.trimul import TriMulCaseSpeedup
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.landscape_map.v2 import (
     SUCCESS_BINS,
     HardwareContext,
     KernelImplementation,
@@ -39,7 +39,7 @@ from arid_badger.landscape_map.v2 import (
     LlmCallUsage,
     SpeedupBin,
 )
-from arid_badger.landscape_map.v2.abstain_estimator import (
+from gpu_forecasters.landscape_map.v2.abstain_estimator import (
     AbstainingLlmSpeedupEstimator,
     Deferral,
     Forecast,

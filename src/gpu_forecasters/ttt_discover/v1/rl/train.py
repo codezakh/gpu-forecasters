@@ -15,25 +15,25 @@ import math
 import tinker
 import torch
 from tinker.types import LossFnType
-from arid_badger.ttt_discover.v1.tinker_utils.misc_utils import get_last_checkpoint, save_checkpoint_async
-from arid_badger.ttt_discover.v1.tinker_utils.completers import TwoPhaseTokenCompleter
-from arid_badger.ttt_discover.v1.rl.data_processing import (
+from gpu_forecasters.ttt_discover.v1.tinker_utils.misc_utils import get_last_checkpoint, save_checkpoint_async
+from gpu_forecasters.ttt_discover.v1.tinker_utils.completers import TwoPhaseTokenCompleter
+from gpu_forecasters.ttt_discover.v1.rl.data_processing import (
     assemble_training_data,
     remove_constant_reward_groups,
 )
-from arid_badger.ttt_discover.v1.rl.metric_util import compute_trajectory_metrics
-from arid_badger.ttt_discover.v1.rl.rollouts import do_group_rollout
-from arid_badger.ttt_discover.v1.rl.types import (
+from gpu_forecasters.ttt_discover.v1.rl.metric_util import compute_trajectory_metrics
+from gpu_forecasters.ttt_discover.v1.rl.rollouts import do_group_rollout
+from gpu_forecasters.ttt_discover.v1.rl.types import (
     EnvGroupBuilder,
     RLDataset,
     RLDatasetBuilder,
     TrajectoryGroup,
 )
-from arid_badger.ttt_discover.v1.tinker_utils.misc_utils import Tokenizer
-from arid_badger.ttt_discover.v1.tinker_utils import ml_log
-from arid_badger.ttt_discover.v1.tinker_utils.misc_utils import safezip, split_list, timed, all_same
-from arid_badger.ttt_discover.v1.tinker_utils.trace import scope, get_scope_context
-from arid_badger.ttt_discover.v1.tinker_utils.ml_log import WandbLogger
+from gpu_forecasters.ttt_discover.v1.tinker_utils.misc_utils import Tokenizer
+from gpu_forecasters.ttt_discover.v1.tinker_utils import ml_log
+from gpu_forecasters.ttt_discover.v1.tinker_utils.misc_utils import safezip, split_list, timed, all_same
+from gpu_forecasters.ttt_discover.v1.tinker_utils.trace import scope, get_scope_context
+from gpu_forecasters.ttt_discover.v1.tinker_utils.ml_log import WandbLogger
 
 
 logger = logging.getLogger(__name__)
@@ -333,7 +333,7 @@ async def do_group_rollout_and_filter_constant_reward(
     model_name: str = "",
     phase1_max_tokens: int = 27000,
 ) -> TrajectoryGroup | None:
-    from arid_badger.ttt_discover.v1.tinker_utils.misc_utils import get_tokenizer
+    from gpu_forecasters.ttt_discover.v1.tinker_utils.misc_utils import get_tokenizer
 
     tokenizer = get_tokenizer(model_name)
     
@@ -508,7 +508,7 @@ async def do_sync_training(
 
         # Make sure we are clearing out existing entrees
         # in case of resuming from previous checkpoints
-        from arid_badger.ttt_discover.v1.tinker_utils.best_sequence_utils import get_best_bound_path, clear_step_entry
+        from gpu_forecasters.ttt_discover.v1.tinker_utils.best_sequence_utils import get_best_bound_path, clear_step_entry
         best_seq_path = get_best_bound_path(cfg.log_path)
         clear_step_entry(best_seq_path, i_batch)
 

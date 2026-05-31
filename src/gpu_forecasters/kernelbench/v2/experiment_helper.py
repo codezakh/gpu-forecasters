@@ -7,7 +7,7 @@ build event log, build mutation + eval providers, open both as context
 managers, drive ``SearchDriver[KernelBenchObservation]``, replay log,
 write ``summary.json``), so the pattern lifts here.
 
-Mirrors ``arid_badger.gpu_mode_kernel.experiment_helper.run_pack_experiment``
+Mirrors ``gpu_forecasters.gpu_mode_kernel.experiment_helper.run_pack_experiment``
 in shape (``ExperimentConfig`` / ``RunConfig`` / ``ProviderConfig`` /
 ``RunSummary`` / skip-if-summary-present). Differs on three points:
 
@@ -35,28 +35,28 @@ from pathlib import Path
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.hill_climbing.scoring_providers.kernelbench import (
+from gpu_forecasters.hill_climbing.scoring_providers.kernelbench import (
     KernelBenchObservation,
 )
-from arid_badger.invocation_sink import FilesystemInvocationSink
-from arid_badger.kernelbench.v2.l3_problems import L3ProblemReference
-from arid_badger.kernelbench.v2.providers.kernel_execution_feedback import (
+from gpu_forecasters.invocation_sink import FilesystemInvocationSink
+from gpu_forecasters.kernelbench.v2.l3_problems import L3ProblemReference
+from gpu_forecasters.kernelbench.v2.providers.kernel_execution_feedback import (
     KernelBenchFeedbackMutationProvider,
 )
-from arid_badger.kernelbench.v2.providers.modal_scoring import (
+from gpu_forecasters.kernelbench.v2.providers.modal_scoring import (
     KernelBenchModalProvider,
 )
-from arid_badger.max_reward_puct.v2.config import SearchConfig as V2SearchConfig
-from arid_badger.max_reward_puct.v2.event_log import FileEventLog
-from arid_badger.max_reward_puct.v2.events import (
+from gpu_forecasters.max_reward_puct.v2.config import SearchConfig as V2SearchConfig
+from gpu_forecasters.max_reward_puct.v2.event_log import FileEventLog
+from gpu_forecasters.max_reward_puct.v2.events import (
     EvaluationCompleted,
     EvaluationFailed,
     MutationFailed,
     SearchInitialized,
 )
-from arid_badger.max_reward_puct.v2.search import SearchDriver
-from arid_badger.max_reward_puct.v2.state import replay
-from arid_badger.modal_gpu import GpuKind
+from gpu_forecasters.max_reward_puct.v2.search import SearchDriver
+from gpu_forecasters.max_reward_puct.v2.state import replay
+from gpu_forecasters.modal_gpu import GpuKind
 
 
 # ---------------------------------------------------------------------------

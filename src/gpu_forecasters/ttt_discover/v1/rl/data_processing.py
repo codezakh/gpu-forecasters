@@ -11,8 +11,8 @@ from typing import List
 import tinker
 import torch
 from tinker import TensorData
-from arid_badger.ttt_discover.v1.rl.types import Trajectory, TrajectoryGroup
-from arid_badger.ttt_discover.v1.tinker_utils.misc_utils import all_same, safezip
+from gpu_forecasters.ttt_discover.v1.rl.types import Trajectory, TrajectoryGroup
+from gpu_forecasters.ttt_discover.v1.tinker_utils.misc_utils import all_same, safezip
 
 logger = logging.getLogger(__name__)
 

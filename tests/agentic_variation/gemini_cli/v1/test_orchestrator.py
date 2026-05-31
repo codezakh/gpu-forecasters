@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from arid_badger.agentic_variation.gemini_cli.v1.models import (
+from gpu_forecasters.agentic_variation.gemini_cli.v1.models import (
     ExperimentConfig,
     ThinkingLevel,
 )
-from arid_badger.agentic_variation.gemini_cli.v1.orchestrator import (
+from gpu_forecasters.agentic_variation.gemini_cli.v1.orchestrator import (
     _baseline_cache_key,
     _build_gemini_settings,
 )

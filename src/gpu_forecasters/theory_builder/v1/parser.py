@@ -14,8 +14,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from arid_badger.theory_builder.v1.diff import parse_diff_blocks
-from arid_badger.theory_builder.v1.domain import (
+from gpu_forecasters.theory_builder.v1.diff import parse_diff_blocks
+from gpu_forecasters.theory_builder.v1.domain import (
     Explanation,
     Hypothesis,
     HypothesisStatus,

@@ -4,10 +4,10 @@ import os
 from typing import Literal
 
 import chz
-from arid_badger.ttt_discover.v1.tinker_utils.dataset_builder import Environment
-import arid_badger.ttt_discover.v1.tinker_utils.misc_utils as misc_utils
-from arid_badger.ttt_discover.v1.rl.train import Config, main
-from arid_badger.ttt_discover.v1.tinker_utils.dataset_builder import DatasetConfig, get_single_problem_dataset_builder
+from gpu_forecasters.ttt_discover.v1.tinker_utils.dataset_builder import Environment
+import gpu_forecasters.ttt_discover.v1.tinker_utils.misc_utils as misc_utils
+from gpu_forecasters.ttt_discover.v1.rl.train import Config, main
+from gpu_forecasters.ttt_discover.v1.tinker_utils.dataset_builder import DatasetConfig, get_single_problem_dataset_builder
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ def init_ray(num_cpus_per_task: int, env_type: str):
     # uses Modal for reward so this path is not exercised; lazy-import to avoid
     # pulling ray at module import time.
     import ray
-    from arid_badger.ttt_discover.v1.environments.utils.cpu_scheduler import CpuScheduler
+    from gpu_forecasters.ttt_discover.v1.environments.utils.cpu_scheduler import CpuScheduler
 
     if not ray.is_initialized():
         ray.init()

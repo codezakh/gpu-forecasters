@@ -5,7 +5,7 @@ container call scores one candidate against *all* test cases — fan-out
 over cases happens sequentially inside the container, fan-out over
 candidates is handled by the provider's thread pool.
 
-Near-duplicate of ``arid_badger.trimul.modal_scoring``; the only
+Near-duplicate of ``gpu_forecasters.trimul.modal_scoring``; the only
 kernel-specific bits are the Modal app name (so this kernel's container
 namespace doesn't collide with TriMul's) and the inner ``score``
 import. The rest will be lifted in the gh070-A task #3 extraction.
@@ -19,11 +19,11 @@ from typing import Callable, Generator, cast
 
 import modal
 
-from arid_badger.causal_conv1d.cases import CausalConv1dTestArgs
-from arid_badger.causal_conv1d.core import CausalConv1dExecResult
-from arid_badger.kernelbench.isolated_scoring import ScoringError
-from arid_badger.kernelbench.modal_image import image
-from arid_badger.typing_utils import Err, Option
+from gpu_forecasters.causal_conv1d.cases import CausalConv1dTestArgs
+from gpu_forecasters.causal_conv1d.core import CausalConv1dExecResult
+from gpu_forecasters.kernelbench.isolated_scoring import ScoringError
+from gpu_forecasters.kernelbench.modal_image import image
+from gpu_forecasters.typing_utils import Err, Option
 
 
 app = modal.App("arid-badger-causal-conv1d")
@@ -65,7 +65,7 @@ class ModalCausalConv1dBenchmarker:
     ) -> list[Option[CausalConv1dExecResult, ScoringError]]:
         import torch
 
-        from arid_badger.causal_conv1d.scoring import score
+        from gpu_forecasters.causal_conv1d.scoring import score
 
         start = time.time()
         while not torch.cuda.is_available():

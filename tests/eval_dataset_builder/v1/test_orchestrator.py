@@ -15,27 +15,27 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Self, final
 
-from arid_badger.eval_dataset_builder.v1.domain import (
+from gpu_forecasters.eval_dataset_builder.v1.domain import (
     EvalDataset,
     EvalSet,
     EvalSetManifest,
     KernelRuntimeComparison,
     RequestForKernelInGoalSpeedupBin,
 )
-from arid_badger.eval_dataset_builder.v1.orchestrator import (
+from gpu_forecasters.eval_dataset_builder.v1.orchestrator import (
     fill_via_generation,
     harvest_into_eval_set,
     read_eval_dataset,
     write_eval_set,
 )
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CompileFailedFeedback,
     GpuModeKernelObservation,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.packs.trimul import TriMulCaseSpeedup
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.landscape_map.v1.domain import HardwareContext, SpeedupBin
+from gpu_forecasters.gpu_mode_kernel.packs.trimul import TriMulCaseSpeedup
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.landscape_map.v1.domain import HardwareContext, SpeedupBin
 
 
 _HARDWARE = HardwareContext(

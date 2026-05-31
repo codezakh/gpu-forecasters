@@ -3,9 +3,9 @@ import math
 import pytest
 import torch
 
-from arid_badger.kernelbench.isolated_scoring import run_scoring_in_subprocess
-from arid_badger.kernelbench.scoring import check_kernel_exec_result_valid
-from arid_badger.typing_utils import is_ok
+from gpu_forecasters.kernelbench.isolated_scoring import run_scoring_in_subprocess
+from gpu_forecasters.kernelbench.scoring import check_kernel_exec_result_valid
+from gpu_forecasters.typing_utils import is_ok
 
 
 REFERENCE_KERNEL_CODE = """

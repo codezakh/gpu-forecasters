@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from arid_badger.ttt_discover.v2.domain.records import RolloutRecord
+from gpu_forecasters.ttt_discover.v2.domain.records import RolloutRecord
 
 
 class RolloutSink(Protocol):

@@ -29,19 +29,19 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import BaseModel
 
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.hill_climbing.scoring_providers.kernelbench import (
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.hill_climbing.scoring_providers.kernelbench import (
     KernelBenchObservation,
 )
-from arid_badger.invocation_sink import code_sha256
-from arid_badger.kernelbench.core import (
+from gpu_forecasters.invocation_sink import code_sha256
+from gpu_forecasters.kernelbench.core import (
     CompileFailedFeedback,
     IncorrectFeedback,
     InfrastructureFailureFeedback,
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.kernelbench.v2.providers.kernel_execution_feedback import (
+from gpu_forecasters.kernelbench.v2.providers.kernel_execution_feedback import (
     KernelBenchFeedbackMutationProvider,
     KernelBenchMutationRecord,
     MutationError,
@@ -50,7 +50,7 @@ from arid_badger.kernelbench.v2.providers.kernel_execution_feedback import (
 )
 
 PROVIDER_MODULE = (
-    "arid_badger.kernelbench.v2.providers.kernel_execution_feedback"
+    "gpu_forecasters.kernelbench.v2.providers.kernel_execution_feedback"
 )
 
 

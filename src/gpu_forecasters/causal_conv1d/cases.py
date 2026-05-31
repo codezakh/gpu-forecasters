@@ -6,7 +6,7 @@ Vendored from
 ``tests/causal_conv1d/test_cases.py`` loads the yml at test time and
 asserts these literals match the source.
 
-Mirrors ``arid_badger.trimul.cases`` — same shape, different fields.
+Mirrors ``gpu_forecasters.trimul.cases`` — same shape, different fields.
 """
 
 from __future__ import annotations

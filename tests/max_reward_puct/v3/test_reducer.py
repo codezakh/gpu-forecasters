@@ -10,15 +10,15 @@ from __future__ import annotations
 import pytest
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import Evaluation, NoFeedback, Node
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.hill_climbing.domain import Evaluation, NoFeedback, Node
+from gpu_forecasters.landscape_map.v2 import (
     SUCCESS_BINS,
     HardwareContext,
     KernelRuntimeEstimate,
     KernelTaskInfo,
     SpeedupBin,
 )
-from arid_badger.max_reward_puct.v3.events import (
+from gpu_forecasters.max_reward_puct.v3.events import (
     CandidateDeferred,
     CandidateSelected,
     EvaluationCompleted,
@@ -37,7 +37,7 @@ from arid_badger.max_reward_puct.v3.events import (
     StepCompleted,
     StepStarted,
 )
-from arid_badger.max_reward_puct.v3.state import (
+from gpu_forecasters.max_reward_puct.v3.state import (
     CandidateSettled,
     ParentPhase,
     ReducerStateError,

@@ -18,7 +18,7 @@ from __future__ import annotations
 import math
 from typing import Protocol
 
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.landscape_map.v2 import (
     SUCCESS_BINS,
     KernelRuntimeEstimate,
     SpeedupBin,

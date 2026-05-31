@@ -32,17 +32,17 @@ import litellm
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.hill_climbing.domain import Evaluation, MutationProvider
-from arid_badger.hill_climbing.scoring_providers.trimul import TriMulObservation
-from arid_badger.invocation_sink import InvocationSink, code_sha256
-from arid_badger.trimul.core import (
+from gpu_forecasters.hill_climbing.domain import Evaluation, MutationProvider
+from gpu_forecasters.hill_climbing.scoring_providers.trimul import TriMulObservation
+from gpu_forecasters.invocation_sink import InvocationSink, code_sha256
+from gpu_forecasters.trimul.core import (
     CompileFailedFeedback,
     InfrastructureFailureFeedback,
     IncorrectFeedback,
     RuntimeErrorFeedback,
     TriMulKernelExecutionFeedback,
 )
-from arid_badger.typing_utils import implements
+from gpu_forecasters.typing_utils import implements
 
 
 # ---------------------------------------------------------------------------

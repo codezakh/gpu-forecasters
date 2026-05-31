@@ -14,7 +14,7 @@ the loop; ``max_llm_concurrency`` is the cap on simultaneous outbound LLM
 calls.
 
 The mutation prompt is rendered from a Jinja template at
-``arid_badger.kernelbench.v2.providers.prompts.mutation``. The template
+``gpu_forecasters.kernelbench.v2.providers.prompts.mutation``. The template
 carries no problem-specific examples — it gives general optimization
 guidance and states the structural contract (the ``ModelNew`` +
 ``load_inline`` skeleton) that the eval pipeline requires. A short
@@ -40,18 +40,18 @@ from jinja2 import Environment, PackageLoader, StrictUndefined
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.code_extraction import extract_last_python_codeblock
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.hill_climbing.scoring_providers.kernelbench import (
+from gpu_forecasters.code_extraction import extract_last_python_codeblock
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.hill_climbing.scoring_providers.kernelbench import (
     KernelBenchObservation,
 )
-from arid_badger.invocation_sink import InvocationSink, code_sha256
-from arid_badger.kernelbench.core import (
+from gpu_forecasters.invocation_sink import InvocationSink, code_sha256
+from gpu_forecasters.kernelbench.core import (
     InfrastructureFailureFeedback,
     KernelExecutionFeedback,
 )
-from arid_badger.max_reward_puct.v2.providers import AsyncMutationProvider
-from arid_badger.typing_utils import implements
+from gpu_forecasters.max_reward_puct.v2.providers import AsyncMutationProvider
+from gpu_forecasters.typing_utils import implements
 
 
 class MutationError(RuntimeError):
@@ -169,7 +169,7 @@ class ModelNew(nn.Module):
 # ---------------------------------------------------------------------------
 
 _JINJA_ENV = Environment(
-    loader=PackageLoader("arid_badger.kernelbench.v2.providers", "prompts"),
+    loader=PackageLoader("gpu_forecasters.kernelbench.v2.providers", "prompts"),
     autoescape=False,
     undefined=StrictUndefined,
     keep_trailing_newline=True,

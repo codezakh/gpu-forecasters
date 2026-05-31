@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 from pathlib import Path
 
-from arid_badger.agentic_variation.gemini_cli.v1 import (
+from gpu_forecasters.agentic_variation.gemini_cli.v1 import (
     ExperimentConfig,
     PostRunContext,
     PostRunHook,

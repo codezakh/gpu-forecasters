@@ -3,8 +3,8 @@ from collections import defaultdict
 from typing import Dict, List
 
 import numpy as np
-from arid_badger.ttt_discover.v1.rl.types import EnvGroupBuilder, RLDataset, TrajectoryGroup
-from arid_badger.ttt_discover.v1.tinker_utils.misc_utils import all_same, dict_mean
+from gpu_forecasters.ttt_discover.v1.rl.types import EnvGroupBuilder, RLDataset, TrajectoryGroup
+from gpu_forecasters.ttt_discover.v1.tinker_utils.misc_utils import all_same, dict_mean
 
 
 def _compute_by_group_metrics(trajectory_groups_P: List[TrajectoryGroup], good_thresh: float = 0.5):

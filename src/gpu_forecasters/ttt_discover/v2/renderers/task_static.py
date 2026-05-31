@@ -10,9 +10,9 @@ from the archive's current best) replace this renderer with their own
 
 from __future__ import annotations
 
-from arid_badger.ttt_discover.v2.domain.context import TaskPromptContext
-from arid_badger.ttt_discover.v2.interfaces.renderer import TaskPromptRenderer
-from arid_badger.typing_utils import implements
+from gpu_forecasters.ttt_discover.v2.domain.context import TaskPromptContext
+from gpu_forecasters.ttt_discover.v2.interfaces.renderer import TaskPromptRenderer
+from gpu_forecasters.typing_utils import implements
 
 _RULES_TEMPLATE = """\
 Rules:

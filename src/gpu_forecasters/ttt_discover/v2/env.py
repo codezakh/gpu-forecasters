@@ -20,36 +20,36 @@ from datetime import datetime, timezone
 
 import tinker
 
-from arid_badger.ttt_discover.v1.rl.types import Action, StepResult
-from arid_badger.ttt_discover.v1.tinker_utils import renderers as v1_renderers
-from arid_badger.ttt_discover.v2.archive.puct import build_candidate
-from arid_badger.ttt_discover.v2.domain.candidate import Candidate
-from arid_badger.ttt_discover.v2.domain.context import (
+from gpu_forecasters.ttt_discover.v1.rl.types import Action, StepResult
+from gpu_forecasters.ttt_discover.v1.tinker_utils import renderers as v1_renderers
+from gpu_forecasters.ttt_discover.v2.archive.puct import build_candidate
+from gpu_forecasters.ttt_discover.v2.domain.candidate import Candidate
+from gpu_forecasters.ttt_discover.v2.domain.context import (
     FeedbackPromptContext,
     TaskPromptContext,
 )
-from arid_badger.ttt_discover.v2.domain.admission_decision import AdmitChild
-from arid_badger.ttt_discover.v2.domain.outcome import (
+from gpu_forecasters.ttt_discover.v2.domain.admission_decision import AdmitChild
+from gpu_forecasters.ttt_discover.v2.domain.outcome import (
     ParseFailureFeedback,
     TriMulRLOutcome,
 )
-from arid_badger.ttt_discover.v2.domain.problem import TriMulProblem
-from arid_badger.ttt_discover.v2.domain.records import RolloutRecord
-from arid_badger.ttt_discover.v2.interfaces.admission_policy import AdmissionPolicy
-from arid_badger.ttt_discover.v2.interfaces.archive import CandidateArchive
-from arid_badger.ttt_discover.v2.interfaces.evaluator import KernelEvaluator
-from arid_badger.ttt_discover.v2.interfaces.extractor import CodeExtractor
-from arid_badger.ttt_discover.v2.interfaces.renderer import (
+from gpu_forecasters.ttt_discover.v2.domain.problem import TriMulProblem
+from gpu_forecasters.ttt_discover.v2.domain.records import RolloutRecord
+from gpu_forecasters.ttt_discover.v2.interfaces.admission_policy import AdmissionPolicy
+from gpu_forecasters.ttt_discover.v2.interfaces.archive import CandidateArchive
+from gpu_forecasters.ttt_discover.v2.interfaces.evaluator import KernelEvaluator
+from gpu_forecasters.ttt_discover.v2.interfaces.extractor import CodeExtractor
+from gpu_forecasters.ttt_discover.v2.interfaces.renderer import (
     FeedbackPromptRenderer,
     TaskPromptRenderer,
 )
-from arid_badger.ttt_discover.v2.interfaces.scalarizer import RewardScalarizer
-from arid_badger.ttt_discover.v2.interfaces.sink import RolloutSink
+from gpu_forecasters.ttt_discover.v2.interfaces.scalarizer import RewardScalarizer
+from gpu_forecasters.ttt_discover.v2.interfaces.sink import RolloutSink
 
 
 class TriMulRLEnvironment:
     """Implements v1's ``ProblemEnv`` interface — see
-    ``arid_badger.ttt_discover.v1.rl.types.Env``. Does not subclass it;
+    ``gpu_forecasters.ttt_discover.v1.rl.types.Env``. Does not subclass it;
     v1's ``ProblemEnv`` has abstract methods (``check_answer`` etc.)
     whose contracts v2 doesn't honour, so duck-typing via ``Env``
     (which only requires ``initial_observation`` + ``step``) is cleaner.

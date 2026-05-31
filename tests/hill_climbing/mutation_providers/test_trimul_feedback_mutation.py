@@ -17,8 +17,8 @@ import pytest
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.hill_climbing.mutation_providers.trimul_feedback_mutation import (
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.hill_climbing.mutation_providers.trimul_feedback_mutation import (
     TriMulFeedbackMutationProvider,
     TriMulFeedbackMutationRecord,
     _build_base_prompt,
@@ -26,8 +26,8 @@ from arid_badger.hill_climbing.mutation_providers.trimul_feedback_mutation impor
     format_trimul_feedback_mutation_prompt,
     _TRIMUL_BASE_PROMPT,
 )
-from arid_badger.hill_climbing.scoring_providers.trimul import TriMulObservation
-from arid_badger.trimul.core import (
+from gpu_forecasters.hill_climbing.scoring_providers.trimul import TriMulObservation
+from gpu_forecasters.trimul.core import (
     CaseSpeedup,
     CompileFailedFeedback,
     InfrastructureFailureFeedback,
@@ -35,7 +35,7 @@ from arid_badger.trimul.core import (
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.typing_utils import is_ok
+from gpu_forecasters.typing_utils import is_ok
 
 
 # ---------------------------------------------------------------------------
@@ -350,7 +350,7 @@ def test_fanout_issues_one_call_per_mutation_with_n1() -> None:
         return _FakeResponse(fake_code)
 
     with patch(
-        "arid_badger.hill_climbing.mutation_providers.trimul_feedback_mutation.litellm.acompletion",
+        "gpu_forecasters.hill_climbing.mutation_providers.trimul_feedback_mutation.litellm.acompletion",
         side_effect=fake_acompletion,
     ):
         codes = provider.generate_mutations(
@@ -395,7 +395,7 @@ def test_fanout_respects_concurrency_limit() -> None:
         return _FakeResponse(fake_code)
 
     with patch(
-        "arid_badger.hill_climbing.mutation_providers.trimul_feedback_mutation.litellm.acompletion",
+        "gpu_forecasters.hill_climbing.mutation_providers.trimul_feedback_mutation.litellm.acompletion",
         side_effect=fake_acompletion,
     ):
         codes = provider.generate_mutations(
@@ -438,7 +438,7 @@ def test_fanout_tolerates_partial_failures() -> None:
     )
 
     with patch(
-        "arid_badger.hill_climbing.mutation_providers.trimul_feedback_mutation.litellm.acompletion",
+        "gpu_forecasters.hill_climbing.mutation_providers.trimul_feedback_mutation.litellm.acompletion",
         side_effect=fake_acompletion,
     ):
         codes = provider_with_sink.generate_mutations(
@@ -566,8 +566,8 @@ def test_e2e_mutation_then_modal_benchmark() -> None:
     We don't assert correctness or speedup, just that the scoring pipeline
     completed without an infrastructure failure.
     """
-    from arid_badger.trimul.cases import BENCHMARK_CASES
-    from arid_badger.trimul.modal_scoring import modal_trimul_scoring_session
+    from gpu_forecasters.trimul.cases import BENCHMARK_CASES
+    from gpu_forecasters.trimul.modal_scoring import modal_trimul_scoring_session
 
     provider = TriMulFeedbackMutationProvider(model_slug=_MODEL_SLUG, gpu_name="L4")
 

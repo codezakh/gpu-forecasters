@@ -17,11 +17,11 @@ import pytest
 from pydantic import ConfigDict
 from typing_extensions import TypedDict
 
-from arid_badger.gpu_mode_kernel.aggregation import (
+from gpu_forecasters.gpu_mode_kernel.aggregation import (
     aggregate_outcomes,
     aggregate_speedups,
 )
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupBase,
     CompileFailedFeedback,
     IncorrectFeedback,
@@ -30,9 +30,9 @@ from arid_badger.gpu_mode_kernel.core import (
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.kernel_pack import KernelPack
-from arid_badger.kernelbench.isolated_scoring import ScoringError
-from arid_badger.typing_utils import Err, Ok, Option
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import KernelPack
+from gpu_forecasters.kernelbench.isolated_scoring import ScoringError
+from gpu_forecasters.typing_utils import Err, Ok, Option
 
 
 _Outcome = Option[KernelExecResult, ScoringError]

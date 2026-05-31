@@ -1,5 +1,5 @@
 import pytest
-from arid_badger.exec_with_limited_namespace import (
+from gpu_forecasters.exec_with_limited_namespace import (
     ExecWithLimitedNamespace,
     SecurityException,
 )

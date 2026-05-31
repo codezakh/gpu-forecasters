@@ -19,24 +19,24 @@ import ast
 
 import pytest
 
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.hill_climbing.scoring_providers.trimul import TriMulObservation
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.hill_climbing.scoring_providers.trimul import TriMulObservation
+from gpu_forecasters.landscape_map.v2 import (
     HardwareContext,
     KernelImplementation,
     KernelRuntimeQuery,
     KernelTaskInfo,
 )
-from arid_badger.landscape_map.v2.litellm_estimator import LlmSpeedupEstimator
-from arid_badger.max_reward_puct.v2.mutation_providers.trimul_feedback_mutation import (
+from gpu_forecasters.landscape_map.v2.litellm_estimator import LlmSpeedupEstimator
+from gpu_forecasters.max_reward_puct.v2.mutation_providers.trimul_feedback_mutation import (
     TriMulFeedbackMutationProvider,
 )
-from arid_badger.max_reward_puct.v3.providers import MutationProvider
-from arid_badger.max_reward_puct.v3.scoring_providers import (
+from gpu_forecasters.max_reward_puct.v3.providers import MutationProvider
+from gpu_forecasters.max_reward_puct.v3.scoring_providers import (
     CoroutineSpeedupEstimator,
 )
-from arid_badger.trimul.core import InfrastructureFailureFeedback
-from arid_badger.trimul.seed_kernel import SEED_KERNEL_CODE
+from gpu_forecasters.trimul.core import InfrastructureFailureFeedback
+from gpu_forecasters.trimul.seed_kernel import SEED_KERNEL_CODE
 
 
 pytestmark = pytest.mark.integration

@@ -1,7 +1,7 @@
 """Generic per-case scoring pipeline for gpu-mode-style kernels.
 
-Generalizes ``arid_badger.trimul.scoring`` and
-``arid_badger.causal_conv1d.scoring``:
+Generalizes ``gpu_forecasters.trimul.scoring`` and
+``gpu_forecasters.causal_conv1d.scoring``:
 
 - The ``_TASK_SHIM`` and ``_UTILS_SHIM`` constants migrate onto the
   ``KernelPack`` (their ``TypeVar`` bounds and re-exported symbol names
@@ -38,15 +38,15 @@ from typing import Any, Callable
 
 import torch
 
-from arid_badger.gpu_mode_kernel.comparison import set_seed
-from arid_badger.gpu_mode_kernel.core import KernelExecResult, Stats
-from arid_badger.gpu_mode_kernel.kernel_pack import (
+from gpu_forecasters.gpu_mode_kernel.comparison import set_seed
+from gpu_forecasters.gpu_mode_kernel.core import KernelExecResult, Stats
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import (
     CaseSpeedupT,
     KernelPack,
     TestArgsT,
 )
-from arid_badger.kernelbench.isolated_scoring import ScoringError
-from arid_badger.typing_utils import Err, Ok, Option
+from gpu_forecasters.kernelbench.isolated_scoring import ScoringError
+from gpu_forecasters.typing_utils import Err, Ok, Option
 
 
 # ---------------------------------------------------------------------------
@@ -72,13 +72,13 @@ output_t = TypeVar("output_t")
 """
 
 # Header re-exports the kernel-agnostic helpers that every pack
-# inherits from ``arid_badger.gpu_mode_kernel.comparison``. The
+# inherits from ``gpu_forecasters.gpu_mode_kernel.comparison``. The
 # determinism context manager is appended below if the pack carries
 # one.
 _UTILS_SHIM_HEADER = """\
 # Synthetic utils.py — re-exports helpers that upstream popcorn
 # submission templates expect at ``from utils import …``.
-from arid_badger.gpu_mode_kernel.comparison import (
+from gpu_forecasters.gpu_mode_kernel.comparison import (
     make_match_reference,
     match_reference,
     set_seed,
@@ -259,8 +259,8 @@ def score_one_case(
     reserved for scoring-infrastructure failures (bad GPU state,
     etc.).
 
-    Mirrors the body of ``arid_badger.trimul.scoring.score`` and
-    ``arid_badger.causal_conv1d.scoring.score`` exactly; the only
+    Mirrors the body of ``gpu_forecasters.trimul.scoring.score`` and
+    ``gpu_forecasters.causal_conv1d.scoring.score`` exactly; the only
     differences are that the reference call, input generator, oracle,
     and shim contents come off the pack.
     """

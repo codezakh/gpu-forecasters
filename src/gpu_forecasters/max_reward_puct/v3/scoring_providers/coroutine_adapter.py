@@ -24,7 +24,7 @@ import threading
 from concurrent.futures import Future
 from typing import Self
 
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.landscape_map.v2 import (
     AsyncSpeedupEstimator,
     KernelRuntimeEstimate,
     KernelRuntimeQuery,

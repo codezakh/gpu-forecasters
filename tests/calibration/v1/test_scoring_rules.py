@@ -12,8 +12,8 @@ import math
 
 import pytest
 
-from arid_badger.calibration.v1 import PREDICTED_BINS, brier, crps
-from arid_badger.landscape_map.v1.domain import SpeedupBin
+from gpu_forecasters.calibration.v1 import PREDICTED_BINS, brier, crps
+from gpu_forecasters.landscape_map.v1.domain import SpeedupBin
 
 
 def _onehot(target: SpeedupBin) -> dict[SpeedupBin, float]:

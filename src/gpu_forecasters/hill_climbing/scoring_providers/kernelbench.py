@@ -4,14 +4,14 @@ from typing import Annotated, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from arid_badger.kernelbench.core import (
+from gpu_forecasters.kernelbench.core import (
     InfrastructureFailureFeedback,
     KernelExecutionFeedback,
     execution_feedback_from_exec_result,
 )
-from arid_badger.kernelbench.isolated_scoring import run_scoring_in_subprocess
-from arid_badger.kernelbench.scoring import check_kernel_exec_result_valid
-from arid_badger.typing_utils import is_ok
+from gpu_forecasters.kernelbench.isolated_scoring import run_scoring_in_subprocess
+from gpu_forecasters.kernelbench.scoring import check_kernel_exec_result_valid
+from gpu_forecasters.typing_utils import is_ok
 from ..domain import Evaluation
 
 logger = logging.getLogger(__name__)

@@ -18,15 +18,15 @@ import time
 
 import pytest
 
-from arid_badger.kernelbench.core import (
+from gpu_forecasters.kernelbench.core import (
     CompileFailedFeedback,
     InfrastructureFailureFeedback,
     SuccessFeedback,
 )
-from arid_badger.kernelbench.v2.providers.modal_scoring import (
+from gpu_forecasters.kernelbench.v2.providers.modal_scoring import (
     KernelBenchModalProvider,
 )
-from arid_badger.modal_gpu import GpuKind
+from gpu_forecasters.modal_gpu import GpuKind
 
 # Same 128x128 matmul fixture used by the v1 modal scoring integration
 # tests. The point here is to exercise plumbing — provider lifecycle,

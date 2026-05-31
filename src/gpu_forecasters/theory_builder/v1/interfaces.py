@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from typing import Protocol, Self
 
-from arid_badger.hill_climbing.domain import ObservationT
-from arid_badger.theory_builder.v1.domain import (
+from gpu_forecasters.hill_climbing.domain import ObservationT
+from gpu_forecasters.theory_builder.v1.domain import (
     Explanation,
     ExperimentResult,
     Hypothesis,

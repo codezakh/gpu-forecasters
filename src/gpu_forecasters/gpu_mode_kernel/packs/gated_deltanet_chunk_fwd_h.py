@@ -27,14 +27,14 @@ import modal
 import torch
 from pydantic import ConfigDict
 
-from arid_badger.gpu_mode_kernel.core import CaseSpeedupBase, KernelExecResult
-from arid_badger.gpu_mode_kernel.kernel_pack import KernelPack
-from arid_badger.gpu_mode_kernel.modal_scoring import (
+from gpu_forecasters.gpu_mode_kernel.core import CaseSpeedupBase, KernelExecResult
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import KernelPack
+from gpu_forecasters.gpu_mode_kernel.modal_scoring import (
     DEFAULT_CLS_KWARGS,
     PackedModalRuntime,
     run_evaluate_candidate,
 )
-from arid_badger.kernelbench.modal_image import image
+from gpu_forecasters.kernelbench.modal_image import image
 
 
 # ---------------------------------------------------------------------------

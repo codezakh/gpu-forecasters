@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from arid_badger.landscape_map.v1.domain import (
+from gpu_forecasters.landscape_map.v1.domain import (
     KernelImplementation,
     KernelRuntimeEstimate,
     KernelRuntimeQuery,
@@ -12,7 +12,7 @@ from arid_badger.landscape_map.v1.domain import (
     LlmCallUsage,
     SpeedupBin,
 )
-from arid_badger.landscape_map.v1.ranking import (
+from gpu_forecasters.landscape_map.v1.ranking import (
     ComparisonCacheEntry,
     aquery_pair,
     aswiss_tournament,

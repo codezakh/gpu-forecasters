@@ -21,11 +21,11 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from arid_badger.landscape_map.v2.abstain_tool_spec import (
+from gpu_forecasters.landscape_map.v2.abstain_tool_spec import (
     DEFER_TOOL_NAME,
     PREDICT_TOOL_NAME,
 )
-from arid_badger.landscape_map.v2.domain import KernelRuntimeQuery
+from gpu_forecasters.landscape_map.v2.domain import KernelRuntimeQuery
 
 
 _PROMPTS_DIR = Path(__file__).parent / "prompts"

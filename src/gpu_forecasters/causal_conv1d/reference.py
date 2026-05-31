@@ -9,7 +9,7 @@ the helpers from our vendored ``comparison`` module.
 
 Tolerance: ``rtol=1e-3, atol=1e-3`` per upstream.
 
-Mirror of ``arid_badger.trimul.reference``.
+Mirror of ``gpu_forecasters.trimul.reference``.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from typing import Callable, Tuple
 import torch
 import torch.nn.functional as F
 
-from arid_badger.causal_conv1d.comparison import (
+from gpu_forecasters.causal_conv1d.comparison import (
     DeterministicContext,
     make_match_reference,
 )

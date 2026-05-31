@@ -11,11 +11,11 @@ from pathlib import Path
 
 import pytest
 
-from arid_badger.hill_climbing.scoring_providers.trimul_modal import (
+from gpu_forecasters.hill_climbing.scoring_providers.trimul_modal import (
     TriMulModalProvider,
 )
-from arid_badger.trimul.cases import BENCHMARK_CASES
-from arid_badger.trimul.core import SuccessFeedback
+from gpu_forecasters.trimul.cases import BENCHMARK_CASES
+from gpu_forecasters.trimul.core import SuccessFeedback
 
 
 _FIXTURES = Path(__file__).parent / "fixtures"

@@ -17,8 +17,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from arid_badger.gpu_mode_kernel.kernel_pack import KernelPack
-from arid_badger.landscape_map.v1.domain import SpeedupBin
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import KernelPack
+from gpu_forecasters.landscape_map.v1.domain import SpeedupBin
 
 from .domain import KernelRuntimeComparison, speedup_band_for_bin
 

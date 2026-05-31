@@ -9,15 +9,15 @@ state is elided.
 
 from __future__ import annotations
 
-from arid_badger.trimul.core import SuccessFeedback
-from arid_badger.ttt_discover.v2.domain.admission_decision import (
+from gpu_forecasters.trimul.core import SuccessFeedback
+from gpu_forecasters.ttt_discover.v2.domain.admission_decision import (
     AdmissionDecision,
     AdmitChild,
     CreditOnly,
 )
-from arid_badger.ttt_discover.v2.domain.candidate import Candidate
-from arid_badger.ttt_discover.v2.interfaces.admission_policy import AdmissionPolicy
-from arid_badger.typing_utils import implements
+from gpu_forecasters.ttt_discover.v2.domain.candidate import Candidate
+from gpu_forecasters.ttt_discover.v2.interfaces.admission_policy import AdmissionPolicy
+from gpu_forecasters.typing_utils import implements
 
 
 class SuccessOnlyAdmissionPolicy:

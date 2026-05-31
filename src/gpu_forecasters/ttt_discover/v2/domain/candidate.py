@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import NewType
 
-from arid_badger.ttt_discover.v2.domain.outcome import TriMulRLOutcome
+from gpu_forecasters.ttt_discover.v2.domain.outcome import TriMulRLOutcome
 
 CandidateId = NewType("CandidateId", str)
 

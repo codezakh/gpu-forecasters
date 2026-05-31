@@ -25,20 +25,20 @@ from typing import Generic, Self
 
 from loguru import logger
 
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupT,
     GpuModeKernelObservation,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.kernel_pack import TestArgsT
-from arid_badger.gpu_mode_kernel.modal_scoring import PackedModalRuntime
-from arid_badger.gpu_mode_kernel.providers import GpuModeKernelModalProvider
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.invocation_sink import FilesystemInvocationSink
-from arid_badger.landscape_map.v1.domain import HardwareContext
-from arid_badger.max_reward_puct.v2.config import SearchConfig
-from arid_badger.max_reward_puct.v2.event_log import FileEventLog
-from arid_badger.max_reward_puct.v2.search import SearchDriver
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import TestArgsT
+from gpu_forecasters.gpu_mode_kernel.modal_scoring import PackedModalRuntime
+from gpu_forecasters.gpu_mode_kernel.providers import GpuModeKernelModalProvider
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.invocation_sink import FilesystemInvocationSink
+from gpu_forecasters.landscape_map.v1.domain import HardwareContext
+from gpu_forecasters.max_reward_puct.v2.config import SearchConfig
+from gpu_forecasters.max_reward_puct.v2.event_log import FileEventLog
+from gpu_forecasters.max_reward_puct.v2.search import SearchDriver
 
 from .domain import (
     BinFillRequest,

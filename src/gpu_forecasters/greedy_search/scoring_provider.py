@@ -7,11 +7,11 @@ from typing import Callable, List, Sequence, Tuple
 
 from loguru import logger
 
-from arid_badger.kernelbench.core import (
+from gpu_forecasters.kernelbench.core import (
     KernelScoringResult,
     execution_feedback_from_exec_result,
 )
-from arid_badger.typing_utils import Option, implements
+from gpu_forecasters.typing_utils import Option, implements
 
 from .domain import (
     Evaluation,

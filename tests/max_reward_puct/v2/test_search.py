@@ -14,10 +14,10 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Self
 
-from arid_badger.hill_climbing.domain import Evaluation, NoFeedback
-from arid_badger.max_reward_puct.v2.config import SearchConfig
-from arid_badger.max_reward_puct.v2.event_log import FileEventLog
-from arid_badger.max_reward_puct.v2.events import (
+from gpu_forecasters.hill_climbing.domain import Evaluation, NoFeedback
+from gpu_forecasters.max_reward_puct.v2.config import SearchConfig
+from gpu_forecasters.max_reward_puct.v2.event_log import FileEventLog
+from gpu_forecasters.max_reward_puct.v2.events import (
     EvaluationCompleted,
     EvaluationFailed,
     EvaluationRequested,
@@ -27,7 +27,7 @@ from arid_badger.max_reward_puct.v2.events import (
     StepCompleted,
     StepStarted,
 )
-from arid_badger.max_reward_puct.v2.search import SearchDriver
+from gpu_forecasters.max_reward_puct.v2.search import SearchDriver
 
 
 def _eval(reward: float | None) -> Evaluation[NoFeedback]:

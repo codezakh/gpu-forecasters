@@ -1,6 +1,6 @@
 """TriMul-specific execution feedback types and exec result.
 
-Parallel to ``arid_badger.kernelbench.core`` but with TriMul-appropriate
+Parallel to ``gpu_forecasters.kernelbench.core`` but with TriMul-appropriate
 fields: runtime in nanoseconds (matching the cuda.Event adaptive loop's
 native unit) rather than microseconds, no KernelBench-specific fields
 like compilation arch. A discriminated union over ``kind`` lets callers

@@ -4,7 +4,7 @@ Similar to Result/Either types in other languages.
 
 Usage:
 ```python
-from arid_badger.typing_utils import Option, Result, Error
+from gpu_forecasters.typing_utils import Option, Result, Error
 
 def make_option() -> Option[int, str]:
     if random.random() > 0.5:

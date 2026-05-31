@@ -13,7 +13,7 @@ import statistics
 from dataclasses import dataclass
 from pathlib import Path
 
-from arid_badger.trimul.core import SuccessFeedback
+from gpu_forecasters.trimul.core import SuccessFeedback
 
 from .models import RepeatedRunSummary, TrajectoryRecord, TrimulRunResult
 

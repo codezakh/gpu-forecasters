@@ -28,24 +28,24 @@ from typing import Self
 from loguru import logger
 from pydantic import BaseModel, ConfigDict
 
-from arid_badger.hill_climbing.scoring_providers.trimul import TriMulObservation
-from arid_badger.max_reward_puct.v2.config import SearchConfig
-from arid_badger.max_reward_puct.v2.event_log import FileEventLog
-from arid_badger.max_reward_puct.v2.events import (
+from gpu_forecasters.hill_climbing.scoring_providers.trimul import TriMulObservation
+from gpu_forecasters.max_reward_puct.v2.config import SearchConfig
+from gpu_forecasters.max_reward_puct.v2.event_log import FileEventLog
+from gpu_forecasters.max_reward_puct.v2.events import (
     EvaluationCompleted,
     EvaluationRequested,
 )
-from arid_badger.max_reward_puct.v2.providers import (
+from gpu_forecasters.max_reward_puct.v2.providers import (
     AsyncEvaluationProvider,
     AsyncMutationProvider,
 )
-from arid_badger.max_reward_puct.v2.search import SearchDriver
-from arid_badger.theory_builder.v1.domain import (
+from gpu_forecasters.max_reward_puct.v2.search import SearchDriver
+from gpu_forecasters.theory_builder.v1.domain import (
     ExperimentResult,
     ExperimentTrial,
     Hypothesis,
 )
-from arid_badger.theory_builder.v1.mutation_provider import (
+from gpu_forecasters.theory_builder.v1.mutation_provider import (
     HypothesisConditionedTriMulMutationProvider,
 )
 

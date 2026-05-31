@@ -9,11 +9,11 @@ import json
 
 import pytest
 
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.hill_climbing.scoring_providers.kernelbench import (
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.hill_climbing.scoring_providers.kernelbench import (
     KernelBenchObservation,
 )
-from arid_badger.kernelbench.core import (
+from gpu_forecasters.kernelbench.core import (
     CompileFailedFeedback,
     IncorrectFeedback,
     InfrastructureFailureFeedback,

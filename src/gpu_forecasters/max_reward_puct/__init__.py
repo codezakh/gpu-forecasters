@@ -1,6 +1,6 @@
 """Max-Reward PUCT search algorithm for program optimization."""
 
-from arid_badger.max_reward_puct.search import (
+from gpu_forecasters.max_reward_puct.search import (
     search,
     resume_search,
     run_or_resume,
@@ -19,13 +19,13 @@ from arid_badger.max_reward_puct.search import (
     get_content_key,
     set_parent_info,
 )
-from arid_badger.max_reward_puct.checkpoint import (
+from gpu_forecasters.max_reward_puct.checkpoint import (
     PuctCheckpoint,
     PuctCheckpointProvider,
     NoOpPuctCheckpointProvider,
     FilePuctCheckpointProvider,
 )
-from arid_badger.max_reward_puct.trajectory import (
+from gpu_forecasters.max_reward_puct.trajectory import (
     TrajectoryRecord,
     TrajectoryProvider,
     NoOpTrajectoryProvider,

@@ -16,8 +16,8 @@ Tested logic:
 
 from __future__ import annotations
 
-from arid_badger.gpu_mode_kernel.core import KernelExecResult
-from arid_badger.gpu_mode_kernel.packs.gated_deltanet_recompute_w_u import (
+from gpu_forecasters.gpu_mode_kernel.core import KernelExecResult
+from gpu_forecasters.gpu_mode_kernel.packs.gated_deltanet_recompute_w_u import (
     BENCHMARK_CASES,
     CORRECTNESS_CASES,
     GDN_RECOMPUTE_W_U_PACK,

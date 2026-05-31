@@ -28,23 +28,23 @@ import litellm
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.causal_conv1d.cases import (
+from gpu_forecasters.causal_conv1d.cases import (
     BENCHMARK_CASES,
     CORRECTNESS_CASES,
 )
-from arid_badger.causal_conv1d.core import (
+from gpu_forecasters.causal_conv1d.core import (
     CausalConv1dKernelExecutionFeedback,
     CompileFailedFeedback,
     InfrastructureFailureFeedback,
     IncorrectFeedback,
     RuntimeErrorFeedback,
 )
-from arid_badger.hill_climbing.domain import Evaluation, MutationProvider
-from arid_badger.hill_climbing.scoring_providers.causal_conv1d import (
+from gpu_forecasters.hill_climbing.domain import Evaluation, MutationProvider
+from gpu_forecasters.hill_climbing.scoring_providers.causal_conv1d import (
     CausalConv1dObservation,
 )
-from arid_badger.invocation_sink import InvocationSink, code_sha256
-from arid_badger.typing_utils import implements
+from gpu_forecasters.invocation_sink import InvocationSink, code_sha256
+from gpu_forecasters.typing_utils import implements
 
 
 # ---------------------------------------------------------------------------

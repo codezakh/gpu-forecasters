@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from arid_badger.ttt_discover.v2.domain.candidate import CandidateId
-from arid_badger.ttt_discover.v2.domain.outcome import TriMulRLOutcome
+from gpu_forecasters.ttt_discover.v2.domain.candidate import CandidateId
+from gpu_forecasters.ttt_discover.v2.domain.outcome import TriMulRLOutcome
 
 
 class RolloutRecord(BaseModel):

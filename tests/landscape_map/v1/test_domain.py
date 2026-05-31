@@ -6,7 +6,7 @@ The formula under test: i = floor(2 * log2(S)) + 4, clamped to [1, 8].
 
 import pytest
 
-from arid_badger.landscape_map.v1.domain import SpeedupBin
+from gpu_forecasters.landscape_map.v1.domain import SpeedupBin
 
 
 @pytest.mark.parametrize(

@@ -28,7 +28,7 @@ from typing import Annotated, Generic, Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import Evaluation, Node, ObservationT
+from gpu_forecasters.hill_climbing.domain import Evaluation, Node, ObservationT
 
 
 class _Frozen(BaseModel):

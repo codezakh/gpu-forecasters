@@ -6,15 +6,15 @@ import math
 
 import pytest
 
-from arid_badger.eval_dataset_builder.v1.domain import (
+from gpu_forecasters.eval_dataset_builder.v1.domain import (
     KernelRuntimeComparison,
     speedup_band_for_bin,
 )
-from arid_badger.eval_dataset_builder.v1.seed_selection import (
+from gpu_forecasters.eval_dataset_builder.v1.seed_selection import (
     select_seed,
     select_seed_kernel_closest_to_target_midpoint,
 )
-from arid_badger.landscape_map.v1.domain import HardwareContext, SpeedupBin
+from gpu_forecasters.landscape_map.v1.domain import HardwareContext, SpeedupBin
 
 
 _HARDWARE = HardwareContext(
@@ -80,7 +80,7 @@ def test_empty_input_raises() -> None:
 
 
 def test_select_seed_uses_harvest_when_available() -> None:
-    from arid_badger.gpu_mode_kernel.packs.trimul import TRIMUL_PACK
+    from gpu_forecasters.gpu_mode_kernel.packs.trimul import TRIMUL_PACK
 
     bin_ = SpeedupBin.HIGH_SPEEDUP
     mid = speedup_band_for_bin(bin_).midpoint
@@ -96,7 +96,7 @@ def test_select_seed_uses_harvest_when_available() -> None:
 
 
 def test_select_seed_falls_back_to_pack_seed_kernel_code() -> None:
-    from arid_badger.gpu_mode_kernel.packs.trimul import TRIMUL_PACK
+    from gpu_forecasters.gpu_mode_kernel.packs.trimul import TRIMUL_PACK
 
     seed = select_seed([], target_bin=SpeedupBin.HIGH_SPEEDUP, pack=TRIMUL_PACK)
     assert seed.source is None

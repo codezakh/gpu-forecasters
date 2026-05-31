@@ -13,7 +13,7 @@ enforced by code.
 
 from __future__ import annotations
 
-from arid_badger.theory_builder.v1.domain import Hypothesis
+from gpu_forecasters.theory_builder.v1.domain import Hypothesis
 
 
 _TAG_FORMAT_RULES = """\

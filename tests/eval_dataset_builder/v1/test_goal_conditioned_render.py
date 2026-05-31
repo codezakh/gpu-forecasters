@@ -14,10 +14,10 @@ applies to any ``KernelPack``.
 
 from __future__ import annotations
 
-from arid_badger.eval_dataset_builder.v1.goal_conditioned_mutation.provider import (
+from gpu_forecasters.eval_dataset_builder.v1.goal_conditioned_mutation.provider import (
     render_prompt,
 )
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CompileFailedFeedback,
     GpuModeKernelObservation,
     IncorrectFeedback,
@@ -25,10 +25,10 @@ from arid_badger.gpu_mode_kernel.core import (
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.packs.trimul import TRIMUL_PACK, TriMulCaseSpeedup
-from arid_badger.gpu_mode_kernel.prompts import extract_last_python_codeblock
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.landscape_map.v1.domain import SpeedupBin
+from gpu_forecasters.gpu_mode_kernel.packs.trimul import TRIMUL_PACK, TriMulCaseSpeedup
+from gpu_forecasters.gpu_mode_kernel.prompts import extract_last_python_codeblock
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.landscape_map.v1.domain import SpeedupBin
 
 
 _GPU = "A100-SXM4-80GB"

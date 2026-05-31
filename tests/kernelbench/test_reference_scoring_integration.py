@@ -4,10 +4,10 @@ import pytest
 import torch
 from kernelbench.dataset import BaseDataset, Problem, construct_kernelbench_dataset
 
-from arid_badger.greedy_search.scoring_provider import SerialScoringProvider
-from arid_badger.kernelbench.core import KernelScoringResult
-from arid_badger.kernelbench.isolated_scoring import run_scoring_in_subprocess
-from arid_badger.kernelbench.scoring import check_kernel_exec_result_valid
+from gpu_forecasters.greedy_search.scoring_provider import SerialScoringProvider
+from gpu_forecasters.kernelbench.core import KernelScoringResult
+from gpu_forecasters.kernelbench.isolated_scoring import run_scoring_in_subprocess
+from gpu_forecasters.kernelbench.scoring import check_kernel_exec_result_valid
 
 
 def _score_kernel(

@@ -16,12 +16,12 @@ from unittest.mock import patch
 import pytest
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import NoFeedback
-from arid_badger.theory_builder.v1.builder import (
+from gpu_forecasters.hill_climbing.domain import NoFeedback
+from gpu_forecasters.theory_builder.v1.builder import (
     BuilderError,
     LLMWorldModelBuilder,
 )
-from arid_badger.theory_builder.v1.domain import (
+from gpu_forecasters.theory_builder.v1.domain import (
     ExperimentResult,
     Hypothesis,
     WorldModel,

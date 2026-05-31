@@ -13,7 +13,7 @@ from loguru import logger
 from pydantic import BaseModel
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import Node, ObservationT
+from gpu_forecasters.hill_climbing.domain import Node, ObservationT
 
 
 class TrajectoryRecord(BaseModel):

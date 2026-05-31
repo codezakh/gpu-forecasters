@@ -32,11 +32,11 @@ from typing import Any, Generator, Optional
 
 import modal
 
-from arid_badger.invocation_sink import code_sha256
-from arid_badger.kernelbench.isolated_scoring import ScoringError
-from arid_badger.kernelbench.modal_image import GPU_ARCH_MAPPING, image
-from arid_badger.kernelbench.modal_scoring import ScoringFn, _wrap_exec_result
-from arid_badger.typing_utils import Err, Ok, Option
+from gpu_forecasters.invocation_sink import code_sha256
+from gpu_forecasters.kernelbench.isolated_scoring import ScoringError
+from gpu_forecasters.kernelbench.modal_image import GPU_ARCH_MAPPING, image
+from gpu_forecasters.kernelbench.modal_scoring import ScoringFn, _wrap_exec_result
+from gpu_forecasters.typing_utils import Err, Ok, Option
 from kernelbench.eval import KernelExecResult
 
 # ---------------------------------------------------------------------------

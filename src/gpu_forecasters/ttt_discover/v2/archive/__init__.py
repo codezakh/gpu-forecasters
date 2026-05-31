@@ -1,3 +1,3 @@
-from arid_badger.ttt_discover.v2.archive.puct import PUCTCandidateArchive
+from gpu_forecasters.ttt_discover.v2.archive.puct import PUCTCandidateArchive
 
 __all__ = ["PUCTCandidateArchive"]

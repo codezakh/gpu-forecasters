@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CaseSpeedup,
     CompileFailedFeedback,
     IncorrectFeedback,
@@ -12,12 +12,12 @@ from arid_badger.trimul.core import (
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.ttt_discover.v2.domain.candidate import CandidateId
-from arid_badger.ttt_discover.v2.domain.outcome import (
+from gpu_forecasters.ttt_discover.v2.domain.candidate import CandidateId
+from gpu_forecasters.ttt_discover.v2.domain.outcome import (
     ParseFailureFeedback,
     TriMulRLOutcome,
 )
-from arid_badger.ttt_discover.v2.domain.records import RolloutRecord
+from gpu_forecasters.ttt_discover.v2.domain.records import RolloutRecord
 
 
 def _make_record(outcome: TriMulRLOutcome) -> RolloutRecord:

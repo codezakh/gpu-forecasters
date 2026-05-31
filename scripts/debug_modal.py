@@ -6,7 +6,7 @@
 
 import modal
 
-from arid_badger.kernelbench.modal_image import app, image, GPU_ARCH_MAPPING
+from gpu_forecasters.kernelbench.modal_image import app, image, GPU_ARCH_MAPPING
 
 
 # ---------------------------------------------------------------------------

@@ -10,8 +10,8 @@ import math
 
 import pytest
 
-from arid_badger.trimul.cases import BENCHMARK_CASES
-from arid_badger.trimul.leaderboard_comparison import (
+from gpu_forecasters.trimul.cases import BENCHMARK_CASES
+from gpu_forecasters.trimul.leaderboard_comparison import (
     CaseResult,
     GpuKind,
     KernelScorecard,
@@ -179,7 +179,7 @@ def test_comparison_round_trips_through_json() -> None:
 def test_load_leaderboard_baseline_raises_when_missing(tmp_path, monkeypatch) -> None:
     """If no baselines exist for the requested GPU, raise FileNotFoundError with
     a hint to run bootstrap."""
-    import arid_badger.trimul.leaderboard_comparison as mod
+    import gpu_forecasters.trimul.leaderboard_comparison as mod
 
     monkeypatch.setattr(mod, "LEADERBOARD_BASELINES_DIR", tmp_path / "missing")
     with pytest.raises(FileNotFoundError, match="bootstrap"):
@@ -193,7 +193,7 @@ def _all_correct_runtimes(*, scale: float = 1.0) -> list[float | None]:
 
 
 _REF_SELF_CANDIDATE = """\
-from arid_badger.trimul.reference import ref_kernel
+from gpu_forecasters.trimul.reference import ref_kernel
 
 def custom_kernel(data):
     return ref_kernel(data)

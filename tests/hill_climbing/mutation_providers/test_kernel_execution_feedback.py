@@ -10,16 +10,16 @@ from __future__ import annotations
 from typing import cast
 from unittest.mock import MagicMock, patch
 
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.hill_climbing.mutation_providers.kernel_execution_feedback import (
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.hill_climbing.mutation_providers.kernel_execution_feedback import (
     KernelExecutionFeedbackMutationProvider,
     KernelExecutionFeedbackMutationRecord,
 )
-from arid_badger.hill_climbing.scoring_providers.kernelbench import (
+from gpu_forecasters.hill_climbing.scoring_providers.kernelbench import (
     KernelBenchObservation,
 )
-from arid_badger.invocation_sink import InvocationSink
-from arid_badger.kernelbench.core import (
+from gpu_forecasters.invocation_sink import InvocationSink
+from gpu_forecasters.kernelbench.core import (
     InfrastructureFailureFeedback,
     SuccessFeedback,
 )
@@ -84,7 +84,7 @@ class TestGenerateMutations:
         response = _make_response([CHILD_1, CHILD_2, CHILD_3])
 
         with patch(
-            "arid_badger.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
+            "gpu_forecasters.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
             return_value=response,
         ) as mock_completion:
             codes = provider.generate_mutations("prev code", 3, _success_eval())
@@ -98,7 +98,7 @@ class TestGenerateMutations:
         response = _make_response([CHILD_1])
 
         with patch(
-            "arid_badger.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
+            "gpu_forecasters.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
             return_value=response,
         ) as mock_completion:
             provider.generate_mutations("prev code", 1, _success_eval())
@@ -113,7 +113,7 @@ class TestGenerateMutations:
         response = _make_response([CHILD_1])
 
         with patch(
-            "arid_badger.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
+            "gpu_forecasters.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
             return_value=response,
         ) as mock_completion:
             provider.generate_mutations("prev code", 1, _infra_failure_eval())
@@ -131,7 +131,7 @@ class TestGenerateMutations:
         topup = _make_response([CHILD_3])
 
         with patch(
-            "arid_badger.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
+            "gpu_forecasters.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
             side_effect=[primary, topup],
         ) as mock_completion:
             codes = provider.generate_mutations("prev code", 3, _success_eval())
@@ -149,7 +149,7 @@ class TestGenerateMutations:
         topup = _make_response([UNPARSEABLE, UNPARSEABLE])
 
         with patch(
-            "arid_badger.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
+            "gpu_forecasters.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
             side_effect=[primary, topup],
         ) as mock_completion:
             codes = provider.generate_mutations("prev code", 3, _success_eval())
@@ -162,7 +162,7 @@ class TestGenerateMutations:
         provider = _make_provider()
 
         with patch(
-            "arid_badger.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
+            "gpu_forecasters.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
             side_effect=[RuntimeError("api down"), _make_response([CHILD_1, CHILD_2, CHILD_3])],
         ) as mock_completion:
             codes = provider.generate_mutations("prev code", 3, _success_eval())
@@ -180,7 +180,7 @@ class TestInvocationSink:
         topup = _make_response([CHILD_2], input_tokens=90, output_tokens=15)
 
         with patch(
-            "arid_badger.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
+            "gpu_forecasters.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
             side_effect=[primary, topup],
         ):
             provider.generate_mutations("prev code", 2, _success_eval())
@@ -201,7 +201,7 @@ class TestInvocationSink:
         response = _make_response([CHILD_1])
 
         with patch(
-            "arid_badger.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
+            "gpu_forecasters.hill_climbing.mutation_providers.kernel_execution_feedback.litellm.completion",
             return_value=response,
         ):
             # Should not raise.

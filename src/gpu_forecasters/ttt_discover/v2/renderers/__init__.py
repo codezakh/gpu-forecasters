@@ -1,7 +1,7 @@
-from arid_badger.ttt_discover.v2.renderers.feedback_trimul import (
+from gpu_forecasters.ttt_discover.v2.renderers.feedback_trimul import (
     TriMulFeedbackPromptRenderer,
 )
-from arid_badger.ttt_discover.v2.renderers.task_static import (
+from gpu_forecasters.ttt_discover.v2.renderers.task_static import (
     StaticTaskPromptRenderer,
 )
 

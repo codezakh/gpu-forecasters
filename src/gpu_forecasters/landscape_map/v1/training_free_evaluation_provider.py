@@ -16,9 +16,9 @@ from typing import Literal
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.hill_climbing.domain import Evaluation, EvaluationProvider
-from arid_badger.typing_utils import implements
-from arid_badger.invocation_sink import InvocationSink, code_sha256
+from gpu_forecasters.hill_climbing.domain import Evaluation, EvaluationProvider
+from gpu_forecasters.typing_utils import implements
+from gpu_forecasters.invocation_sink import InvocationSink, code_sha256
 
 from .domain import (
     HardwareContext,

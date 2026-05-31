@@ -1,6 +1,6 @@
 """Modal-backed TriMul evaluator mapping raw exec results to typed outcomes.
 
-Wraps ``arid_badger.trimul.modal_scoring.modal_trimul_scoring_session``
+Wraps ``gpu_forecasters.trimul.modal_scoring.modal_trimul_scoring_session``
 as a module-level singleton (same atexit pattern as v1's GpuMode env)
 and maps a list of ``Option[TriMulExecResult, ScoringError]`` onto a
 single ``TriMulRLOutcome`` per v2's classification rules:
@@ -28,8 +28,8 @@ from typing import Any
 
 from loguru import logger
 
-from arid_badger.trimul.cases import TriMulTestArgs
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.cases import TriMulTestArgs
+from gpu_forecasters.trimul.core import (
     CaseSpeedup,
     CompileFailedFeedback,
     InfrastructureFailureFeedback,
@@ -37,13 +37,13 @@ from arid_badger.trimul.core import (
     TriMulExecResult,
     failure_feedback_from_exec_result,
 )
-from arid_badger.trimul.modal_scoring import (
+from gpu_forecasters.trimul.modal_scoring import (
     TriMulScoringFn,
     modal_trimul_scoring_session,
 )
-from arid_badger.ttt_discover.v2.domain.outcome import TriMulRLOutcome
-from arid_badger.ttt_discover.v2.interfaces.evaluator import KernelEvaluator
-from arid_badger.typing_utils import Option, implements, is_ok
+from gpu_forecasters.ttt_discover.v2.domain.outcome import TriMulRLOutcome
+from gpu_forecasters.ttt_discover.v2.interfaces.evaluator import KernelEvaluator
+from gpu_forecasters.typing_utils import Option, implements, is_ok
 
 
 _session_lock = threading.Lock()

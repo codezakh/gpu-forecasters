@@ -23,12 +23,12 @@ from typing import Annotated, Generic, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupBase,
     CaseSpeedupT,
     GpuModeKernelObservation,
 )
-from arid_badger.landscape_map.v2 import KernelRuntimeEstimate
+from gpu_forecasters.landscape_map.v2 import KernelRuntimeEstimate
 
 
 class ForecastObservation(BaseModel):

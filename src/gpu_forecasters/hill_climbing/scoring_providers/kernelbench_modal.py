@@ -31,8 +31,8 @@ from typing import Literal, Optional, assert_never, cast
 
 from pydantic import BaseModel
 
-from arid_badger.invocation_sink import InvocationSink, code_sha256
-from arid_badger.kernelbench.core import (
+from gpu_forecasters.invocation_sink import InvocationSink, code_sha256
+from gpu_forecasters.kernelbench.core import (
     CompileFailedFeedback,
     InfrastructureFailureFeedback,
     IncorrectFeedback,
@@ -40,13 +40,13 @@ from arid_badger.kernelbench.core import (
     SuccessFeedback,
     execution_feedback_from_exec_result,
 )
-from arid_badger.kernelbench.modal_scoring import ScoringFn
-from arid_badger.kernelbench.modal_split_scoring import modal_split_scoring_session
-from arid_badger.kernelbench.scoring import check_kernel_exec_result_valid
-from arid_badger.typing_utils import is_ok
+from gpu_forecasters.kernelbench.modal_scoring import ScoringFn
+from gpu_forecasters.kernelbench.modal_split_scoring import modal_split_scoring_session
+from gpu_forecasters.kernelbench.scoring import check_kernel_exec_result_valid
+from gpu_forecasters.typing_utils import is_ok
 from ..domain import Evaluation, EvaluationProvider
 from .kernelbench import KernelBenchObservation
-from arid_badger.typing_utils import implements
+from gpu_forecasters.typing_utils import implements
 
 
 class ModalEvaluationRecord(BaseModel, frozen=True):

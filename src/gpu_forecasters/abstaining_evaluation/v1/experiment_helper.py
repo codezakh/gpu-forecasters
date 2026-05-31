@@ -27,46 +27,46 @@ from typing import cast
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.abstaining_evaluation.v1.forecast_reward import (
+from gpu_forecasters.abstaining_evaluation.v1.forecast_reward import (
     ExpectedSpeedupReward,
 )
-from arid_badger.abstaining_evaluation.v1.mutation_provider import (
+from gpu_forecasters.abstaining_evaluation.v1.mutation_provider import (
     CompoundFeedbackMutationProvider,
 )
-from arid_badger.abstaining_evaluation.v1.observation import (
+from gpu_forecasters.abstaining_evaluation.v1.observation import (
     CompoundObservation,
     ForecastObservation,
     RealObservation,
 )
-from arid_badger.abstaining_evaluation.v1.provider import (
+from gpu_forecasters.abstaining_evaluation.v1.provider import (
     CompoundEvaluationProvider,
 )
-from arid_badger.gpu_mode_kernel.aggregation import AggregationMethod
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.aggregation import AggregationMethod
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupT,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.kernel_pack import TestArgsT
-from arid_badger.gpu_mode_kernel.modal_scoring import PackedModalRuntime
-from arid_badger.gpu_mode_kernel.providers.v2_modal_scoring import (
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import TestArgsT
+from gpu_forecasters.gpu_mode_kernel.modal_scoring import PackedModalRuntime
+from gpu_forecasters.gpu_mode_kernel.providers.v2_modal_scoring import (
     GpuModeKernelModalProvider,
 )
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.landscape_map.v2 import (
     HardwareContext,
     KernelImplementation,
     KernelTaskInfo,
 )
-from arid_badger.landscape_map.v2.abstain_estimator import (
+from gpu_forecasters.landscape_map.v2.abstain_estimator import (
     AbstainingLlmSpeedupEstimator,
 )
-from arid_badger.max_reward_puct.v2.config import SearchConfig
-from arid_badger.max_reward_puct.v2.event_log import FileEventLog
-from arid_badger.max_reward_puct.v2.events import (
+from gpu_forecasters.max_reward_puct.v2.config import SearchConfig
+from gpu_forecasters.max_reward_puct.v2.event_log import FileEventLog
+from gpu_forecasters.max_reward_puct.v2.events import (
     EvaluationCompleted,
     SearchInitialized,
 )
-from arid_badger.max_reward_puct.v2.search import SearchDriver
-from arid_badger.max_reward_puct.v2.state import replay
+from gpu_forecasters.max_reward_puct.v2.search import SearchDriver
+from gpu_forecasters.max_reward_puct.v2.state import replay
 
 
 # ---------------------------------------------------------------------------

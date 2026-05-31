@@ -6,7 +6,7 @@ one ``SurrogateSearchExperimentConfig`` and pass it to
 type. See ``README.md`` for the version's purpose.
 """
 
-from arid_badger.gpu_mode_kernel.surrogate_search.v1.config import (
+from gpu_forecasters.gpu_mode_kernel.surrogate_search.v1.config import (
     A100_80GB_SXM4_HARDWARE,
     EvaluationConfig,
     LiteLlmSurrogateConfig,
@@ -15,7 +15,7 @@ from arid_badger.gpu_mode_kernel.surrogate_search.v1.config import (
     SurrogateSearchExperimentConfig,
     TinkerSurrogateConfig,
 )
-from arid_badger.gpu_mode_kernel.surrogate_search.v1.runner import (
+from gpu_forecasters.gpu_mode_kernel.surrogate_search.v1.runner import (
     RunSummary,
     load_run_summaries,
     run_pack_experiment,

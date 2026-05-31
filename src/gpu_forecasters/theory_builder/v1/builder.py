@@ -35,27 +35,27 @@ import litellm
 from loguru import logger
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import ObservationT
-from arid_badger.theory_builder.v1.diff import (
+from gpu_forecasters.hill_climbing.domain import ObservationT
+from gpu_forecasters.theory_builder.v1.diff import (
     DiffApplyError,
     apply_diffs,
     parse_diff_blocks,
 )
-from arid_badger.theory_builder.v1.domain import (
+from gpu_forecasters.theory_builder.v1.domain import (
     Explanation,
     ExperimentResult,
     Hypothesis,
     WorldModel,
     WorldModelDiff,
 )
-from arid_badger.theory_builder.v1.parser import (
+from gpu_forecasters.theory_builder.v1.parser import (
     ParseError,
     ParsedExplanationTags,
     has_done_signal,
     parse_explanation_tags,
     parse_hypothesis_into_domain,
 )
-from arid_badger.theory_builder.v1.prompts import (
+from gpu_forecasters.theory_builder.v1.prompts import (
     EXPLANATION_SYSTEM_PROMPT,
     HYPOTHESIS_SYSTEM_PROMPT,
     apply_failed_message,
@@ -65,7 +65,7 @@ from arid_badger.theory_builder.v1.prompts import (
     missing_explanation_tags_message,
     next_edit_message,
 )
-from arid_badger.theory_builder.v1.renderers import (
+from gpu_forecasters.theory_builder.v1.renderers import (
     ExperimentResultRenderer,
     MarkdownWorldModelRenderer,
     WorldModelRenderer,

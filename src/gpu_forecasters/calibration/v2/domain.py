@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from arid_badger.landscape_map.v2 import KernelRuntimeEstimate, SpeedupBin
+from gpu_forecasters.landscape_map.v2 import KernelRuntimeEstimate, SpeedupBin
 
 
 class CalibrationDatum(BaseModel, frozen=True):
@@ -32,7 +32,7 @@ class ReliabilityBin(BaseModel, frozen=True):
 class CalibrationReport(BaseModel, frozen=True):
     """Aggregate v2 calibration metrics over a held-out set.
 
-    Field set mirrors :class:`arid_badger.calibration.v1.CalibrationReport`
+    Field set mirrors :class:`gpu_forecasters.calibration.v1.CalibrationReport`
     so a single rendering pipeline can serve both. The only field
     without a v2 analogue is ``likert_mapping`` — v2 has no projection
     parameter — so it's omitted, and a ``mean_raw_probability_sum``

@@ -18,7 +18,7 @@ from typing import Any
 import litellm
 from litellm import completion
 
-from arid_badger.typing_utils import implements
+from gpu_forecasters.typing_utils import implements
 
 from .domain import (
     AsyncSpeedupEstimator,

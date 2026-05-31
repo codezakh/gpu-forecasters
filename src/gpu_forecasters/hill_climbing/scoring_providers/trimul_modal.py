@@ -20,9 +20,9 @@ from typing import Literal, Optional, assert_never, cast
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.invocation_sink import InvocationSink, code_sha256
-from arid_badger.trimul.cases import TriMulTestArgs
-from arid_badger.trimul.core import (
+from gpu_forecasters.invocation_sink import InvocationSink, code_sha256
+from gpu_forecasters.trimul.cases import TriMulTestArgs
+from gpu_forecasters.trimul.core import (
     CaseSpeedup,
     CompileFailedFeedback,
     IncorrectFeedback,
@@ -32,11 +32,11 @@ from arid_badger.trimul.core import (
     TriMulExecResult,
     failure_feedback_from_exec_result,
 )
-from arid_badger.trimul.modal_scoring import (
+from gpu_forecasters.trimul.modal_scoring import (
     TriMulScoringFn,
     modal_trimul_scoring_session,
 )
-from arid_badger.typing_utils import implements, is_ok
+from gpu_forecasters.typing_utils import implements, is_ok
 
 from ..domain import Evaluation, EvaluationProvider
 from .trimul import TriMulObservation

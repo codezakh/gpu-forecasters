@@ -18,7 +18,7 @@ from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from arid_badger.landscape_map.v2.domain import KernelRuntimeEstimate
+from gpu_forecasters.landscape_map.v2.domain import KernelRuntimeEstimate
 
 
 class Deferral(BaseModel):

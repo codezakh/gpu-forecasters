@@ -2,14 +2,14 @@ from unittest.mock import Mock
 
 import pytest
 
-from arid_badger.greedy_search.domain import (
+from gpu_forecasters.greedy_search.domain import (
     InvalidEvaluation,
     KernelCandidate,
     ValidEvaluation,
 )
-from arid_badger.greedy_search.scoring_provider import SerialScoringProvider
-from arid_badger.greedy_search.domain import ScoringFailure, ScoringSuccess
-from arid_badger.kernelbench.core import KernelScoringResult
+from gpu_forecasters.greedy_search.scoring_provider import SerialScoringProvider
+from gpu_forecasters.greedy_search.domain import ScoringFailure, ScoringSuccess
+from gpu_forecasters.kernelbench.core import KernelScoringResult
 from kernelbench.eval import KernelExecResult
 
 

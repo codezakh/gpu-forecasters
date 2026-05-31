@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import TypeAlias
 
 import tinker
-from arid_badger.ttt_discover.v1.tinker_utils.misc_utils import Tokenizer
+from gpu_forecasters.ttt_discover.v1.tinker_utils.misc_utils import Tokenizer
 
 # Interfaces
 

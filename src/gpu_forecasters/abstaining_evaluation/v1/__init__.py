@@ -16,13 +16,13 @@ Two surfaces share this module:
   ``CompoundFeedbackMutationProvider``.
 """
 
-from arid_badger.abstaining_evaluation.v1.confidence_scores import (
+from gpu_forecasters.abstaining_evaluation.v1.confidence_scores import (
     ConfidenceScore,
     MaxProbScore,
     NegEntropyScore,
     Top2MarginScore,
 )
-from arid_badger.abstaining_evaluation.v1.domain import (
+from gpu_forecasters.abstaining_evaluation.v1.domain import (
     AbstainDecision,
     AbstainPolicy,
     Predict,
@@ -31,42 +31,42 @@ from arid_badger.abstaining_evaluation.v1.domain import (
     RiskFunction,
     SelectiveMetricRow,
 )
-from arid_badger.abstaining_evaluation.v1.forecast_checking import (
+from gpu_forecasters.abstaining_evaluation.v1.forecast_checking import (
     CheckedForecast,
     ForecastChecker,
     forecasts_to_check,
     load_checked_forecasts,
 )
-from arid_badger.abstaining_evaluation.v1.forecast_reward import (
+from gpu_forecasters.abstaining_evaluation.v1.forecast_reward import (
     ExpectedSpeedupReward,
     ForecastRewardPolicy,
 )
-from arid_badger.abstaining_evaluation.v1.metrics import (
+from gpu_forecasters.abstaining_evaluation.v1.metrics import (
     aurc,
     decision_set_agreement,
     match_coverage_with_threshold,
     risk_coverage_curve,
     selective_at_coverage,
 )
-from arid_badger.abstaining_evaluation.v1.mutation_provider import (
+from gpu_forecasters.abstaining_evaluation.v1.mutation_provider import (
     CompoundFeedbackMutationProvider,
     CompoundMutationError,
 )
-from arid_badger.abstaining_evaluation.v1.observation import (
+from gpu_forecasters.abstaining_evaluation.v1.observation import (
     CompoundObservation,
     ForecastObservation,
     RealObservation,
 )
-from arid_badger.abstaining_evaluation.v1.provider import (
+from gpu_forecasters.abstaining_evaluation.v1.provider import (
     CompoundEvaluationProvider,
 )
-from arid_badger.abstaining_evaluation.v1.risks import (
+from gpu_forecasters.abstaining_evaluation.v1.risks import (
     BinaryMismatchRisk,
     RegretRisk,
     SpeedupDistanceRisk,
     bin_midpoint,
 )
-from arid_badger.abstaining_evaluation.v1.threshold_abstainer import (
+from gpu_forecasters.abstaining_evaluation.v1.threshold_abstainer import (
     ThresholdAbstainPolicy,
 )
 

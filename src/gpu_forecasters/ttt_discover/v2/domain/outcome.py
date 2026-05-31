@@ -1,7 +1,7 @@
 """The v2-local outcome union for a single rollout.
 
 Composes the four ``TriMulKernelExecutionFeedback`` variants from
-``arid_badger.trimul.core`` with two additional variants that v2
+``gpu_forecasters.trimul.core`` with two additional variants that v2
 distinguishes explicitly: ``InfrastructureFailureFeedback`` (Modal /
 scoring harness crash, separable from candidate-level failures for
 reward / analysis purposes) and ``ParseFailureFeedback`` (the LLM's
@@ -15,7 +15,7 @@ from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CompileFailedFeedback,
     IncorrectFeedback,
     InfrastructureFailureFeedback,

@@ -8,16 +8,16 @@ fan-out-over-cases loop, GPU readiness wait, and per-case error
 handling that used to live duplicated in ``trimul/modal_scoring.py``
 and ``causal_conv1d/modal_scoring.py``.
 
-The shared image (``arid_badger.kernelbench.modal_image.image``) and
+The shared image (``gpu_forecasters.kernelbench.modal_image.image``) and
 default cls decorator settings live here.
 
 Usage from a pack module:
 
     import modal
-    from arid_badger.gpu_mode_kernel.modal_scoring import (
+    from gpu_forecasters.gpu_mode_kernel.modal_scoring import (
         DEFAULT_CLS_KWARGS, run_evaluate_candidate,
     )
-    from arid_badger.kernelbench.modal_image import image
+    from gpu_forecasters.kernelbench.modal_image import image
     from .my_pack import MY_PACK
 
     app = modal.App(MY_PACK.modal_app_name)
@@ -42,14 +42,14 @@ from typing import Any, Generic, cast
 
 import modal
 
-from arid_badger.gpu_mode_kernel.core import KernelExecResult
-from arid_badger.gpu_mode_kernel.kernel_pack import (
+from gpu_forecasters.gpu_mode_kernel.core import KernelExecResult
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import (
     CaseSpeedupT,
     KernelPack,
     TestArgsT,
 )
-from arid_badger.kernelbench.isolated_scoring import ScoringError
-from arid_badger.typing_utils import Err, Option
+from gpu_forecasters.kernelbench.isolated_scoring import ScoringError
+from gpu_forecasters.typing_utils import Err, Option
 
 
 @dataclass(frozen=True)
@@ -137,7 +137,7 @@ def run_evaluate_candidate(
     """
     import torch
 
-    from arid_badger.gpu_mode_kernel.scoring import score_one_case
+    from gpu_forecasters.gpu_mode_kernel.scoring import score_one_case
 
     _wait_for_gpu()
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from ulid import ULID
 
-from arid_badger.theory_builder.v1.parser import (
+from gpu_forecasters.theory_builder.v1.parser import (
     ParseError,
     extract_list_tag,
     extract_optional_tag,

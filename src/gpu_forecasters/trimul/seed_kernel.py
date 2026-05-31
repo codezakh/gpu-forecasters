@@ -4,7 +4,7 @@ Vendored verbatim from
 ``ttt-discover/examples/gpu_mode/lib/bioml/trimul/submission.py``. The
 `from task import input_t, output_t` import resolves at candidate-load
 time via the synthetic `task.py` shim installed by
-``arid_badger.trimul.scoring._loaded_candidate``, so this source is
+``gpu_forecasters.trimul.scoring._loaded_candidate``, so this source is
 runnable unmodified through the scoring pipeline.
 
 Seeding from the PyTorch reference gives an initial reward close to

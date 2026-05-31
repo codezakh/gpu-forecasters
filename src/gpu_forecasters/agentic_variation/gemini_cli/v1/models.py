@@ -7,7 +7,7 @@ from typing import Any, Callable, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
-from arid_badger.trimul.core import TriMulKernelExecutionFeedback
+from gpu_forecasters.trimul.core import TriMulKernelExecutionFeedback
 
 from .prompts import render_system_prompt, render_user_prompt
 

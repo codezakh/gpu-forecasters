@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from arid_badger.agentic_variation.gemini_cli.v1 import (
+from gpu_forecasters.agentic_variation.gemini_cli.v1 import (
     ExperimentConfig,
     RESULT_FILENAME,
     TRAJECTORY_FILENAME,

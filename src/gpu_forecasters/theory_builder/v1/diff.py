@@ -28,7 +28,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from arid_badger.theory_builder.v1.domain import WorldModelDiff
+from gpu_forecasters.theory_builder.v1.domain import WorldModelDiff
 
 
 class DiffApplyError(ValueError):

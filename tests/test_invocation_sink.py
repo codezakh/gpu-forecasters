@@ -1,4 +1,4 @@
-"""Tests for arid_badger.invocation_sink."""
+"""Tests for gpu_forecasters.invocation_sink."""
 
 from __future__ import annotations
 
@@ -10,28 +10,28 @@ from unittest.mock import MagicMock, patch
 from pydantic import BaseModel
 from ulid import ULID
 
-from arid_badger.greedy_search.domain import MutationContext
-from arid_badger.greedy_search.feedback_mutation import (
+from gpu_forecasters.greedy_search.domain import MutationContext
+from gpu_forecasters.greedy_search.feedback_mutation import (
     FeedbackMutationRecord,
     KernelBenchExecutionFeedbackMutationFunction,
 )
-from arid_badger.greedy_search.kernelbench_prompt_mutation import (
+from gpu_forecasters.greedy_search.kernelbench_prompt_mutation import (
     KernelBenchPromptMutationFunction,
     PromptMutationRecord,
 )
-from arid_badger.invocation_sink import (
+from gpu_forecasters.invocation_sink import (
     FilesystemInvocationSink,
     InvocationSink,
     code_sha256,
 )
-from arid_badger.landscape_map.v1.domain import (
+from gpu_forecasters.landscape_map.v1.domain import (
     KernelTaskInfo,
     LikertConfidence,
     LlmCallUsage,
     KernelRuntimeEstimate,
     SpeedupBin,
 )
-from arid_badger.landscape_map.v1.training_free_evaluation_provider import (
+from gpu_forecasters.landscape_map.v1.training_free_evaluation_provider import (
     KernelWorldModelEvaluationProvider,
     KwmEvaluationRecord,
 )
@@ -128,7 +128,7 @@ class TestFilesystemInvocationSink:
 
     def test_record_does_not_raise_on_write_failure(self, tmp_path: Path) -> None:
         sink = FilesystemInvocationSink(tmp_path)
-        with patch("arid_badger.invocation_sink.Path.write_text", side_effect=OSError("disk full")):
+        with patch("gpu_forecasters.invocation_sink.Path.write_text", side_effect=OSError("disk full")):
             sink.record(_SimpleRecord(value=1))  # must not raise
 
     def test_record_writes_to_nested_nonexistent_path(self, tmp_path: Path) -> None:
@@ -174,7 +174,7 @@ class TestPromptMutationFunctionSink:
         response = _make_litellm_response(input_tokens=80, output_tokens=40)
 
         with patch(
-            "arid_badger.greedy_search.kernelbench_prompt_mutation.completion",
+            "gpu_forecasters.greedy_search.kernelbench_prompt_mutation.completion",
             return_value=response,
         ):
             fn(context)
@@ -194,7 +194,7 @@ class TestPromptMutationFunctionSink:
         response = _make_litellm_response()
 
         with patch(
-            "arid_badger.greedy_search.kernelbench_prompt_mutation.completion",
+            "gpu_forecasters.greedy_search.kernelbench_prompt_mutation.completion",
             return_value=response,
         ):
             fn(context)  # should not raise

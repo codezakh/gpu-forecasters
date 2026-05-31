@@ -16,71 +16,8 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "15-arid-badger",
+    "gpu-forecasters",
     "kernelbench",
-]
-
-[[package]]
-name = "15-arid-badger"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "chz" },
-    { name = "docker" },
-    { name = "fastmcp" },
-    { name = "ipdb" },
-    { name = "kernelbench" },
-    { name = "litellm" },
-    { name = "loguru" },
-    { name = "matplotlib" },
-    { name = "modal" },
-    { name = "peft" },
-    { name = "pydantic-ai" },
-    { name = "pytest" },
-    { name = "python-ulid" },
-    { name = "safetensors" },
-    { name = "scipy" },
-    { name = "seaborn" },
-    { name = "termcolor" },
-    { name = "textual", extra = ["syntax"] },
-    { name = "textualize" },
-    { name = "tiktoken" },
-    { name = "tinker" },
-    { name = "tinker-cookbook" },
-    { name = "torch", version = "2.9.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
-    { name = "torch", version = "2.9.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'linux'" },
-    { name = "transformers" },
-    { name = "wandb" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "chz", specifier = ">=0.4.0" },
-    { name = "docker", specifier = ">=7.1.0" },
-    { name = "fastmcp", specifier = ">=3.2.4" },
-    { name = "ipdb", specifier = ">=0.13.13" },
-    { name = "kernelbench", editable = "third_party/KernelBench" },
-    { name = "litellm", specifier = ">=1.81.5" },
-    { name = "loguru", specifier = ">=0.7.3" },
-    { name = "matplotlib", specifier = ">=3.10.8" },
-    { name = "modal", specifier = ">=1.0" },
-    { name = "peft", specifier = ">=0.18.0" },
-    { name = "pydantic-ai", specifier = ">=1.0" },
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "python-ulid", specifier = ">=3.1.0" },
-    { name = "safetensors", specifier = ">=0.7.0" },
-    { name = "scipy", specifier = ">=1.17.1" },
-    { name = "seaborn", specifier = ">=0.13.2" },
-    { name = "termcolor", specifier = ">=3.3.0" },
-    { name = "textual", extras = ["syntax"], specifier = ">=6.2.1" },
-    { name = "textualize", specifier = ">=0.1" },
-    { name = "tiktoken", specifier = ">=0.12.0" },
-    { name = "tinker", specifier = ">=0.18.1" },
-    { name = "tinker-cookbook", editable = "third_party/tinker-cookbook" },
-    { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.5.1" },
-    { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.5.1", index = "https://download.pytorch.org/whl/cu128" },
-    { name = "transformers", specifier = ">=4.57.3" },
-    { name = "wandb", specifier = ">=0.23.1" },
 ]
 
 [[package]]
@@ -1339,6 +1276,69 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/20/18/a746c8344152d368a5aac738d4c857012f2c5d1fd2eac7e17b647a7861bd/googleapis_common_protos-1.74.0.tar.gz", hash = "sha256:57971e4eeeba6aad1163c1f0fc88543f965bb49129b8bb55b2b7b26ecab084f1", size = 151254, upload-time = "2026-04-02T21:23:26.679Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b6/b0/be5d3329badb9230b765de6eea66b73abd5944bdeb5afb3562ddcd80ae84/googleapis_common_protos-1.74.0-py3-none-any.whl", hash = "sha256:702216f78610bb510e3f12ac3cafd281b7ac45cc5d86e90ad87e4d301a3426b5", size = 300743, upload-time = "2026-04-02T21:22:49.108Z" },
+]
+
+[[package]]
+name = "gpu-forecasters"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "chz" },
+    { name = "docker" },
+    { name = "fastmcp" },
+    { name = "ipdb" },
+    { name = "kernelbench" },
+    { name = "litellm" },
+    { name = "loguru" },
+    { name = "matplotlib" },
+    { name = "modal" },
+    { name = "peft" },
+    { name = "pydantic-ai" },
+    { name = "pytest" },
+    { name = "python-ulid" },
+    { name = "safetensors" },
+    { name = "scipy" },
+    { name = "seaborn" },
+    { name = "termcolor" },
+    { name = "textual", extra = ["syntax"] },
+    { name = "textualize" },
+    { name = "tiktoken" },
+    { name = "tinker" },
+    { name = "tinker-cookbook" },
+    { name = "torch", version = "2.9.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
+    { name = "torch", version = "2.9.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'linux'" },
+    { name = "transformers" },
+    { name = "wandb" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "chz", specifier = ">=0.4.0" },
+    { name = "docker", specifier = ">=7.1.0" },
+    { name = "fastmcp", specifier = ">=3.2.4" },
+    { name = "ipdb", specifier = ">=0.13.13" },
+    { name = "kernelbench", editable = "third_party/KernelBench" },
+    { name = "litellm", specifier = ">=1.81.5" },
+    { name = "loguru", specifier = ">=0.7.3" },
+    { name = "matplotlib", specifier = ">=3.10.8" },
+    { name = "modal", specifier = ">=1.0" },
+    { name = "peft", specifier = ">=0.18.0" },
+    { name = "pydantic-ai", specifier = ">=1.0" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "python-ulid", specifier = ">=3.1.0" },
+    { name = "safetensors", specifier = ">=0.7.0" },
+    { name = "scipy", specifier = ">=1.17.1" },
+    { name = "seaborn", specifier = ">=0.13.2" },
+    { name = "termcolor", specifier = ">=3.3.0" },
+    { name = "textual", extras = ["syntax"], specifier = ">=6.2.1" },
+    { name = "textualize", specifier = ">=0.1" },
+    { name = "tiktoken", specifier = ">=0.12.0" },
+    { name = "tinker", specifier = ">=0.18.1" },
+    { name = "tinker-cookbook", editable = "third_party/tinker-cookbook" },
+    { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.5.1" },
+    { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.5.1", index = "https://download.pytorch.org/whl/cu128" },
+    { name = "transformers", specifier = ">=4.57.3" },
+    { name = "wandb", specifier = ">=0.23.1" },
 ]
 
 [[package]]

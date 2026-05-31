@@ -6,13 +6,13 @@ import math
 
 import pytest
 
-from arid_badger.landscape_map.v2.domain import (
+from gpu_forecasters.landscape_map.v2.domain import (
     KernelImplementation,
     KernelRuntimeQuery,
     KernelTaskInfo,
     SpeedupBin,
 )
-from arid_badger.landscape_map.v2.stub_estimator import StubEstimator
+from gpu_forecasters.landscape_map.v2.stub_estimator import StubEstimator
 
 
 def _query() -> KernelRuntimeQuery:

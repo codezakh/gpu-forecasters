@@ -1,17 +1,17 @@
 """TriMul KernelPack.
 
-Path-B port of ``arid_badger.trimul/`` into the generic
+Path-B port of ``gpu_forecasters.trimul/`` into the generic
 ``gpu_mode_kernel`` abstraction. The vendored cases / reference /
 generate_input / check_implementation / determinism context manager
 / seed kernel / mutation prompt are duplicated here (rather than
-re-imported from ``arid_badger.trimul``) so the regression check in
+re-imported from ``gpu_forecasters.trimul``) so the regression check in
 ``tests/gpu_mode_kernel/test_trimul_pack_vs_legacy.py`` compares two
 genuinely independent paths.
 
 The intent is that once Path B is validated (this pack's scoring
-output matches ``arid_badger.trimul.scoring.score``'s output on the
+output matches ``gpu_forecasters.trimul.scoring.score``'s output on the
 same Modal A100 to within determinism tolerance) the legacy
-``arid_badger.trimul/`` package can be retired.
+``gpu_forecasters.trimul/`` package can be retired.
 """
 
 from __future__ import annotations
@@ -24,20 +24,20 @@ import torch
 from pydantic import ConfigDict
 from torch import einsum, nn
 
-from arid_badger.gpu_mode_kernel.comparison import make_match_reference
-from arid_badger.gpu_mode_kernel.core import CaseSpeedupBase, KernelExecResult
-from arid_badger.gpu_mode_kernel.kernel_pack import KernelPack
-from arid_badger.gpu_mode_kernel.modal_scoring import (
+from gpu_forecasters.gpu_mode_kernel.comparison import make_match_reference
+from gpu_forecasters.gpu_mode_kernel.core import CaseSpeedupBase, KernelExecResult
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import KernelPack
+from gpu_forecasters.gpu_mode_kernel.modal_scoring import (
     DEFAULT_CLS_KWARGS,
     PackedModalRuntime,
     run_evaluate_candidate,
 )
-from arid_badger.kernelbench.modal_image import image
+from gpu_forecasters.kernelbench.modal_image import image
 
 
 # ---------------------------------------------------------------------------
 # Determinism context manager — vendored from
-# ``arid_badger.trimul.comparison.DisableCuDNNTF32``. Re-exported through
+# ``gpu_forecasters.trimul.comparison.DisableCuDNNTF32``. Re-exported through
 # the candidate-loading utils.py shim below.
 # ---------------------------------------------------------------------------
 
@@ -164,7 +164,7 @@ class TriMulCaseSpeedup(CaseSpeedupBase):
 
 # ---------------------------------------------------------------------------
 # Reference + input generator + correctness oracle — vendored from
-# ``arid_badger.trimul.reference``. The TriMul module body lives here
+# ``gpu_forecasters.trimul.reference``. The TriMul module body lives here
 # rather than being imported from torch hub so that the regression
 # check has a self-contained reference path.
 # ---------------------------------------------------------------------------
@@ -338,7 +338,7 @@ check_implementation: Callable[[input_t, torch.Tensor], Tuple[bool, str]] = (
 
 # ---------------------------------------------------------------------------
 # Seed kernel — vendored verbatim from
-# ``arid_badger.trimul.seed_kernel.SEED_KERNEL_CODE``.
+# ``gpu_forecasters.trimul.seed_kernel.SEED_KERNEL_CODE``.
 # ---------------------------------------------------------------------------
 
 _SEED_KERNEL_CODE: str = '''import torch
@@ -426,7 +426,7 @@ def custom_kernel(data: input_t) -> output_t:
 
 # ---------------------------------------------------------------------------
 # Mutation-prompt body — vendored verbatim from
-# ``arid_badger.hill_climbing.mutation_providers.trimul_feedback_mutation._TRIMUL_BASE_PROMPT``.
+# ``gpu_forecasters.hill_climbing.mutation_providers.trimul_feedback_mutation._TRIMUL_BASE_PROMPT``.
 # The test cases listing is baked into the prompt text rather than
 # generated programmatically, mirroring upstream's prompt.
 # ---------------------------------------------------------------------------
@@ -652,7 +652,7 @@ app = modal.App(TRIMUL_PACK.modal_app_name)
 class ModalTrimulPackBenchmarker:
     """Modal benchmarker for the gpu_mode_kernel-based TriMul pack.
 
-    Distinct from ``arid_badger.trimul.modal_scoring.ModalTriMulBenchmarker``
+    Distinct from ``gpu_forecasters.trimul.modal_scoring.ModalTriMulBenchmarker``
     so the regression test can dispatch to both side-by-side.
     """
 

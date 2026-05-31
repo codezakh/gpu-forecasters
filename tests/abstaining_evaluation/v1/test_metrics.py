@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from arid_badger.abstaining_evaluation.v1 import (
+from gpu_forecasters.abstaining_evaluation.v1 import (
     AbstainDecision,
     BinaryMismatchRisk,
     MaxProbScore,
@@ -19,9 +19,9 @@ from arid_badger.abstaining_evaluation.v1 import (
     risk_coverage_curve,
     selective_at_coverage,
 )
-from arid_badger.eval_dataset_builder.v1 import KernelRuntimeComparison
-from arid_badger.landscape_map.v2 import KernelRuntimeEstimate
-from arid_badger.landscape_map.v2 import SpeedupBin
+from gpu_forecasters.eval_dataset_builder.v1 import KernelRuntimeComparison
+from gpu_forecasters.landscape_map.v2 import KernelRuntimeEstimate
+from gpu_forecasters.landscape_map.v2 import SpeedupBin
 
 from ._fixtures import make_comparison, make_estimate, true_bin_v2
 

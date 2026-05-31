@@ -1,6 +1,6 @@
 """
 Use viz_sft_dataset to visualize the output of different renderers. E.g.,
-    python -m arid_badger.ttt_discover.v1.supervised.viz_sft_dataset dataset_path=Tulu3Builder renderer_name=role_colon
+    python -m gpu_forecasters.ttt_discover.v1.supervised.viz_sft_dataset dataset_path=Tulu3Builder renderer_name=role_colon
 """
 
 import json

@@ -15,8 +15,8 @@ import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Self
 
-from arid_badger.hill_climbing.domain import Evaluation, NoFeedback
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.hill_climbing.domain import Evaluation, NoFeedback
+from gpu_forecasters.landscape_map.v2 import (
     SUCCESS_BINS,
     HardwareContext,
     KernelRuntimeEstimate,

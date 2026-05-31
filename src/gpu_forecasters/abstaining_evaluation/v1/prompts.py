@@ -1,7 +1,7 @@
 """Mutation-prompt assembly for the compound-observation search loop.
 
 This module is intentionally a sibling, not a wrapper, of
-``arid_badger.gpu_mode_kernel.prompts``. It owns:
+``gpu_forecasters.gpu_mode_kernel.prompts``. It owns:
 
 * a copy of the rules template and base-prompt assembly the
   gpu_mode_kernel mutation provider uses;
@@ -27,8 +27,8 @@ from __future__ import annotations
 
 from typing import assert_never
 
-from arid_badger.abstaining_evaluation.v1.observation import ForecastObservation
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.abstaining_evaluation.v1.observation import ForecastObservation
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupBase,
     CaseSpeedupT,
     CompileFailedFeedback,
@@ -37,8 +37,8 @@ from arid_badger.gpu_mode_kernel.core import (
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.kernel_pack import KernelPack, TestArgsT
-from arid_badger.landscape_map.v2 import SUCCESS_BINS
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import KernelPack, TestArgsT
+from gpu_forecasters.landscape_map.v2 import SUCCESS_BINS
 
 
 # ---------------------------------------------------------------------------

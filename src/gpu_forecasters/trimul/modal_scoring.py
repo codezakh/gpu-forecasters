@@ -7,7 +7,7 @@ handled by the provider's thread pool.
 
 Usage:
 
-    from arid_badger.trimul.modal_scoring import modal_trimul_scoring_session
+    from gpu_forecasters.trimul.modal_scoring import modal_trimul_scoring_session
 
     with modal_trimul_scoring_session(gpu="L4") as score:
         results = score(candidate_source, [test_args_1, test_args_2])
@@ -24,11 +24,11 @@ from typing import Callable, Generator, cast
 
 import modal
 
-from arid_badger.kernelbench.isolated_scoring import ScoringError
-from arid_badger.kernelbench.modal_image import image
-from arid_badger.trimul.cases import TriMulTestArgs
-from arid_badger.trimul.core import TriMulExecResult
-from arid_badger.typing_utils import Err, Option
+from gpu_forecasters.kernelbench.isolated_scoring import ScoringError
+from gpu_forecasters.kernelbench.modal_image import image
+from gpu_forecasters.trimul.cases import TriMulTestArgs
+from gpu_forecasters.trimul.core import TriMulExecResult
+from gpu_forecasters.typing_utils import Err, Option
 
 
 app = modal.App("arid-badger-trimul")
@@ -68,7 +68,7 @@ class ModalTriMulBenchmarker:
     ) -> list[Option[TriMulExecResult, ScoringError]]:
         import torch
 
-        from arid_badger.trimul.scoring import score
+        from gpu_forecasters.trimul.scoring import score
 
         start = time.time()
         while not torch.cuda.is_available():

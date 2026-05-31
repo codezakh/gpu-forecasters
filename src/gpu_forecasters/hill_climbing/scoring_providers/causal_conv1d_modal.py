@@ -20,8 +20,8 @@ from typing import Literal, Optional, assert_never, cast
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.causal_conv1d.cases import CausalConv1dTestArgs
-from arid_badger.causal_conv1d.core import (
+from gpu_forecasters.causal_conv1d.cases import CausalConv1dTestArgs
+from gpu_forecasters.causal_conv1d.core import (
     CaseSpeedup,
     CausalConv1dExecResult,
     CompileFailedFeedback,
@@ -31,12 +31,12 @@ from arid_badger.causal_conv1d.core import (
     SuccessFeedback,
     failure_feedback_from_exec_result,
 )
-from arid_badger.causal_conv1d.modal_scoring import (
+from gpu_forecasters.causal_conv1d.modal_scoring import (
     CausalConv1dScoringFn,
     modal_causal_conv1d_scoring_session,
 )
-from arid_badger.invocation_sink import InvocationSink, code_sha256
-from arid_badger.typing_utils import implements, is_ok
+from gpu_forecasters.invocation_sink import InvocationSink, code_sha256
+from gpu_forecasters.typing_utils import implements, is_ok
 
 from ..domain import Evaluation, EvaluationProvider
 from .causal_conv1d import CausalConv1dObservation

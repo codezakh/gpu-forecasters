@@ -1,5 +1,5 @@
 """Regression check: ``TRIMUL_PACK`` via gpu_mode_kernel vs the legacy
-``arid_badger.trimul.scoring.score`` path.
+``gpu_forecasters.trimul.scoring.score`` path.
 
 This is the Path-B correctness gate. The new abstraction must produce
 the same scoring output as the legacy per-kernel package on the same
@@ -33,10 +33,10 @@ from typing import Any
 import modal
 import pytest
 
-from arid_badger.gpu_mode_kernel.packs.trimul import (
+from gpu_forecasters.gpu_mode_kernel.packs.trimul import (
     BENCHMARK_CASES as PACK_BENCHMARK_CASES,
 )
-from arid_badger.kernelbench.modal_image import image
+from gpu_forecasters.kernelbench.modal_image import image
 
 
 # Dedicated app — distinct namespace from both ``arid-badger-trimul``
@@ -85,13 +85,13 @@ class _RegressionRunner:
     ) -> dict[str, Any]:
         from typing import cast
 
-        from arid_badger.gpu_mode_kernel.packs.trimul import TRIMUL_PACK
-        from arid_badger.gpu_mode_kernel.scoring import (
+        from gpu_forecasters.gpu_mode_kernel.packs.trimul import TRIMUL_PACK
+        from gpu_forecasters.gpu_mode_kernel.scoring import (
             score_one_case as new_score_one_case,
         )
-        from arid_badger.trimul.cases import TriMulTestArgs as LegacyTestArgs
-        from arid_badger.trimul.scoring import score as legacy_score
-        from arid_badger.typing_utils import is_ok
+        from gpu_forecasters.trimul.cases import TriMulTestArgs as LegacyTestArgs
+        from gpu_forecasters.trimul.scoring import score as legacy_score
+        from gpu_forecasters.typing_utils import is_ok
 
         # Run legacy first.
         legacy_outcome = legacy_score(
@@ -182,7 +182,7 @@ def test_success_arm_timings_agree_within_tolerance() -> None:
     A regression in the abstraction would surface as a much larger
     divergence (different code path / wrong reference / etc.).
     """
-    from arid_badger.gpu_mode_kernel.packs.trimul import TRIMUL_PACK
+    from gpu_forecasters.gpu_mode_kernel.packs.trimul import TRIMUL_PACK
 
     case = PACK_BENCHMARK_CASES[0]
     with _app.run():

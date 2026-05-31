@@ -6,9 +6,9 @@ lists directly and assert the mapped ``TriMulRLOutcome`` variant.
 
 from __future__ import annotations
 
-from arid_badger.kernelbench.isolated_scoring import ScoringError
-from arid_badger.trimul.cases import TriMulTestArgs
-from arid_badger.trimul.core import (
+from gpu_forecasters.kernelbench.isolated_scoring import ScoringError
+from gpu_forecasters.trimul.cases import TriMulTestArgs
+from gpu_forecasters.trimul.core import (
     CompileFailedFeedback,
     IncorrectFeedback,
     InfrastructureFailureFeedback,
@@ -16,10 +16,10 @@ from arid_badger.trimul.core import (
     SuccessFeedback,
     TriMulExecResult,
 )
-from arid_badger.ttt_discover.v2.evaluator.modal_trimul import (
+from gpu_forecasters.ttt_discover.v2.evaluator.modal_trimul import (
     map_outcomes_to_rl_outcome,
 )
-from arid_badger.typing_utils import Err, Result
+from gpu_forecasters.typing_utils import Err, Result
 
 
 def _case(seqlen: int) -> TriMulTestArgs:

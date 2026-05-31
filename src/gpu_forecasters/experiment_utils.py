@@ -99,7 +99,7 @@ class ExperimentWorkspaceManager:
 
     **Canonical usage** — declare once in the experiment's ``__init__.py``::
 
-        from arid_badger.experiment_utils import ExperimentWorkspaceManager
+        from gpu_forecasters.experiment_utils import ExperimentWorkspaceManager
 
         WORKSPACE = ExperimentWorkspaceManager.from_module_name(__name__)
 

@@ -9,13 +9,13 @@ default test run and must be selected explicitly:
 
 import pytest
 
-from arid_badger.kernelbench.modal_scoring import (
+from gpu_forecasters.kernelbench.modal_scoring import (
     modal_scoring_session,
     run_scoring_on_modal,
     _wrap_exec_result,
 )
-from arid_badger.hill_climbing.scoring_providers.kernelbench_modal import ModalProvider
-from arid_badger.typing_utils import is_ok, is_err
+from gpu_forecasters.hill_climbing.scoring_providers.kernelbench_modal import ModalProvider
+from gpu_forecasters.typing_utils import is_ok, is_err
 
 # ---------------------------------------------------------------------------
 # Test fixtures — same 128x128 matmul kernels used in test_kernelbench_scoring
@@ -157,7 +157,7 @@ def test_wrap_exec_result_returns_err_for_none() -> None:
 @pytest.mark.slow
 def test_modal_provider_evaluate() -> None:
     """ModalProvider.evaluate() returns a valid Evaluation via the EvaluationProvider protocol."""
-    from arid_badger.kernelbench.core import SuccessFeedback
+    from gpu_forecasters.kernelbench.core import SuccessFeedback
 
     with ModalProvider(
         reference_kernel_code=REFERENCE_KERNEL_CODE,
@@ -187,7 +187,7 @@ def test_modal_provider_batch_evaluate() -> None:
     when driven by `ModalProvider`, so a regression here breaks both
     batch ordering and split-scoring concurrency at once.
     """
-    from arid_badger.kernelbench.core import SuccessFeedback
+    from gpu_forecasters.kernelbench.core import SuccessFeedback
 
     # Interleave correct/broken so a simple "first N correct, last M broken"
     # implementation would still look right — forces order preservation to

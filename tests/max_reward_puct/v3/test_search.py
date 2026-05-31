@@ -13,14 +13,14 @@ from typing import Any
 
 import pytest
 
-from arid_badger.hill_climbing.domain import NoFeedback
-from arid_badger.landscape_map.v2 import HardwareContext, KernelTaskInfo
-from arid_badger.max_reward_puct.v3.config import (
+from gpu_forecasters.hill_climbing.domain import NoFeedback
+from gpu_forecasters.landscape_map.v2 import HardwareContext, KernelTaskInfo
+from gpu_forecasters.max_reward_puct.v3.config import (
     ExpectedBinIndexRule,
     SearchConfig,
 )
-from arid_badger.max_reward_puct.v3.event_log import FileEventLog
-from arid_badger.max_reward_puct.v3.events import (
+from gpu_forecasters.max_reward_puct.v3.event_log import FileEventLog
+from gpu_forecasters.max_reward_puct.v3.events import (
     CandidateDeferred,
     CandidateSelected,
     EvaluationRequested,
@@ -32,15 +32,15 @@ from arid_badger.max_reward_puct.v3.events import (
     StepCompleted,
     StepStarted,
 )
-from arid_badger.max_reward_puct.v3.state import SearchState
-from arid_badger.max_reward_puct.v3.scoring_providers import (
+from gpu_forecasters.max_reward_puct.v3.state import SearchState
+from gpu_forecasters.max_reward_puct.v3.scoring_providers import (
     CoroutineSpeedupEstimator,
 )
-from arid_badger.max_reward_puct.v3.search import (
+from gpu_forecasters.max_reward_puct.v3.search import (
     SearchDriver,
     SurrogateContextMismatch,
 )
-from arid_badger.max_reward_puct.v3.state import replay
+from gpu_forecasters.max_reward_puct.v3.state import replay
 
 from tests.max_reward_puct.v3.binary_string_providers import (
     TEST_HARDWARE,
@@ -362,7 +362,7 @@ def test_step_boundary_replay_is_consistent(tmp_path: Path):
     point. This pins the property that ``compute_pending_actions``
     relies on: a log prefix folds into the state from which the next
     moves are derivable."""
-    from arid_badger.max_reward_puct.v3.events import StepCompleted
+    from gpu_forecasters.max_reward_puct.v3.events import StepCompleted
 
     log_path = tmp_path / "log.jsonl"
     _final_state, events, config = _run_clean_search(log_path)

@@ -1,6 +1,6 @@
 """Generic v2 mutation provider for gpu-mode-style kernels.
 
-Generalizes ``arid_badger.max_reward_puct.v2.mutation_providers.{trimul,causal_conv1d}_feedback_mutation``:
+Generalizes ``gpu_forecasters.max_reward_puct.v2.mutation_providers.{trimul,causal_conv1d}_feedback_mutation``:
 asyncio loop thread, semaphore-bounded fan-out, lifecycle, and code
 extraction lift verbatim. The kernel-specific surfaces collapse onto
 the ``KernelPack`` (``kernel_description_body`` and
@@ -23,18 +23,18 @@ from typing import Any, Generic, Self
 import litellm
 from loguru import logger
 
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupT,
     GpuModeKernelObservation,
     InfrastructureFailureFeedback,
 )
-from arid_badger.gpu_mode_kernel.kernel_pack import KernelPack, TestArgsT
-from arid_badger.gpu_mode_kernel.prompts import (
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import KernelPack, TestArgsT
+from gpu_forecasters.gpu_mode_kernel.prompts import (
     build_base_prompt,
     extract_last_python_codeblock,
     format_feedback_prompt,
 )
-from arid_badger.hill_climbing.domain import Evaluation
+from gpu_forecasters.hill_climbing.domain import Evaluation
 
 
 class MutationError(RuntimeError):

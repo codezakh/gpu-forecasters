@@ -6,7 +6,7 @@ manage lifecycle, and the driver waits on completed futures via
 ``concurrent.futures.wait(FIRST_COMPLETED)``. No asyncio appears in
 the driver — providers that wrap async-native backends own their own
 event loop internally (see
-``arid_badger.max_reward_puct.v3.scoring_providers.coroutine_adapter``
+``gpu_forecasters.max_reward_puct.v3.scoring_providers.coroutine_adapter``
 for the surrogate side).
 
 Per-call atomic units: one ``submit`` yields one mutation, one
@@ -20,11 +20,11 @@ from __future__ import annotations
 from concurrent.futures import Future
 from typing import Protocol, Self
 
-from arid_badger.hill_climbing.domain import (
+from gpu_forecasters.hill_climbing.domain import (
     Evaluation,
     ObservationT,
 )
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.landscape_map.v2 import (
     KernelRuntimeEstimate,
     KernelRuntimeQuery,
     LlmCallUsage,

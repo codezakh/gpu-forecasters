@@ -27,14 +27,14 @@ from typing import Self
 import litellm
 from loguru import logger
 
-from arid_badger.causal_conv1d.core import InfrastructureFailureFeedback
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.hill_climbing.mutation_providers.causal_conv1d_feedback_mutation import (
+from gpu_forecasters.causal_conv1d.core import InfrastructureFailureFeedback
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.hill_climbing.mutation_providers.causal_conv1d_feedback_mutation import (
     _build_base_prompt,
     _extract_last_python_codeblock,
     format_causal_conv1d_feedback_mutation_prompt,
 )
-from arid_badger.hill_climbing.scoring_providers.causal_conv1d import (
+from gpu_forecasters.hill_climbing.scoring_providers.causal_conv1d import (
     CausalConv1dObservation,
 )
 

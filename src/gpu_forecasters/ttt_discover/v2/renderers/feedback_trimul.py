@@ -1,6 +1,6 @@
 """Feedback-prompt renderer for TriMul.
 
-Mirrors ``arid_badger.hill_climbing.mutation_providers.trimul_feedback
+Mirrors ``gpu_forecasters.hill_climbing.mutation_providers.trimul_feedback
 _mutation.format_trimul_feedback_mutation_prompt``, but lifted into a
 class so the truncation budgets are constructor knobs and the cold-start
 path (no parent → no feedback section, just an empty string so the env
@@ -14,17 +14,17 @@ the environment concatenates them.
 
 from __future__ import annotations
 
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CompileFailedFeedback,
     IncorrectFeedback,
     InfrastructureFailureFeedback,
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.ttt_discover.v2.domain.context import FeedbackPromptContext
-from arid_badger.ttt_discover.v2.domain.outcome import ParseFailureFeedback
-from arid_badger.ttt_discover.v2.interfaces.renderer import FeedbackPromptRenderer
-from arid_badger.typing_utils import implements
+from gpu_forecasters.ttt_discover.v2.domain.context import FeedbackPromptContext
+from gpu_forecasters.ttt_discover.v2.domain.outcome import ParseFailureFeedback
+from gpu_forecasters.ttt_discover.v2.interfaces.renderer import FeedbackPromptRenderer
+from gpu_forecasters.typing_utils import implements
 
 
 def _truncate_head(text: str, max_chars: int) -> str:

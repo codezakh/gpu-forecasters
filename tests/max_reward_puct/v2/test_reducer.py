@@ -2,8 +2,8 @@
 
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import Evaluation, NoFeedback, Node
-from arid_badger.max_reward_puct.v2.events import (
+from gpu_forecasters.hill_climbing.domain import Evaluation, NoFeedback, Node
+from gpu_forecasters.max_reward_puct.v2.events import (
     EvaluationCompleted,
     EvaluationFailed,
     EvaluationRequested,
@@ -14,7 +14,7 @@ from arid_badger.max_reward_puct.v2.events import (
     StepCompleted,
     StepStarted,
 )
-from arid_badger.max_reward_puct.v2.state import SearchState, apply_event, replay
+from gpu_forecasters.max_reward_puct.v2.state import SearchState, apply_event, replay
 
 K = 2
 CAP = 1000

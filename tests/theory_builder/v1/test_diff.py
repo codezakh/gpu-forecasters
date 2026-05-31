@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from arid_badger.theory_builder.v1.diff import (
+from gpu_forecasters.theory_builder.v1.diff import (
     DiffApplyError,
     apply_diffs,
     parse_diff_blocks,
 )
-from arid_badger.theory_builder.v1.domain import WorldModelDiff
+from gpu_forecasters.theory_builder.v1.domain import WorldModelDiff
 
 
 def test_parse_single_block():

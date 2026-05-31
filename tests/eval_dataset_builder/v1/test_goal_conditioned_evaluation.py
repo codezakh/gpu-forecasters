@@ -8,12 +8,12 @@ from typing import Self
 
 import pytest
 
-from arid_badger.eval_dataset_builder.v1.domain import speedup_band_for_bin
-from arid_badger.eval_dataset_builder.v1.goal_conditioned_evaluation import (
+from gpu_forecasters.eval_dataset_builder.v1.domain import speedup_band_for_bin
+from gpu_forecasters.eval_dataset_builder.v1.goal_conditioned_evaluation import (
     GoalConditionedEvaluationProvider,
     score_evaluation_against_target_bin,
 )
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CompileFailedFeedback,
     GpuModeKernelObservation,
     IncorrectFeedback,
@@ -21,9 +21,9 @@ from arid_badger.gpu_mode_kernel.core import (
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.packs.trimul import TriMulCaseSpeedup
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.landscape_map.v1.domain import SpeedupBin
+from gpu_forecasters.gpu_mode_kernel.packs.trimul import TriMulCaseSpeedup
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.landscape_map.v1.domain import SpeedupBin
 
 
 _BIN = SpeedupBin.HIGH_SPEEDUP

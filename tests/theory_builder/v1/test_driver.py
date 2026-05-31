@@ -14,19 +14,19 @@ from __future__ import annotations
 
 from typing import Self
 
-from arid_badger.hill_climbing.domain import NoFeedback
-from arid_badger.theory_builder.v1.driver import TheoryBuilderDriver
-from arid_badger.theory_builder.v1.builder import BuilderError
-from arid_badger.theory_builder.v1.domain import (
+from gpu_forecasters.hill_climbing.domain import NoFeedback
+from gpu_forecasters.theory_builder.v1.driver import TheoryBuilderDriver
+from gpu_forecasters.theory_builder.v1.builder import BuilderError
+from gpu_forecasters.theory_builder.v1.domain import (
     Explanation,
     ExperimentResult,
     Hypothesis,
     WorldModel,
 )
-from arid_badger.theory_builder.v1.event_log import (
+from gpu_forecasters.theory_builder.v1.event_log import (
     InMemoryTheoryEventLog,
 )
-from arid_badger.theory_builder.v1.events import (
+from gpu_forecasters.theory_builder.v1.events import (
     ExperimentCompleted,
     ExperimentRequested,
     HypothesisCompleted,

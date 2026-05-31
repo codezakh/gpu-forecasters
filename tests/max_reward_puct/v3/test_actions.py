@@ -9,23 +9,23 @@ from __future__ import annotations
 
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import Evaluation, NoFeedback, Node
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.hill_climbing.domain import Evaluation, NoFeedback, Node
+from gpu_forecasters.landscape_map.v2 import (
     SUCCESS_BINS,
     KernelRuntimeEstimate,
     SpeedupBin,
 )
-from arid_badger.max_reward_puct.v3.actions import (
+from gpu_forecasters.max_reward_puct.v3.actions import (
     EvaluationDispatch,
     ForecastDispatch,
     MutationDispatch,
     compute_pending_actions,
 )
-from arid_badger.max_reward_puct.v3.config import (
+from gpu_forecasters.max_reward_puct.v3.config import (
     ExpectedBinIndexRule,
     SearchConfig,
 )
-from arid_badger.max_reward_puct.v3.events import (
+from gpu_forecasters.max_reward_puct.v3.events import (
     CandidateDeferred,
     CandidateSelected,
     EvaluationsDrained,
@@ -34,7 +34,7 @@ from arid_badger.max_reward_puct.v3.events import (
     StepCompleted,
     StepStarted,
 )
-from arid_badger.max_reward_puct.v3.state import (
+from gpu_forecasters.max_reward_puct.v3.state import (
     CandidateAwaitingEval,
     CandidateAwaitingForecast,
     CandidateAwaitingSelection,

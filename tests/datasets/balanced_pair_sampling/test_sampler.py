@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from collections import Counter
 
-from arid_badger.datasets.balanced_pair_sampling.v1 import (
+from gpu_forecasters.datasets.balanced_pair_sampling.v1 import (
     BalancedPairSamplerConfig,
     CandidateKernel,
     LabeledPair,
     ProblemId,
     build_balanced_pair_dataset,
 )
-from arid_badger.landscape_map.v2.domain import SpeedupBin
+from gpu_forecasters.landscape_map.v2.domain import SpeedupBin
 
 
 def _candidate(prob: str, code: str, runtime: float) -> CandidateKernel:

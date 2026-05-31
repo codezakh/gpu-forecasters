@@ -7,10 +7,10 @@ constructing values that satisfy it.
 
 from __future__ import annotations
 
-from arid_badger.eval_dataset_builder.v1 import KernelRuntimeComparison
-from arid_badger.eval_dataset_builder.v1.domain import HardwareContext
-from arid_badger.landscape_map.v1.domain import SpeedupBin as SpeedupBinV1
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.eval_dataset_builder.v1 import KernelRuntimeComparison
+from gpu_forecasters.eval_dataset_builder.v1.domain import HardwareContext
+from gpu_forecasters.landscape_map.v1.domain import SpeedupBin as SpeedupBinV1
+from gpu_forecasters.landscape_map.v2 import (
     SUCCESS_BINS,
     KernelRuntimeEstimate,
     SpeedupBin,

@@ -12,12 +12,12 @@ from __future__ import annotations
 
 import pytest
 
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.hill_climbing.scoring_providers.trimul import TriMulObservation
-from arid_badger.max_reward_puct.v2.mutation_providers.trimul_feedback_mutation import (
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.hill_climbing.scoring_providers.trimul import TriMulObservation
+from gpu_forecasters.max_reward_puct.v2.mutation_providers.trimul_feedback_mutation import (
     TriMulFeedbackMutationProvider,
 )
-from arid_badger.trimul.core import InfrastructureFailureFeedback
+from gpu_forecasters.trimul.core import InfrastructureFailureFeedback
 
 
 def _seed_eval() -> Evaluation[TriMulObservation]:

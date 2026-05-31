@@ -28,30 +28,30 @@ from typing import Any, cast
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.gpu_mode_kernel.aggregation import AggregationMethod
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.aggregation import AggregationMethod
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupT,
     GpuModeKernelObservation,
 )
-from arid_badger.gpu_mode_kernel.kernel_pack import TestArgsT
-from arid_badger.gpu_mode_kernel.modal_scoring import PackedModalRuntime
-from arid_badger.gpu_mode_kernel.providers.v2_feedback_mutation import (
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import TestArgsT
+from gpu_forecasters.gpu_mode_kernel.modal_scoring import PackedModalRuntime
+from gpu_forecasters.gpu_mode_kernel.providers.v2_feedback_mutation import (
     GpuModeKernelFeedbackMutationProvider,
 )
-from arid_badger.gpu_mode_kernel.providers.v2_modal_scoring import (
+from gpu_forecasters.gpu_mode_kernel.providers.v2_modal_scoring import (
     GpuModeKernelModalProvider,
 )
-from arid_badger.invocation_sink import FilesystemInvocationSink
-from arid_badger.max_reward_puct.v2.config import SearchConfig as V2SearchConfig
-from arid_badger.max_reward_puct.v2.event_log import FileEventLog
-from arid_badger.max_reward_puct.v2.events import (
+from gpu_forecasters.invocation_sink import FilesystemInvocationSink
+from gpu_forecasters.max_reward_puct.v2.config import SearchConfig as V2SearchConfig
+from gpu_forecasters.max_reward_puct.v2.event_log import FileEventLog
+from gpu_forecasters.max_reward_puct.v2.events import (
     EvaluationCompleted,
     EvaluationFailed,
     MutationFailed,
     SearchInitialized,
 )
-from arid_badger.max_reward_puct.v2.search import SearchDriver
-from arid_badger.max_reward_puct.v2.state import replay
+from gpu_forecasters.max_reward_puct.v2.search import SearchDriver
+from gpu_forecasters.max_reward_puct.v2.state import replay
 
 
 # ---------------------------------------------------------------------------

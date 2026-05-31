@@ -10,9 +10,9 @@ from typing import Callable, Sequence, TypeAlias, Any
 
 import chz
 import tinker
-from arid_badger.ttt_discover.v1.tinker_utils import logtree, renderers
-from arid_badger.ttt_discover.v1.tinker_utils.completers import StopCondition, TokensWithLogprobs
-from arid_badger.ttt_discover.v1.tinker_utils.misc_utils import safezip
+from gpu_forecasters.ttt_discover.v1.tinker_utils import logtree, renderers
+from gpu_forecasters.ttt_discover.v1.tinker_utils.completers import StopCondition, TokensWithLogprobs
+from gpu_forecasters.ttt_discover.v1.tinker_utils.misc_utils import safezip
 
 logger = logging.getLogger(__name__)
 
@@ -248,7 +248,7 @@ class ProblemGroupBuilder(EnvGroupBuilder):
 
 
 # # Re-export Environment and VerifyResult from dataset_builder for backward compatibility
-# from arid_badger.ttt_discover.v1.tinker_utils.dataset_builder import (
+# from gpu_forecasters.ttt_discover.v1.tinker_utils.dataset_builder import (
 #     Environment,
 #     VerifyResult,
 #     SAFE_GRADE_EXECUTOR,

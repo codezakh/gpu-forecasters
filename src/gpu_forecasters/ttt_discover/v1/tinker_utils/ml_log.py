@@ -24,7 +24,7 @@ from types import ModuleType
 from typing import cast
 
 
-def code_state(modules: Sequence[str | ModuleType] = ("arid_badger.ttt_discover.v1",)) -> str:
+def code_state(modules: Sequence[str | ModuleType] = ("gpu_forecasters.ttt_discover.v1",)) -> str:
     """
     Return a single diff-formatted string that captures the current code state for the
     provided Python modules. For each module, we:
@@ -41,7 +41,7 @@ def code_state(modules: Sequence[str | ModuleType] = ("arid_badger.ttt_discover.
     sections are concatenated in order.
 
     Parameters:
-    - modules: sequence of module import names (e.g., "arid_badger.ttt_discover.v1.rl") or already-
+    - modules: sequence of module import names (e.g., "gpu_forecasters.ttt_discover.v1.rl") or already-
       imported module objects. All entries must be either `str` or `ModuleType`.
 
     Returns:

@@ -10,12 +10,12 @@ from typing import (
     Union,
 )
 
-from arid_badger.typing_utils import Option
+from gpu_forecasters.typing_utils import Option
 
 from pydantic import BaseModel, ConfigDict, Field
 from ulid import ULID
 
-from arid_badger.kernelbench.core import KernelExecutionFeedback
+from gpu_forecasters.kernelbench.core import KernelExecutionFeedback
 
 
 class EvaluationMetrics(BaseModel):
@@ -59,7 +59,7 @@ class MutationFunction(Protocol):
 
 
 
-# Feedback types re-exported from arid_badger.kernelbench.core:
+# Feedback types re-exported from gpu_forecasters.kernelbench.core:
 # CompileFailedFeedback, RuntimeErrorFeedback, IncorrectFeedback,
 # SuccessFeedback, KernelExecutionFeedback, execution_feedback_from_exec_result
 

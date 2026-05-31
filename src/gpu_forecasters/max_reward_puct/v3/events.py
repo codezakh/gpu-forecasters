@@ -25,8 +25,8 @@ from typing import Annotated, Generic, Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from ulid import ULID
 
-from arid_badger.hill_climbing.domain import Evaluation, Node, ObservationT
-from arid_badger.landscape_map.v2 import (
+from gpu_forecasters.hill_climbing.domain import Evaluation, Node, ObservationT
+from gpu_forecasters.landscape_map.v2 import (
     HardwareContext,
     KernelRuntimeEstimate,
     KernelTaskInfo,

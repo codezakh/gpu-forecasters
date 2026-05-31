@@ -27,16 +27,16 @@ from typing import Any, Callable
 
 import torch
 
-from arid_badger.kernelbench.isolated_scoring import ScoringError
-from arid_badger.trimul.cases import TriMulTestArgs
-from arid_badger.trimul.comparison import set_seed
-from arid_badger.trimul.core import Stats, TriMulExecResult
-from arid_badger.trimul.reference import (
+from gpu_forecasters.kernelbench.isolated_scoring import ScoringError
+from gpu_forecasters.trimul.cases import TriMulTestArgs
+from gpu_forecasters.trimul.comparison import set_seed
+from gpu_forecasters.trimul.core import Stats, TriMulExecResult
+from gpu_forecasters.trimul.reference import (
     check_implementation,
     generate_input,
     ref_kernel,
 )
-from arid_badger.typing_utils import Err, Ok, Option
+from gpu_forecasters.typing_utils import Err, Ok, Option
 
 
 # ---------------------------------------------------------------------------
@@ -60,7 +60,7 @@ output_t = TypeVar("output_t", bound=torch.Tensor)
 _UTILS_SHIM = """\
 # Synthetic stand-in for ttt-discover's utils.py — re-exports just the
 # helpers that candidate sources might reach for.
-from arid_badger.trimul.comparison import (
+from gpu_forecasters.trimul.comparison import (
     DisableCuDNNTF32,
     make_match_reference,
     match_reference,

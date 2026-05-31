@@ -5,7 +5,7 @@ import torch
 from kernelbench.dataset import BaseDataset, Problem, construct_kernelbench_dataset
 from kernelbench.eval import eval_kernel_against_ref as eval_kernel_against_ref_upstream
 
-from arid_badger.kernelbench.eval_logged import eval_kernel_against_ref_logged
+from gpu_forecasters.kernelbench.eval_logged import eval_kernel_against_ref_logged
 
 
 @pytest.mark.integration

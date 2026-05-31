@@ -16,10 +16,10 @@ from __future__ import annotations
 
 import math
 
-from arid_badger.trimul.core import SuccessFeedback
-from arid_badger.ttt_discover.v2.domain.outcome import TriMulRLOutcome
-from arid_badger.ttt_discover.v2.interfaces.scalarizer import RewardScalarizer
-from arid_badger.typing_utils import implements
+from gpu_forecasters.trimul.core import SuccessFeedback
+from gpu_forecasters.ttt_discover.v2.domain.outcome import TriMulRLOutcome
+from gpu_forecasters.ttt_discover.v2.interfaces.scalarizer import RewardScalarizer
+from gpu_forecasters.typing_utils import implements
 
 
 class ScaleByTargetUs:

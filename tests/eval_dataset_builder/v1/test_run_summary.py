@@ -4,19 +4,19 @@ from __future__ import annotations
 
 from ulid import ULID
 
-from arid_badger.eval_dataset_builder.v1.summary import (
+from gpu_forecasters.eval_dataset_builder.v1.summary import (
     compute_run_summary_from_event_log,
 )
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CompileFailedFeedback,
     GpuModeKernelObservation,
     InfrastructureFailureFeedback,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.packs.trimul import TriMulCaseSpeedup
-from arid_badger.hill_climbing.domain import Evaluation, Node
-from arid_badger.landscape_map.v1.domain import SpeedupBin
-from arid_badger.max_reward_puct.v2.events import (
+from gpu_forecasters.gpu_mode_kernel.packs.trimul import TriMulCaseSpeedup
+from gpu_forecasters.hill_climbing.domain import Evaluation, Node
+from gpu_forecasters.landscape_map.v1.domain import SpeedupBin
+from gpu_forecasters.max_reward_puct.v2.events import (
     EvaluationCompleted,
     EvaluationFailed,
     EvaluationRequested,

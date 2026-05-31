@@ -10,9 +10,9 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from arid_badger.abstaining_evaluation.v1.domain import ConfidenceScore
-from arid_badger.landscape_map.v2 import KernelRuntimeEstimate
-from arid_badger.typing_utils import implements
+from gpu_forecasters.abstaining_evaluation.v1.domain import ConfidenceScore
+from gpu_forecasters.landscape_map.v2 import KernelRuntimeEstimate
+from gpu_forecasters.typing_utils import implements
 
 
 @dataclass(frozen=True)

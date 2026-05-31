@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import pytest
 
-from arid_badger.max_reward_puct.v2.scoring_providers.trimul_modal import (
+from gpu_forecasters.max_reward_puct.v2.scoring_providers.trimul_modal import (
     TriMulModalProvider,
 )
-from arid_badger.trimul.cases import CORRECTNESS_CASES
+from gpu_forecasters.trimul.cases import CORRECTNESS_CASES
 
 
 def _trivial_kernel() -> str:

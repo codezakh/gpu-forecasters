@@ -1,6 +1,6 @@
 """Generic v2 Modal evaluation provider for gpu-mode-style kernels.
 
-Generalizes ``arid_badger.max_reward_puct.v2.scoring_providers.{trimul,causal_conv1d}_modal``:
+Generalizes ``gpu_forecasters.max_reward_puct.v2.scoring_providers.{trimul,causal_conv1d}_modal``:
 the asyncio-free thread-pool dispatch, app/cls lifecycle, and outcome
 shaping are kernel-agnostic over a ``KernelPack``. The pack supplies
 ``case_speedup_factory``, the per-kernel Modal app, and the per-kernel
@@ -28,12 +28,12 @@ from typing import Any, Generic, Literal, Optional, Self, cast
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.gpu_mode_kernel.aggregation import (
+from gpu_forecasters.gpu_mode_kernel.aggregation import (
     AggregationMethod,
     AggregationResult,
     aggregate_outcomes,
 )
-from arid_badger.gpu_mode_kernel.core import (
+from gpu_forecasters.gpu_mode_kernel.core import (
     CaseSpeedupT,
     GpuModeKernelObservation,
     InfrastructureFailureFeedback,
@@ -41,12 +41,12 @@ from arid_badger.gpu_mode_kernel.core import (
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.gpu_mode_kernel.kernel_pack import TestArgsT
-from arid_badger.gpu_mode_kernel.modal_scoring import PackedModalRuntime
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.invocation_sink import InvocationSink, code_sha256
-from arid_badger.kernelbench.isolated_scoring import ScoringError
-from arid_badger.typing_utils import Option
+from gpu_forecasters.gpu_mode_kernel.kernel_pack import TestArgsT
+from gpu_forecasters.gpu_mode_kernel.modal_scoring import PackedModalRuntime
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.invocation_sink import InvocationSink, code_sha256
+from gpu_forecasters.kernelbench.isolated_scoring import ScoringError
+from gpu_forecasters.typing_utils import Option
 
 
 class GpuModeKernelEvaluationRecord(BaseModel, frozen=True):

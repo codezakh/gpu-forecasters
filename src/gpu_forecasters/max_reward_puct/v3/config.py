@@ -17,8 +17,8 @@ from typing import Protocol, Sequence, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict
 
-from arid_badger.hill_climbing.domain import Node, ObservationT
-from arid_badger.landscape_map.v2 import KernelRuntimeEstimate, SUCCESS_BINS
+from gpu_forecasters.hill_climbing.domain import Node, ObservationT
+from gpu_forecasters.landscape_map.v2 import KernelRuntimeEstimate, SUCCESS_BINS
 
 
 @runtime_checkable

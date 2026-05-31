@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 from pydantic import TypeAdapter
 
-from arid_badger.causal_conv1d.core import (
+from gpu_forecasters.causal_conv1d.core import (
     CaseSpeedup,
     CausalConv1dExecResult,
     CausalConv1dKernelExecutionFeedback,

@@ -10,14 +10,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from arid_badger.gpu_mode_kernel.experiment_helper import (
+from gpu_forecasters.gpu_mode_kernel.experiment_helper import (
     ExperimentConfig,
     ProviderConfig,
     RunConfig,
     RunSummary,
     load_run_summaries,
 )
-from arid_badger.max_reward_puct.v2.config import SearchConfig as V2SearchConfig
+from gpu_forecasters.max_reward_puct.v2.config import SearchConfig as V2SearchConfig
 
 
 def _example_config() -> ExperimentConfig:
@@ -82,7 +82,7 @@ def test_load_run_summaries_reads_runs_in_lexical_order(tmp_path: Path) -> None:
 
 
 def test_experiment_config_uses_the_published_v2_search_config_type() -> None:
-    """The helper's RunConfig embeds ``arid_badger.max_reward_puct.v2.config.SearchConfig``
+    """The helper's RunConfig embeds ``gpu_forecasters.max_reward_puct.v2.config.SearchConfig``
     — the same type the v2 driver consumes — so a config the helper
     accepts can be threaded straight to a SearchDriver without
     rebuilding."""

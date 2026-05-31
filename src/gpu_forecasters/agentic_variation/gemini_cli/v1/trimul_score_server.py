@@ -3,9 +3,9 @@
 Host-side process that exposes a single MCP tool, ``score_trimul``, which
 benchmarks a candidate TriMul kernel on Modal using the existing
 :class:`TriMulModalProvider`. The server runs on the host (where modal and
-arid_badger are already installed); the Gemini CLI runs inside a minimal
+gpu_forecasters are already installed); the Gemini CLI runs inside a minimal
 container and reaches the server via streamable HTTP over ``--network=host``,
-so the container stays free of Python/modal/arid_badger dependencies.
+so the container stays free of Python/modal/gpu_forecasters dependencies.
 
 Design note — path-based tool: the agent passes a *path* relative to its
 working directory rather than the full kernel source. The server reads the
@@ -30,13 +30,13 @@ from pathlib import Path
 from fastmcp import FastMCP
 from loguru import logger
 
-from arid_badger.experiment_utils import install_loguru_intercept
-from arid_badger.hill_climbing.scoring_providers.trimul_modal import (
+from gpu_forecasters.experiment_utils import install_loguru_intercept
+from gpu_forecasters.hill_climbing.scoring_providers.trimul_modal import (
     AggregationMethod,
     TriMulModalProvider,
 )
-from arid_badger.invocation_sink import code_sha256
-from arid_badger.trimul.cases import BENCHMARK_CASES
+from gpu_forecasters.invocation_sink import code_sha256
+from gpu_forecasters.trimul.cases import BENCHMARK_CASES
 
 from .prompts import format_feedback_summary
 

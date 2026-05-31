@@ -16,7 +16,7 @@ import modal
 # ---------------------------------------------------------------------------
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-# src/arid_badger/kernelbench → src/arid_badger → src → 15-arid-badger
+# src/gpu_forecasters/kernelbench → src/gpu_forecasters → src → 15-arid-badger
 _LIBRARY_ROOT = os.path.normpath(os.path.join(_THIS_DIR, "..", "..", ".."))
 _KERNELBENCH_DIR = os.path.normpath(
     os.path.join(_LIBRARY_ROOT, "third_party", "KernelBench")
@@ -58,14 +58,14 @@ image = (
     )
     .apt_install("git", "gcc-10", "g++-10", "clang")
     .uv_sync(uv_project_dir=_KERNELBENCH_DIR, extras=["gpu"])
-    # arid_badger's additional deps not covered by KernelBench. We can't
+    # gpu_forecasters's additional deps not covered by KernelBench. We can't
     # uv_sync our own pyproject.toml because it uses uv workspaces, which
     # Modal doesn't support.
     .uv_pip_install("loguru", "pydantic", "pytest", "python-ulid")
     .env({"PYTHONPATH": "/root/kernelbench_src"})
     # add_local_* must come last — Modal mounts these at startup rather than
     # baking them into the image, so no build steps can follow.
-    .add_local_python_source("arid_badger")
+    .add_local_python_source("gpu_forecasters")
     .add_local_dir(_KERNELBENCH_SRC_DIR, remote_path="/root/kernelbench_src")
     .add_local_dir(_KERNELBENCH_DATASET_DIR, remote_path="/root/KernelBench")
 )

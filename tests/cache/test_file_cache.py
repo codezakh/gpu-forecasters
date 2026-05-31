@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from arid_badger.cache import FileCache
+from gpu_forecasters.cache import FileCache
 
 
 class Entry(BaseModel, frozen=True):

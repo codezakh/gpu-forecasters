@@ -16,7 +16,7 @@ import pytest
 
 modal.enable_output()
 
-from arid_badger.kernelbench.modal_image import image
+from gpu_forecasters.kernelbench.modal_image import image
 
 # Separate app so smoke test functions don't register on the production app.
 _smoke_app = modal.App("arid-badger-smoke-test")

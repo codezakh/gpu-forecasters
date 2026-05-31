@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from arid_badger.trimul.scoring import CandidateResolutionError, _loaded_candidate
+from gpu_forecasters.trimul.scoring import CandidateResolutionError, _loaded_candidate
 
 
 def test_resolves_minimal_candidate() -> None:

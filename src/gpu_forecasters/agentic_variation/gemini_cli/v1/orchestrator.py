@@ -34,10 +34,10 @@ from typing import IO, Any
 
 import docker
 import docker.errors
-from arid_badger.cache.file_cache import FileCache
-from arid_badger.invocation_sink import code_sha256
-from arid_badger.trimul.core import SuccessFeedback, TriMulKernelExecutionFeedback
-from arid_badger.trimul.seed_kernel import SEED_KERNEL_CODE
+from gpu_forecasters.cache.file_cache import FileCache
+from gpu_forecasters.invocation_sink import code_sha256
+from gpu_forecasters.trimul.core import SuccessFeedback, TriMulKernelExecutionFeedback
+from gpu_forecasters.trimul.seed_kernel import SEED_KERNEL_CODE
 from docker.models.containers import Container
 from fastmcp import Client
 from loguru import logger
@@ -70,7 +70,7 @@ SYSTEM_PROMPT_IN_CONTAINER = "/etc/gemini_trimul/system_prompt.md"
 # Docker label key used to bind a container to the run_dir that started
 # it. The startup sweep filters on exact-match so orphan cleanup for one
 # run_dir cannot touch containers from any other run_dir or caller.
-RUN_DIR_LABEL = "arid_badger.run_dir"
+RUN_DIR_LABEL = "gpu_forecasters.run_dir"
 # Written once the scoring-server subprocess is spawned; cleared when it
 # exits normally. If this file is still on disk at the next run for the
 # same run_dir, the process was orphaned by a hard crash.
@@ -82,7 +82,7 @@ BASELINE_CACHE_DIRNAME = "baseline_cache"
 # Module path used to spawn the scoring server as a subprocess. Pinned
 # to this library version so a caller on a different harness version
 # cannot accidentally reach in.
-_SCORING_SERVER_MODULE = "arid_badger.agentic_variation.gemini_cli.v1.trimul_score_server"
+_SCORING_SERVER_MODULE = "gpu_forecasters.agentic_variation.gemini_cli.v1.trimul_score_server"
 
 
 def mcp_url_for(port: int) -> str:
@@ -94,7 +94,7 @@ def mcp_url_for(port: int) -> str:
 # importantly ``result.json``, also the server PID file) must land via
 # ``os.replace`` so a crash mid-write can never leave a truncated copy
 # that a resume mistakes for a complete one. Same pattern as
-# :mod:`arid_badger.cache.file_cache`.
+# :mod:`gpu_forecasters.cache.file_cache`.
 # ---------------------------------------------------------------------------
 
 

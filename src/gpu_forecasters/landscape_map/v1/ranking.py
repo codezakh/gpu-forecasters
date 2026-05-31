@@ -23,8 +23,8 @@ from pathlib import Path
 from loguru import logger
 from pydantic import BaseModel
 
-from arid_badger.cache import FileCache
-from arid_badger.landscape_map.v1.domain import (
+from gpu_forecasters.cache import FileCache
+from gpu_forecasters.landscape_map.v1.domain import (
     AsyncSpeedupEstimator,
     KernelImplementation,
     KernelRuntimeEstimate,
@@ -33,7 +33,7 @@ from arid_badger.landscape_map.v1.domain import (
     LlmCallUsage,
     SpeedupBin,
 )
-from arid_badger.typing_utils import Err, Ok, Option
+from gpu_forecasters.typing_utils import Err, Ok, Option
 
 
 class ComparisonCacheEntry(BaseModel, frozen=True):

@@ -27,17 +27,17 @@ Public surface:
     :func:`cookbook_tool_spec` — tool definitions.
 """
 
-from arid_badger.landscape_map.v2.abstain_outcome import (
+from gpu_forecasters.landscape_map.v2.abstain_outcome import (
     Deferral,
     Forecast,
     PredictOrDefer,
 )
-from arid_badger.landscape_map.v2.abstain_rl_env import (
+from gpu_forecasters.landscape_map.v2.abstain_rl_env import (
     AbstainRewardComponents,
     AbstainRewardFunction,
     KernelBinPredictionAbstainEnv,
 )
-from arid_badger.landscape_map.v2.domain import (
+from gpu_forecasters.landscape_map.v2.domain import (
     SUCCESS_BINS,
     AsyncSpeedupEstimator,
     HardwareContext,
@@ -50,31 +50,31 @@ from arid_badger.landscape_map.v2.domain import (
     SpeedupEstimator,
     renormalize,
 )
-from arid_badger.landscape_map.v2.litellm_estimator import LlmSpeedupEstimator
-from arid_badger.landscape_map.v2.parsing import (
+from gpu_forecasters.landscape_map.v2.litellm_estimator import LlmSpeedupEstimator
+from gpu_forecasters.landscape_map.v2.parsing import (
     EstimatorParseError,
     parse_tool_call_args,
 )
-from arid_badger.landscape_map.v2.prompt_rendering import (
+from gpu_forecasters.landscape_map.v2.prompt_rendering import (
     render_system_prompt,
     render_user_prompt,
 )
-from arid_badger.landscape_map.v2.retrying_estimator import RetryingSpeedupEstimator
-from arid_badger.landscape_map.v2.rl_env import (
+from gpu_forecasters.landscape_map.v2.retrying_estimator import RetryingSpeedupEstimator
+from gpu_forecasters.landscape_map.v2.rl_env import (
     KernelBinPredictionEnv,
     LabeledKernelItem,
     RewardComponents,
     RewardFunction,
 )
-from arid_badger.landscape_map.v2.stub_estimator import StubEstimator
-from arid_badger.landscape_map.v2.tinker_abstain_estimator import (
+from gpu_forecasters.landscape_map.v2.stub_estimator import StubEstimator
+from gpu_forecasters.landscape_map.v2.tinker_abstain_estimator import (
     AsyncAbstainSpeedupEstimator,
     TinkerSamplingClientAbstainingEstimator,
 )
-from arid_badger.landscape_map.v2.tinker_sampling_estimator import (
+from gpu_forecasters.landscape_map.v2.tinker_sampling_estimator import (
     TinkerSamplingClientEstimator,
 )
-from arid_badger.landscape_map.v2.tool_spec import (
+from gpu_forecasters.landscape_map.v2.tool_spec import (
     TOOL_DESCRIPTION,
     TOOL_NAME,
     SubmitEstimateArguments,

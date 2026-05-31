@@ -7,7 +7,7 @@ handed to the agent on turn 1) — are the only prompt surfaces. No
 ``GEMINI.md``, no inline Python strings scattered across the orchestrator.
 
 Everything here is deliberately duplicated from the library's non-agentic
-path (``arid_badger.hill_climbing.mutation_providers.trimul_feedback_mutation``)
+path (``gpu_forecasters.hill_climbing.mutation_providers.trimul_feedback_mutation``)
 rather than imported. A prompt tweak that helps the agent could easily
 regress the evolutionary search, so the two paths own their prompts
 independently. The vendored TriMul task body lives in
@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CompileFailedFeedback,
     IncorrectFeedback,
     RuntimeErrorFeedback,

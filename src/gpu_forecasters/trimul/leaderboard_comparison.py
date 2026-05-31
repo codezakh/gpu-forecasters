@@ -27,10 +27,10 @@ from typing import Iterable
 
 from pydantic import BaseModel, ConfigDict
 
-from arid_badger.modal_gpu import GpuKind
-from arid_badger.trimul.cases import BENCHMARK_CASES, TriMulTestArgs
-from arid_badger.trimul.modal_scoring import modal_trimul_scoring_session
-from arid_badger.typing_utils import is_ok
+from gpu_forecasters.modal_gpu import GpuKind
+from gpu_forecasters.trimul.cases import BENCHMARK_CASES, TriMulTestArgs
+from gpu_forecasters.trimul.modal_scoring import modal_trimul_scoring_session
+from gpu_forecasters.typing_utils import is_ok
 
 
 # ---------------------------------------------------------------------------
@@ -38,7 +38,7 @@ from arid_badger.typing_utils import is_ok
 # ---------------------------------------------------------------------------
 
 
-# ``GpuKind`` is the shared GPU enum at ``arid_badger.modal_gpu``. The
+# ``GpuKind`` is the shared GPU enum at ``gpu_forecasters.modal_gpu``. The
 # leaderboard registry below uses the original four-member subset; new
 # members landed in the shared definition (``T4``, ``A10G``, ``A100``,
 # ``L4``, ``H200``) are valid Modal GPU strings but no leaderboard
@@ -174,7 +174,7 @@ class LeaderboardComparison(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-# src/arid_badger/trimul → 15-arid-badger repo root
+# src/gpu_forecasters/trimul → 15-arid-badger repo root
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 LEADERBOARD_BASELINES_DIR = _REPO_ROOT / "leaderboard_baselines"
 _FIXTURES_ROOT = _REPO_ROOT / "tests" / "trimul" / "fixtures" / "leaderboard"

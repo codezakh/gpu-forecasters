@@ -19,14 +19,14 @@ from __future__ import annotations
 
 from typing import Generic, Protocol
 
-from arid_badger.hill_climbing.domain import ObservationT
-from arid_badger.hill_climbing.scoring_providers.trimul import TriMulObservation
-from arid_badger.theory_builder.v1.domain import (
+from gpu_forecasters.hill_climbing.domain import ObservationT
+from gpu_forecasters.hill_climbing.scoring_providers.trimul import TriMulObservation
+from gpu_forecasters.theory_builder.v1.domain import (
     ExperimentResult,
     ExperimentTrial,
     WorldModel,
 )
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CompileFailedFeedback,
     IncorrectFeedback,
     InfrastructureFailureFeedback,

@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from arid_badger.landscape_map.v2.domain import (
+from gpu_forecasters.landscape_map.v2.domain import (
     KernelImplementation,
     KernelRuntimeEstimate,
     KernelRuntimeQuery,
@@ -14,8 +14,8 @@ from arid_badger.landscape_map.v2.domain import (
     LlmCallUsage,
     SpeedupBin,
 )
-from arid_badger.landscape_map.v2.parsing import EstimatorParseError
-from arid_badger.landscape_map.v2.retrying_estimator import RetryingSpeedupEstimator
+from gpu_forecasters.landscape_map.v2.parsing import EstimatorParseError
+from gpu_forecasters.landscape_map.v2.retrying_estimator import RetryingSpeedupEstimator
 
 
 def _query() -> KernelRuntimeQuery:

@@ -24,25 +24,25 @@ from typing import Any
 import numpy as np
 from pydantic import BaseModel, ConfigDict
 
-from arid_badger.trimul.core import (
+from gpu_forecasters.trimul.core import (
     CompileFailedFeedback,
     IncorrectFeedback,
     InfrastructureFailureFeedback,
     RuntimeErrorFeedback,
     SuccessFeedback,
 )
-from arid_badger.ttt_discover.v2.archive.puct_math import (
+from gpu_forecasters.ttt_discover.v2.archive.puct_math import (
     compute_prior,
     compute_scale,
     compute_scores,
 )
-from arid_badger.ttt_discover.v2.domain.candidate import Candidate, CandidateId
-from arid_badger.ttt_discover.v2.domain.outcome import (
+from gpu_forecasters.ttt_discover.v2.domain.candidate import Candidate, CandidateId
+from gpu_forecasters.ttt_discover.v2.domain.outcome import (
     ParseFailureFeedback,
     TriMulRLOutcome,
 )
-from arid_badger.ttt_discover.v2.interfaces.archive import CandidateArchive
-from arid_badger.typing_utils import implements
+from gpu_forecasters.ttt_discover.v2.interfaces.archive import CandidateArchive
+from gpu_forecasters.typing_utils import implements
 
 
 _OUTCOME_MODELS: dict[str, type[BaseModel]] = {

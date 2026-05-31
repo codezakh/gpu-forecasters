@@ -13,12 +13,12 @@ from __future__ import annotations
 
 import pytest
 
-from arid_badger.causal_conv1d.core import InfrastructureFailureFeedback
-from arid_badger.hill_climbing.domain import Evaluation
-from arid_badger.hill_climbing.scoring_providers.causal_conv1d import (
+from gpu_forecasters.causal_conv1d.core import InfrastructureFailureFeedback
+from gpu_forecasters.hill_climbing.domain import Evaluation
+from gpu_forecasters.hill_climbing.scoring_providers.causal_conv1d import (
     CausalConv1dObservation,
 )
-from arid_badger.max_reward_puct.v2.mutation_providers.causal_conv1d_feedback_mutation import (
+from gpu_forecasters.max_reward_puct.v2.mutation_providers.causal_conv1d_feedback_mutation import (
     CausalConv1dFeedbackMutationProvider,
 )
 
