@@ -1,25 +1,22 @@
 # Runbook
 
-Seven scripts that reproduce the paper's main results from a clean
-checkout. Each script reads a JSON config, optionally clamps to a
-debug-sized subset, and dispatches to existing library code.
-
-The runbook is a thin orchestration layer. The library
-(`gpu_forecasters.*`) owns the actual search loops, estimators, and
-training code. Data and trained adapters live on HuggingFace.
+Seven scripts that reproduce the paper's main results from a fresh
+checkout. Each one reads a JSON config and calls into the library
+(`gpu_forecasters.*`) to do the work; pass `--debug` to run a small
+version first. The datasets and trained adapters live on HuggingFace.
 
 ## Quickstart
 
-Install per the top-level [README](../README.md), populate `.env` with the keys listed in [Environment](#environment) below, then:
+Install per the top-level [README](../README.md), fill in `.env` with the keys listed under [Environment](#environment) below, then:
 
 ```bash
-# Confirm plumbing works against the real backends:
+# Quick check that it runs end-to-end against the real services:
 uv run --env-file .env python runbook/01_score_baseline.py \
     --config runbook/configs/baseline_scoring/gemini3_flash.json \
     --output-dir runbook_output/01_smoke/ \
     --debug
 
-# Reproduce a full paper cell (this one ≈ 4 hours on the canonical eval set):
+# Reproduce one full result from the paper (≈ 4 hours on the held-out eval set):
 uv run --env-file .env python runbook/01_score_baseline.py \
     --config runbook/configs/baseline_scoring/gemini3_flash.json \
     --output-dir runbook_output/01_gemini3_flash/
@@ -27,27 +24,26 @@ uv run --env-file .env python runbook/01_score_baseline.py \
 
 ## Training your own surrogate and scoring it
 
-Tinker checkpoint URIs are account-private. The published HF LoRA
-adapters are archival artifacts for external (vLLM / SGLang) serving;
-they cannot be loaded back into Tinker. To run our pipeline with a
-trained surrogate, train one in your own Tinker account first and
-chain `02 → 03`:
+Tinker checkpoint URIs are private to your account. The adapters we
+published on HuggingFace are for serving on vLLM or SGLang — you can't
+load them back into Tinker. So to score a trained surrogate, first
+train one in your own Tinker account (`02`), then score it (`03`):
 
 ```bash
-# Train a correctness-reward surrogate. Writes training_artifact.json
-# with a tinker://... URI inside it.
+# Train a correctness-reward surrogate. Writes training_artifact.json,
+# which holds a tinker://... URI.
 uv run --env-file .env python runbook/02_train_surrogate.py \
     --config runbook/configs/training/correctness.json \
     --output-dir runbook_output/02_correctness/
 
-# Score it. --training-artifact is the URI carrier.
+# Score it. --training-artifact is the file the training run above wrote.
 uv run --env-file .env python runbook/03_score_trained.py \
     --config runbook/configs/trained_scoring/correctness.json \
     --training-artifact runbook_output/02_correctness/training_artifact.json \
     --output-dir runbook_output/03_correctness/
 ```
 
-Same pattern for the §4.4 surrogate-filtered kernel search:
+The kernel search that filters candidates with a surrogate works the same way:
 
 ```bash
 uv run --env-file .env python runbook/04_kernel_search.py \
@@ -60,20 +56,19 @@ uv run --env-file .env python runbook/04_kernel_search.py \
 
 | Script | What it reproduces | Default cost |
 | --- | --- | --- |
-| `00_upstream_puct.py` | One upstream PUCT search that produced the raw data archive. Provenance only — most readers will pull the HF artifacts. | ~30 GPU-hours per pack |
-| `01_score_baseline.py` | One off-the-shelf surrogate scored on the canonical eval set (§4.3, Tab. 1, Figs 1–3) | ~LLM calls × 424 × 3 |
-| `02_train_surrogate.py` | One GRPO-trained surrogate variant (correctness / +Brier / +CRPS) — produces a Tinker checkpoint URI in `training_artifact.json` | ~6 Tinker-hours |
-| `03_score_trained.py` | A trained surrogate scored on the canonical eval set (§4.3). Reads the checkpoint URI from an upstream `02` run's `training_artifact.json` via `--training-artifact`. | Same as 01 |
-| `04_kernel_search.py` | One §4.4 budget-matched kernel search (standard vs surrogate-filtered). Surrogate-filtered mode reads the checkpoint URI via `--surrogate-training-artifact`. | Same as 00 |
-| `05_score_discovery.py` | One surrogate scored on the discovery-pair eval set (§4.5, Fig. 5) | Smaller than 01 |
-| `06_make_figures.py` | Regenerates the paper figures from the published HF artifacts; no GPU or LLM required | Seconds |
+| `00_upstream_puct.py` | One PUCT search of the kind that generated the raw data. Included to show where the data came from — most people will just download it from HuggingFace. | ~30 GPU-hours per pack |
+| `01_score_baseline.py` | An off-the-shelf model scored on the held-out eval set. | LLM calls over the eval set, ×3 repeats |
+| `02_train_surrogate.py` | One GRPO-trained surrogate (correctness, +Brier, or +CRPS). Writes a Tinker checkpoint URI to `training_artifact.json`. | ~6 Tinker-hours |
+| `03_score_trained.py` | A trained surrogate scored on the held-out eval set. Reads its checkpoint URI from a `02` run via `--training-artifact`. | Same as 01 |
+| `04_kernel_search.py` | One budget-matched kernel search, standard or surrogate-filtered. Surrogate-filtered mode reads the checkpoint URI via `--surrogate-training-artifact`. | Same as 00 |
+| `05_score_discovery.py` | A surrogate scored on the discovery-pair eval set. | Smaller than 01 |
+| `06_make_figures.py` | Redraws the paper figures from the HuggingFace data. No GPU or LLM needed. | Seconds |
 
 ## `--debug` mode
 
-Every script accepts `--debug`. The flag scopes the workload to the
-smallest configuration that still exercises the real execution path.
-Backends are *not* stubbed — the goal is plumbing verification, not
-unit-testing.
+Every script accepts `--debug`, which runs the smallest job that still
+calls the real services end-to-end. Nothing is mocked — it's there to
+confirm your setup works before you pay for a full run.
 
 | Script | What `--debug` does |
 | --- | --- |
@@ -87,40 +82,37 @@ unit-testing.
 
 ## Config layout
 
-JSON, parsed by Pydantic. Field descriptions live in
-[`gpu_forecasters.runbook.configs`](../src/gpu_forecasters/runbook/configs.py)
-on the corresponding model.
+JSON, parsed by Pydantic. Each field is documented on its model in
+[`gpu_forecasters.runbook.configs`](../src/gpu_forecasters/runbook/configs.py).
 
 ```
 configs/
 ├── upstream_puct/
 │   └── gpu_mode/                       # one config per source PUCT search
-├── baseline_scoring/                   # off-the-shelf surrogates (§4.3)
-├── training/                           # GRPO reward variants (§4.3)
-├── trained_scoring/                    # trained LoRA adapters (§4.3)
-├── kernel_search/                      # standard vs surrogate-filtered PUCT (§4.4)
-├── discovery_scoring/                  # discovery-pair scoring (§4.5)
-└── figures/                            # which figures to render and from which surrogates
+├── baseline_scoring/                   # off-the-shelf models
+├── training/                           # GRPO reward variants
+├── trained_scoring/                    # trained LoRA adapters
+├── kernel_search/                      # standard vs surrogate-filtered search
+├── discovery_scoring/                  # scoring on the discovery pairs
+└── figures/                            # which figures to draw, and from which surrogates
 ```
 
-Two configs that differ in any field are two different reproductions.
-File names carry the discriminator (`correctness_brier.json`,
-`trimul__surrogate_filtered.json`) so a reader can tell which run a
-file produces without opening it.
+Two configs that differ in any field reproduce two different results.
+The file name spells out what's different (`correctness_brier.json`,
+`trimul__surrogate_filtered.json`) so you can tell runs apart without
+opening them.
 
 ## HuggingFace artifacts
 
-All datasets and models live under `codezakh/` on huggingface.co.
-The canonical pointers are in [`data_pointers.json`](data_pointers.json).
-The published artifacts are pinned at `revision="main"` until a paper
-release tags them `v1.0`.
+All datasets and models live under `codezakh/` on huggingface.co;
+[`data_pointers.json`](data_pointers.json) lists them.
 
 Datasets:
 
-* `codezakh/gpu-forecasters-eval-set` — 424 held-out eval pairs
+* `codezakh/gpu-forecasters-eval-set` — held-out eval pairs
 * `codezakh/gpu-forecasters-eval-set-predictions` — pre-computed forecasts
 * `codezakh/gpu-forecasters-rl-training-pool` — GRPO training rows
-* `codezakh/gpu-forecasters-discovery-pairs` — §4.5 parent-child pairs
+* `codezakh/gpu-forecasters-discovery-pairs` — discovery pairs (parent and child kernels)
 * `codezakh/gpu-forecasters-puct-search-events` — raw search events
 
 Models (LoRA adapters for `openai/gpt-oss-20b`):
@@ -142,9 +134,9 @@ Models (LoRA adapters for `openai/gpt-oss-20b`):
 
 ## Provenance
 
-Every row that came out of a PUCT trace carries two fields:
+Every row from a PUCT search carries two fields:
 
-* `source_search` — the runbook config path that would reproduce the
-  trace (e.g. `gpu_mode/cross_entropy__e0091__gemini3_flash.json`).
-* `internal_experiment` — the original private-repo experiment slug,
-  kept for audit. Public readers can ignore it.
+* `source_search` — the config path that reproduces it (e.g.
+  `gpu_mode/cross_entropy__e0091__gemini3_flash.json`).
+* `internal_experiment` — the experiment name from our private repo.
+  It's there for our own tracing; you can ignore it.
