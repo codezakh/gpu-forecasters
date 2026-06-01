@@ -10,25 +10,17 @@ training code. Data and trained adapters live on HuggingFace.
 
 ## Quickstart
 
+Install per the top-level [README](../README.md), populate `.env` with the keys listed in [Environment](#environment) below, then:
+
 ```bash
-pip install gpu-forecasters
-
-# Set the documented env vars (see "Environment" below)
-export MODAL_TOKEN_ID=... MODAL_TOKEN_SECRET=...
-export TINKER_API_KEY=...
-export GEMINI_API_KEY=...
-export TOGETHER_API_KEY=...
-export DEEPSEEK_API_KEY=...
-export HF_TOKEN=...
-
 # Confirm plumbing works against the real backends:
-python runbook/01_score_baseline.py \
+uv run uv run python runbook/01_score_baseline.py \
     --config runbook/configs/baseline_scoring/gemini3_flash.json \
     --output-dir runbook_output/01_smoke/ \
     --debug
 
 # Reproduce a full paper cell (this one ≈ 4 hours on the canonical eval set):
-python runbook/01_score_baseline.py \
+uv run uv run python runbook/01_score_baseline.py \
     --config runbook/configs/baseline_scoring/gemini3_flash.json \
     --output-dir runbook_output/01_gemini3_flash/
 ```
@@ -44,12 +36,12 @@ chain `02 → 03`:
 ```bash
 # Train a correctness-reward surrogate. Writes training_artifact.json
 # with a tinker://... URI inside it.
-python runbook/02_train_surrogate.py \
+uv run python runbook/02_train_surrogate.py \
     --config runbook/configs/training/correctness.json \
     --output-dir runbook_output/02_correctness/
 
 # Score it. --training-artifact is the URI carrier.
-python runbook/03_score_trained.py \
+uv run python runbook/03_score_trained.py \
     --config runbook/configs/trained_scoring/correctness.json \
     --training-artifact runbook_output/02_correctness/training_artifact.json \
     --output-dir runbook_output/03_correctness/
@@ -58,7 +50,7 @@ python runbook/03_score_trained.py \
 Same pattern for the §4.4 surrogate-filtered kernel search:
 
 ```bash
-python runbook/04_kernel_search.py \
+uv run python runbook/04_kernel_search.py \
     --config runbook/configs/kernel_search/trimul__surrogate_filtered.json \
     --surrogate-training-artifact runbook_output/02_correctness/training_artifact.json \
     --output-dir runbook_output/04_trimul_surrogate/

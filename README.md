@@ -2,11 +2,17 @@
 
 ## Install
 
+Clone with submodules and install in editable mode with [uv](https://github.com/astral-sh/uv):
+
 ```bash
-pip install gpu-forecasters
+git clone --recurse-submodules https://github.com/codezakh/gpu-surrogates.git
+cd gpu-surrogates
+uv sync
 ```
 
-Requires Python 3.13+ and a Linux machine with CUDA drivers (the library pins a CUDA-128 PyTorch wheel).
+If you already cloned without `--recurse-submodules`, run `git submodule update --init --recursive` from the repo root.
+
+Requires Python 3.13+ and a Linux machine with CUDA drivers (the lockfile pins a CUDA-128 PyTorch wheel). The package isn't published to PyPI — `uv sync` is the supported install path because two of the dependencies (`kernelbench`, `tinker-cookbook`) come from the vendored submodules under `third_party/`.
 
 ## `.env`
 
@@ -31,7 +37,7 @@ You only need keys for the surrogates and stages you actually want to run. The p
 Verify the plumbing against the real backends with `--debug` (clamps to one row, one repeat, one search step):
 
 ```bash
-python runbook/01_score_baseline.py \
+uv run python runbook/01_score_baseline.py \
     --config runbook/configs/baseline_scoring/gemini3_flash.json \
     --output-dir runbook_output/01_smoke/ \
     --debug
