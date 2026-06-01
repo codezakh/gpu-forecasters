@@ -107,6 +107,10 @@ Data and runbook library:
 
 [github.com/codezakh/gpu-surrogates/issues](https://github.com/codezakh/gpu-surrogates/issues)
 
+## Acknowledgements
+
+This work uses and takes inspiration from [KernelBench](https://github.com/ScalingIntelligence/KernelBench) and [ttt-discover](https://github.com/test-time-training/discover). Thanks to [Modal](https://modal.com) for an academic compute grant.
+
 ## Citation
 
 ```bibtex
