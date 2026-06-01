@@ -12,7 +12,7 @@ uv sync
 
 If you already cloned without `--recurse-submodules`, run `git submodule update --init --recursive` from the repo root.
 
-Requires Python 3.13+ and a Linux machine with CUDA drivers (the lockfile pins a CUDA-128 PyTorch wheel). The package isn't published to PyPI — `uv sync` is the supported install path because two of the dependencies (`kernelbench`, `tinker-cookbook`) come from the vendored submodules under `third_party/`.
+Requires Python 3.13+ and a Linux machine with CUDA drivers.
 
 ## `.env`
 
@@ -34,7 +34,7 @@ You only need keys for the surrogates and stages you actually want to run. The p
 
 `runbook/` has seven numbered scripts that reproduce the paper's main results. Every script reads a JSON config and writes its outputs under `--output-dir`. Inputs come from HuggingFace (`codezakh/gpu-forecasters-*`); nothing needs to be downloaded by hand.
 
-Verify the plumbing against the real backends with `--debug` (clamps to one row, one repeat, one search step):
+Every script accepts `--debug` for a fast test run:
 
 ```bash
 uv run python runbook/01_score_baseline.py \
@@ -43,7 +43,7 @@ uv run python runbook/01_score_baseline.py \
     --debug
 ```
 
-Drop `--debug` for a full reproduction. Per-script docs, debug semantics, and how to chain `02 → 03` for a trained surrogate are in [`runbook/README.md`](runbook/README.md).
+Remove `--debug` for the full run. See [`runbook/README.md`](runbook/README.md) for details on each script.
 
 ## Citation
 
