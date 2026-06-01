@@ -1,0 +1,14 @@
+{
+    "surrogate_label": "gemini3_pro",
+    "backend": {
+        "kind": "litellm",
+        "model_slug": "gemini/gemini-3-pro-preview",
+        "temperature": 1.0,
+        "max_tokens": 32000,
+        "request_timeout_s": 900.0,
+        "num_retries": 4
+    },
+    "benchmark_families": ["gpu_mode", "kernelbench_l3"],
+    "n_repeats": 3,
+    "max_concurrency": 8
+}

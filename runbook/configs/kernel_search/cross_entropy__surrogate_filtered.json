@@ -1,0 +1,27 @@
+{
+    "pack": "cross_entropy",
+    "mode": {
+        "kind": "surrogate_filtered",
+        "surrogate": {
+            "kind": "tinker",
+            "base_model": "openai/gpt-oss-20b",
+            "renderer_name": "gpt_oss_medium_reasoning",
+            "temperature": 1.0,
+            "max_tokens": 16384
+        },
+        "max_retries": 1
+    },
+    "total_budget_steps": 40,
+    "batch_size": 2,
+    "samples_per_parent": 16,
+    "k_per_parent": 4,
+    "archive_capacity": 1000,
+    "c_puct": 1.0,
+    "mutator_model_slug": "gemini/gemini-3-flash-preview",
+    "max_llm_concurrency": 8,
+    "request_timeout_s": 900.0,
+    "hardware": {
+        "gpu": "A100-80GB"
+    },
+    "aggregator": "geomean"
+}

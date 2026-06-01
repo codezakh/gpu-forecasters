@@ -1,0 +1,16 @@
+{
+    "base_model": "openai/gpt-oss-20b",
+    "renderer_name": "gpt_oss_medium_reasoning",
+    "learning_rate": 4e-5,
+    "group_size": 8,
+    "groups_per_batch": 8,
+    "num_iters": 20,
+    "save_every": 5,
+    "max_tokens": 8192,
+    "lora_rank": 32,
+    "temperature": 1.0,
+    "reward": {
+        "kind": "correctness_brier",
+        "brier_weight": 1.0
+    }
+}

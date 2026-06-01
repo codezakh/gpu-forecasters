@@ -1,0 +1,20 @@
+{
+    "figures": [
+        "tab1_headline",
+        "fig1_calibration",
+        "fig2_forecast_error",
+        "fig3_per_pack",
+        "fig4_kernel_search",
+        "fig5_discovery_precision_recall",
+        "throughput"
+    ],
+    "surrogates": [
+        "gemini3_flash",
+        "gpt_oss_120b",
+        "gpt_oss_20b_untrained",
+        "deepseek_v4",
+        "trained_correctness",
+        "trained_correctness_brier",
+        "trained_correctness_crps"
+    ]
+}

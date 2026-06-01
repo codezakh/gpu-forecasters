@@ -1,0 +1,9 @@
+{
+    "surrogate_label": "trained_correctness",
+    "base_model": "openai/gpt-oss-20b",
+    "renderer_name": "gpt_oss_medium_reasoning",
+    "temperature": 1.0,
+    "max_tokens": 16384,
+    "n_repeats": 3,
+    "max_concurrency": 8
+}

@@ -1,0 +1,84 @@
+{
+    "datasets": {
+        "eval_set": {
+            "hf_id": "codezakh/gpu-forecasters-eval-set",
+            "revision": "main",
+            "configs": [
+                "trimul",
+                "cross_entropy",
+                "gdn_chunk_fwd_h",
+                "gdn_chunk_fwd_o",
+                "gdn_recompute_w_u",
+                "fp8_quant",
+                "combined"
+            ],
+            "split": "eval",
+            "purpose": "Canonical 424-row held-out eval set used by 01, 03, and 06."
+        },
+        "eval_set_predictions": {
+            "hf_id": "codezakh/gpu-forecasters-eval-set-predictions",
+            "revision": "main",
+            "configs": [
+                "gemini3_flash",
+                "gpt_oss_120b",
+                "gpt_oss_20b_untrained",
+                "deepseek_v4",
+                "trained_correctness",
+                "trained_correctness_brier",
+                "trained_correctness_crps",
+                "combined"
+            ],
+            "split": "predictions",
+            "purpose": "Pre-computed forecasts on the eval set; lets 06 regenerate figures with no LLM calls."
+        },
+        "rl_training_pool": {
+            "hf_id": "codezakh/gpu-forecasters-rl-training-pool",
+            "revision": "main",
+            "configs": [
+                "trimul",
+                "cross_entropy",
+                "gdn_chunk_fwd_h",
+                "gdn_recompute_w_u",
+                "fp8_quant",
+                "combined"
+            ],
+            "split": "train",
+            "purpose": "GPT-OSS-20B (anchor, candidate) pairs consumed by 02_train_surrogate.py."
+        },
+        "discovery_pairs": {
+            "hf_id": "codezakh/gpu-forecasters-discovery-pairs",
+            "revision": "main",
+            "configs": ["gpu_mode", "kernelbench_l3", "combined"],
+            "split": "pairs",
+            "purpose": "Parent-child kernel pairs used by 05_score_discovery.py and the §4.5 figure."
+        },
+        "puct_search_events": {
+            "hf_id": "codezakh/gpu-forecasters-puct-search-events",
+            "revision": "main",
+            "configs": "one-per-source-search; see HF dataset card for full list",
+            "split": "events",
+            "summaries_config": "_summaries",
+            "purpose": "Raw events.jsonl from upstream PUCT searches; provenance + replay only."
+        }
+    },
+    "models": {
+        "trained_correctness": {
+            "hf_id": "codezakh/gpu-forecasters-gpt-oss-20b-correctness",
+            "revision": "main",
+            "base_model": "openai/gpt-oss-20b",
+            "purpose": "LoRA adapter trained with binary-correctness reward (e0158)."
+        },
+        "trained_correctness_brier": {
+            "hf_id": "codezakh/gpu-forecasters-gpt-oss-20b-correctness-brier",
+            "revision": "main",
+            "base_model": "openai/gpt-oss-20b",
+            "purpose": "LoRA adapter trained with correctness + Brier reward (e0159)."
+        },
+        "trained_correctness_crps": {
+            "hf_id": "codezakh/gpu-forecasters-gpt-oss-20b-correctness-crps",
+            "revision": "main",
+            "base_model": "openai/gpt-oss-20b",
+            "purpose": "LoRA adapter trained with correctness + CRPS reward (e0160)."
+        }
+    }
+}
