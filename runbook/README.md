@@ -14,13 +14,13 @@ Install per the top-level [README](../README.md), populate `.env` with the keys 
 
 ```bash
 # Confirm plumbing works against the real backends:
-uv run uv run python runbook/01_score_baseline.py \
+uv run --env-file .env python runbook/01_score_baseline.py \
     --config runbook/configs/baseline_scoring/gemini3_flash.json \
     --output-dir runbook_output/01_smoke/ \
     --debug
 
 # Reproduce a full paper cell (this one ≈ 4 hours on the canonical eval set):
-uv run uv run python runbook/01_score_baseline.py \
+uv run --env-file .env python runbook/01_score_baseline.py \
     --config runbook/configs/baseline_scoring/gemini3_flash.json \
     --output-dir runbook_output/01_gemini3_flash/
 ```
@@ -36,12 +36,12 @@ chain `02 → 03`:
 ```bash
 # Train a correctness-reward surrogate. Writes training_artifact.json
 # with a tinker://... URI inside it.
-uv run python runbook/02_train_surrogate.py \
+uv run --env-file .env python runbook/02_train_surrogate.py \
     --config runbook/configs/training/correctness.json \
     --output-dir runbook_output/02_correctness/
 
 # Score it. --training-artifact is the URI carrier.
-uv run python runbook/03_score_trained.py \
+uv run --env-file .env python runbook/03_score_trained.py \
     --config runbook/configs/trained_scoring/correctness.json \
     --training-artifact runbook_output/02_correctness/training_artifact.json \
     --output-dir runbook_output/03_correctness/
@@ -50,7 +50,7 @@ uv run python runbook/03_score_trained.py \
 Same pattern for the §4.4 surrogate-filtered kernel search:
 
 ```bash
-uv run python runbook/04_kernel_search.py \
+uv run --env-file .env python runbook/04_kernel_search.py \
     --config runbook/configs/kernel_search/trimul__surrogate_filtered.json \
     --surrogate-training-artifact runbook_output/02_correctness/training_artifact.json \
     --output-dir runbook_output/04_trimul_surrogate/

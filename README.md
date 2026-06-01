@@ -14,14 +14,6 @@ If you already cloned without `--recurse-submodules`, run `git submodule update 
 
 Requires Python 3.13+ and a Linux machine with CUDA drivers.
 
-## Verifying install
-
-```bash
-uv run pytest
-```
-
-Tests that need Modal or a CUDA GPU are excluded by default. This command does not need any API keys to run.
-
 ## API keys
 
 The runbook scripts call Modal, Tinker, and various LLM providers. Put the keys you have in a `.env` file at the repo root:
@@ -38,6 +30,14 @@ HF_TOKEN=...              # read the published artifacts on HuggingFace
 
 You only need keys for services you actually use. The per-script breakdown is in [`runbook/README.md`](runbook/README.md).
 
+## Verifying install
+
+```bash
+uv run --env-file .env pytest
+```
+
+Tests that need Modal or a CUDA GPU are excluded by default. No API keys required, but the `.env` file must exist (an empty one is fine).
+
 ## Running the runbook
 
 `runbook/` has seven numbered scripts that reproduce the paper's main results. Every script reads a JSON config and writes its outputs under `--output-dir`. Inputs come from HuggingFace. Nothing needs to be downloaded by hand.
@@ -45,7 +45,7 @@ You only need keys for services you actually use. The per-script breakdown is in
 Every script accepts `--debug` for a fast test run:
 
 ```bash
-uv run python runbook/01_score_baseline.py \
+uv run --env-file .env python runbook/01_score_baseline.py \
     --config runbook/configs/baseline_scoring/gemini3_flash.json \
     --output-dir runbook_output/01_smoke/ \
     --debug
